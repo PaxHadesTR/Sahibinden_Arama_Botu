@@ -1,9 +1,38 @@
+# Python Bytecode & Cache
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+*.so
+
+# Environment & Secrets
 .env
+.env.local
+.env.*.local
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# SQLite Database & Storage
 data/
+*.db
+*.db-shm
+*.db-wal
 browser_profile/
+
+# Testing & Coverage
 .pytest_cache/
 .coverage
+htmlcov/
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+
+# Mesh & Assistant Artifacts
 Antigravity_Autonomous_Mesh_Universal.xml

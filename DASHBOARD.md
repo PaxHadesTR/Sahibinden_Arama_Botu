@@ -36,7 +36,8 @@
   - [x] Configurable via `USE_WARP`, `WARP_HOST`, `WARP_PORT`, and `DISCORD_PROXY_URL` in `.env`
   - [x] Method A (WSL Host `warp-cli` + `network_mode: host`) actively applied as default in `docker-compose.yml` and `.env`
 - [x] Automated Test Suite: 33/33 tests passing green (`tests/`)
-- [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`) fully updated
+- [x] Public Repository Format: MIT License, hardened `.gitignore`, zero secrets tracked, Coolify Public Repo guide
+- [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`) fully updated and expanded
 
 ## Kanban Board
 
