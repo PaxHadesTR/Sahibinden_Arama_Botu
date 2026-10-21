@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+data/
+browser_profile/
+.pytest_cache/
+.coverage
+Antigravity_Autonomous_Mesh_Universal.xml

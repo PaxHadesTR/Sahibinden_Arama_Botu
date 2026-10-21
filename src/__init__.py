@@ -1,0 +1,1 @@
+"""Sahibinden Discord Bot package."""
