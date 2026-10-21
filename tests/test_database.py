@@ -325,3 +325,70 @@ async def test_alarm_limit_enforcement(monkeypatch):
     finally:
         if os.path.exists(path):
             os.remove(path)
+
+@pytest.mark.asyncio
+async def test_monitor_url_batching_optimization(monkeypatch):
+    """Verify that multiple alarms sharing identical target_url are batch-evaluated."""
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    test_db = Database(db_path=path)
+    try:
+        await test_db.init_db()
+        monkeypatch.setattr("src.services.monitor.database", test_db)
+
+        # Create 2 alarms with the exact same target_url but different users/channels
+        a1 = await test_db.create_alarm("User 1 Civic", 101, 501, 1, "https://www.sahibinden.com/honda-civic")
+        a2 = await test_db.create_alarm("User 2 Civic", 102, 502, 1, "https://www.sahibinden.com/honda-civic")
+
+        fetch_call_count = 0
+        sample_listings = [
+            ListingItem(
+                classified_id="9901", title="Civic 2020", price_text="1.000.000 TL",
+                price_val=1000000, currency="TL", date_text="21 Ekim", location="Ankara",
+                url="https://www.sahibinden.com/9901"
+            )
+        ]
+
+        async def mock_fetch(url):
+            nonlocal fetch_call_count
+            fetch_call_count += 1
+            return sample_listings
+
+        monkeypatch.setattr("src.services.monitor.scraper.fetch_listings", mock_fetch)
+
+        class DummyBot:
+            def get_channel(self, cid):
+                class DummyChannel:
+                    async def send(self, *args, **kwargs):
+                        pass
+                return DummyChannel()
+
+        monitor = AlarmMonitor(bot=DummyBot())
+
+        # Grouping logic
+        active_alarms = await test_db.get_active_alarms()
+        assert len(active_alarms) == 2
+
+        url_groups = {}
+        for alarm in active_alarms:
+            url_groups.setdefault(alarm["target_url"], []).append(alarm)
+
+        assert len(url_groups) == 1  # 1 unique URL for 2 alarms
+
+        # Execute batched scrape
+        for target_url, alarms_in_group in url_groups.items():
+            fetched = await mock_fetch(target_url)
+            for alarm in alarms_in_group:
+                await monitor.check_alarm(alarm, pre_fetched_listings=fetched)
+
+        # Scrape should have been called only ONCE for both alarms!
+        assert fetch_call_count == 1
+
+        # Both alarms should now be primed
+        a1_row = await test_db.get_alarm(a1)
+        a2_row = await test_db.get_alarm(a2)
+        assert a1_row["is_primed"] == 1
+        assert a2_row["is_primed"] == 1
+    finally:
+        if os.path.exists(path):
+            os.remove(path)

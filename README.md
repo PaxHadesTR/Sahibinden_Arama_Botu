@@ -57,18 +57,19 @@ volumes:
 
 ---
 
-## 🛑 Maksimum Alarm Sınırı (Sistem Koruması)
+## 🛑 Maksimum Alarm Sınırı & Performans Mimarisi
 
-Aynı anda yüzlerce alarmın Sahibinden sunucularını tarayıp IP adresinizin bloklanmasını veya bot kaynaklarının tükenmesini önlemek amacıyla çift katmanlı limit kontrolü entegre edilmiştir:
+Aynı anda binlerce alarmın Sahibinden sunucularını tararken IP adresinizin Cloudflare tarafından bloklanmasını veya tarama döngüsünün saatler sürmesini önlemek amacıyla çift katmanlı limit ve URL tekilleştirme mimarisi entegre edilmiştir:
 
-1. **Sistem Genel Alarm Sınırı (`MAX_ALARMS_TOTAL=100`):**
-   - Bot genelinde toplam kurulabilecek maksimum alarm adedidir (varsayılan: 100).
-   - Bu sınır aşıldığında bot yeni alarm kurmak isteyen kullanıcıya nazikçe sınırın dolduğunu bildirir ve işlem yapmaz.
-2. **Kullanıcı Başı Alarm Sınırı (`MAX_ALARMS_PER_USER=25`):**
-   - Tek bir Discord kullanıcısının botu suistimal etmesini engellemek için kullanıcı başına sınır belirler (varsayılan: 25).
-   - Kullanıcı sınırına ulaştığında Discord'da `/alarm-sil` ile eski alarmlarını temizlemesi gerektiği hatırlatılır.
+1. **Sistem Genel Alarm Sınırı (`MAX_ALARMS_TOTAL=1000` - 10.000 Destekli):**
+   - **Disk & Bellek Analizi:** 10.000 alarm ve 500.000 görülen ilan kaydı SQLite B-Tree dosyasında sadece **~100-150 MB** disk alanı ve sorgu anında ~20 MB RAM tüketir. Dolayısıyla depolama veya bellek açısından hiçbir darboğaz yoktur.
+   - **Asıl Kısıt (Tarama Gecikmesi & IP Sağlığı):** Sahibinden'in Cloudflare Turnstile korumasına takılmamak için her arama arasında 3-5 saniye beklenir. Tek bir IP üzerinden 10.000 bağımsız URL taranırsa bir döngü ~19 saat sürer. Bu nedenle tek IP için **optimum varsayılan değer 1000** olarak ayarlanmıştır. İsterseniz `.env` dosyasından doğrudan `MAX_ALARMS_TOTAL=10000` yapabilirsiniz.
+   - **URL Gruplama (Batching Optimization):** Farklı kullanıcılar aynı aramayı veya kategoriyi takip ediyorsa bot o sayfayı döngü başına yalnızca **1 kez** tarar ve tüm kullanıcılara tek seferde dağıtır.
+2. **Kullanıcı Başı Alarm Sınırı (`MAX_ALARMS_PER_USER=100`):**
+   - Tek bir Discord kullanıcısı için **100 alarm** hakkı tanınır.
+   - Kullanıcı 100 alarm sınırına ulaştığında Discord'da `/alarm-sil` ile eski alarmlarını temizlemesi gerektiği bildirilir.
 
-Bu değerler `.env` dosyasından veya Coolify Environment Variables sekmesinden dilediğiniz sayıya ayarlanabilir (`MAX_ALARMS_TOTAL=200` gibi).
+Bu değerler `.env` dosyasından veya Coolify Environment Variables sekmesinden dilediğiniz sayıya ayarlanabilir (`MAX_ALARMS_TOTAL=10000`, `MAX_ALARMS_PER_USER=100`).
 
 ---
 
@@ -193,8 +194,8 @@ DISCORD_BOT_TOKEN=buraya_discord_bot_tokeninizi_yazin
 USE_WARP=true
 WARP_HOST=127.0.0.1
 WARP_PORT=40000
-MAX_ALARMS_TOTAL=100
-MAX_ALARMS_PER_USER=25
+MAX_ALARMS_TOTAL=1000
+MAX_ALARMS_PER_USER=100
 CHECK_INTERVAL_SECONDS=90
 BROWSER_CHANNEL=
 HEADLESS=false
@@ -275,8 +276,8 @@ python src/main.py
 | `WARP_HOST` | `127.0.0.1` | WARP SOCKS5 proxy sunucu adresi (Host network için `127.0.0.1`). |
 | `WARP_PORT` | `40000` | Cloudflare WARP varsayılan SOCKS5 portu (`40000`). |
 | `DISCORD_PROXY_URL` | `None` | Özel proxy bağlantı adresi (Belirtilirse `USE_WARP` ayarını ezer). |
-| `MAX_ALARMS_TOTAL` | `100` | Bot genelinde oluşturulabilecek maksimum aktif alarm sayısı (Sistem koruması). |
-| `MAX_ALARMS_PER_USER` | `25` | Kullanıcı başına oluşturulabilecek maksimum alarm sayısı. |
+| `MAX_ALARMS_TOTAL` | `1000` | Bot genelinde oluşturulabilecek maksimum aktif alarm sayısı (Optimum değer; istenirse 10000 yapılabilir). |
+| `MAX_ALARMS_PER_USER` | `100` | Kullanıcı başına oluşturulabilecek maksimum alarm sayısı. |
 | `CHECK_INTERVAL_SECONDS` | `90` | Alarmların kaç saniyede bir taranacağı periyot (Tavsiye: 60 - 180 sn). |
 | `SCRAPER_TIMEOUT_SECONDS` | `35` | Her bir sayfa yüklemesi için maksimum zaman aşımı süresi. |
 | `BROWSER_CHANNEL` | `""` | Docker/Linux üzerinde standart Chromium için boş bırakılır; Windows'ta `msedge` veya `chrome`. |

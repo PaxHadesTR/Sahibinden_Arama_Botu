@@ -45,13 +45,25 @@ class AlarmMonitor:
                 active_alarms = await database.get_active_alarms()
                 logger.info(f"Checking {len(active_alarms)} active alarms...")
 
+                # Group alarms by target_url to avoid redundant scrapes for identical searches
+                url_groups: dict[str, list[dict[str, Any]]] = {}
                 for alarm in active_alarms:
+                    url_groups.setdefault(alarm["target_url"], []).append(alarm)
+
+                for target_url, alarms_in_group in url_groups.items():
                     if not self._running:
                         break
                     try:
-                        await self.check_alarm(alarm)
+                        fetched = await scraper.fetch_listings(target_url)
+                        for alarm in alarms_in_group:
+                            if not self._running:
+                                break
+                            try:
+                                await self.check_alarm(alarm, pre_fetched_listings=fetched)
+                            except Exception as e:
+                                logger.error(f"Error checking alarm #{alarm['id']} ({alarm['name']}): {e}", exc_info=True)
                     except Exception as e:
-                        logger.error(f"Error checking alarm #{alarm['id']} ({alarm['name']}): {e}", exc_info=True)
+                        logger.error(f"Error fetching URL {target_url} for {len(alarms_in_group)} alarms: {e}", exc_info=True)
 
                     # Inter-alarm delay to avoid rate limits
                     await asyncio.sleep(4)
@@ -97,7 +109,11 @@ class AlarmMonitor:
                 channel = None
         return channel
 
-    async def check_alarm(self, alarm: dict[str, Any]) -> list[ListingItem]:
+    async def check_alarm(
+        self,
+        alarm: dict[str, Any],
+        pre_fetched_listings: list[ListingItem] | None = None
+    ) -> list[ListingItem]:
         """Scrapes an alarm URL, baselines if unprimed, and dispatches new or price-dropped listings."""
         alarm_id = alarm["id"]
         target_url = alarm["target_url"]
@@ -105,7 +121,10 @@ class AlarmMonitor:
         user_id = alarm["user_id"]
         is_primed = bool(alarm.get("is_primed", 0))
 
-        listings = await scraper.fetch_listings(target_url)
+        if pre_fetched_listings is not None:
+            listings = pre_fetched_listings
+        else:
+            listings = await scraper.fetch_listings(target_url)
         if not listings:
             await database.update_last_checked(alarm_id)
             return []
