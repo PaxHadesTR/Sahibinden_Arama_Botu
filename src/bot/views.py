@@ -94,6 +94,11 @@ class SpecFilterModal(Modal):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
+        allowed, reason = await database.check_alarm_limits(interaction.user.id)
+        if not allowed:
+            await interaction.followup.send(reason, ephemeral=True)
+            return
+
         try:
             min_price = self._parse_optional_int(self.min_price_input.value)
             max_price = self._parse_optional_int(self.max_price_input.value)
@@ -216,6 +221,11 @@ class UniversalCategorySelectView(View):
         self.add_item(self.category_select)
 
     async def on_category_selected(self, interaction: discord.Interaction):
+        allowed, reason = await database.check_alarm_limits(interaction.user.id)
+        if not allowed:
+            await interaction.response.send_message(reason, ephemeral=True)
+            return
+
         selected = self.category_select.values[0]
 
         if "ram" in selected:

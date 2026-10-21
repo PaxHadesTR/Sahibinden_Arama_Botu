@@ -273,3 +273,55 @@ async def test_monitor_end_to_end_unprimed_and_dispatch(monkeypatch):
     finally:
         if os.path.exists(path):
             os.remove(path)
+
+@pytest.mark.asyncio
+async def test_alarm_limit_enforcement(monkeypatch):
+    """Verify that global and per-user alarm limits are strictly enforced."""
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    db = Database(db_path=path)
+    try:
+        await db.init_db()
+
+        # Set limits: max total 3, max per user 2
+        monkeypatch.setattr("src.config.settings.MAX_ALARMS_TOTAL", 3)
+        monkeypatch.setattr("src.config.settings.MAX_ALARMS_PER_USER", 2)
+
+        # User A creates 2 alarms (should succeed)
+        a1 = await db.create_alarm("Alarm A1", 100, 1, 1, "https://www.sahibinden.com/test1")
+        a2 = await db.create_alarm("Alarm A2", 100, 1, 1, "https://www.sahibinden.com/test2")
+        assert a1 > 0 and a2 > 0
+
+        # User A attempts 3rd alarm -> exceeds per-user limit
+        allowed, reason = await db.check_alarm_limits(100)
+        assert allowed is False
+        assert "Kullanıcı başına" in reason
+
+        with pytest.raises(ValueError, match="Kullanıcı başına"):
+            await db.create_alarm("Alarm A3", 100, 1, 1, "https://www.sahibinden.com/test3")
+
+        # User B creates 1 alarm (total becomes 3 -> reaches global limit)
+        b1 = await db.create_alarm("Alarm B1", 200, 1, 1, "https://www.sahibinden.com/test4")
+        assert b1 > 0
+        assert await db.get_total_alarms_count() == 3
+
+        # User B attempts another alarm -> exceeds global total limit
+        allowed, reason = await db.check_alarm_limits(200)
+        assert allowed is False
+        assert "genel maksimum alarm sınırına" in reason
+
+        with pytest.raises(ValueError, match="genel maksimum alarm"):
+            await db.create_alarm("Alarm B2", 200, 1, 1, "https://www.sahibinden.com/test5")
+
+        # Delete an alarm -> slot frees up
+        await db.delete_alarm(a1, user_id=100)
+        assert await db.get_total_alarms_count() == 2
+
+        # User B can now create an alarm
+        allowed, reason = await db.check_alarm_limits(200)
+        assert allowed is True
+        b2 = await db.create_alarm("Alarm B2", 200, 1, 1, "https://www.sahibinden.com/test5")
+        assert b2 > 0
+    finally:
+        if os.path.exists(path):
+            os.remove(path)

@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # Database
     DATABASE_PATH: str = str(BASE_DIR / "data" / "sahibinden_bot.db")
 
+    # Alarm Creation Limits
+    MAX_ALARMS_TOTAL: int = 100  # Global limit on total alarms in the bot
+    MAX_ALARMS_PER_USER: int | None = 25  # Limit per Discord user (set None or 0 to disable)
+
     # Anti-bot Jitter
     MIN_JITTER_SECONDS: float = 3.0
     MAX_JITTER_SECONDS: float = 8.0

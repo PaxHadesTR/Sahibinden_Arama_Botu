@@ -64,6 +64,11 @@ class AlarmCog(commands.Cog):
         """Universal site-wide search with auto-inferred category routing."""
         await interaction.response.defer(ephemeral=True)
 
+        allowed, reason = await database.check_alarm_limits(interaction.user.id)
+        if not allowed:
+            await interaction.followup.send(reason, ephemeral=True)
+            return
+
         if (min_fiyat is not None and min_fiyat < 0) or (max_fiyat is not None and max_fiyat < 0):
             await interaction.followup.send("❌ Fiyat değerleri negatif olamaz.", ephemeral=True)
             return
@@ -153,6 +158,11 @@ class AlarmCog(commands.Cog):
         """Monitors any Sahibinden search results URL verbatim."""
         await interaction.response.defer(ephemeral=True)
 
+        allowed, reason = await database.check_alarm_limits(interaction.user.id)
+        if not allowed:
+            await interaction.followup.send(reason, ephemeral=True)
+            return
+
         try:
             sanitized_url = SahibindenURLBuilder.sanitize_user_url(url)
         except ValueError as e:
@@ -209,6 +219,11 @@ class AlarmCog(commands.Cog):
     @app_commands.autocomplete(kategori=category_autocomplete)
     async def alarm_kur(self, interaction: discord.Interaction, kategori: str | None = None):
         """Interactive setup wizard with autocomplete and visual fallback."""
+        allowed, reason = await database.check_alarm_limits(interaction.user.id)
+        if not allowed:
+            await interaction.response.send_message(reason, ephemeral=True)
+            return
+
         if not kategori:
             view = UniversalCategorySelectView()
             embed = discord.Embed(
@@ -269,6 +284,11 @@ class AlarmCog(commands.Cog):
         alarm_adi: str | None = None,
     ):
         await interaction.response.defer(ephemeral=True)
+
+        allowed, reason = await database.check_alarm_limits(interaction.user.id)
+        if not allowed:
+            await interaction.followup.send(reason, ephemeral=True)
+            return
 
         if (min_fiyat is not None and min_fiyat < 0) or (max_fiyat is not None and max_fiyat < 0):
             await interaction.followup.send("❌ Fiyat değerleri negatif olamaz.", ephemeral=True)

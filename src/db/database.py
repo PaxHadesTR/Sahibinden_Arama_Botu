@@ -70,6 +70,44 @@ class Database:
             await db.execute("CREATE INDEX IF NOT EXISTS idx_alarms_active ON alarms(is_active);")
             await db.commit()
 
+    async def get_total_alarms_count(self) -> int:
+        """Returns the total number of alarms across the database."""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("SELECT COUNT(*) FROM alarms") as cursor:
+                row = await cursor.fetchone()
+                return int(row[0]) if row else 0
+
+    async def get_user_alarms_count(self, user_id: int) -> int:
+        """Returns the total number of alarms for a specific user."""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("SELECT COUNT(*) FROM alarms WHERE user_id = ?", (user_id,)) as cursor:
+                row = await cursor.fetchone()
+                return int(row[0]) if row else 0
+
+    async def check_alarm_limits(self, user_id: int) -> tuple[bool, str | None]:
+        """
+        Validates if a new alarm can be created against global and user limits.
+        Returns (True, None) if permitted, or (False, error_message) if limit reached.
+        """
+        total_count = await self.get_total_alarms_count()
+        if settings.MAX_ALARMS_TOTAL and total_count >= settings.MAX_ALARMS_TOTAL:
+            return (
+                False,
+                f"❌ Bot genel maksimum alarm sınırına ({settings.MAX_ALARMS_TOTAL}) ulaşıldı! "
+                f"Yeni alarm oluşturabilmek için lütfen `/alarm-sil` komutuyla kullanılmayan alarmları silin."
+            )
+
+        if settings.MAX_ALARMS_PER_USER:
+            user_count = await self.get_user_alarms_count(user_id)
+            if user_count >= settings.MAX_ALARMS_PER_USER:
+                return (
+                    False,
+                    f"❌ Kullanıcı başına izin verilen maksimum alarm sınırına ({settings.MAX_ALARMS_PER_USER}) ulaştınız! "
+                    f"Mevcut alarmlarınızı görmek için `/alarmlarim`, silmek için `/alarm-sil` kullanabilirsiniz."
+                )
+
+        return True, None
+
     async def create_alarm(
         self,
         name: str,
@@ -80,6 +118,10 @@ class Database:
         filters: dict[str, Any] | None = None
     ) -> int:
         """Creates a new alarm (initially unprimed) and returns its ID."""
+        allowed, reason = await self.check_alarm_limits(user_id)
+        if not allowed:
+            raise ValueError(reason or "Alarm limit reached")
+
         filters_str = json.dumps(filters or {}, ensure_ascii=False)
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
