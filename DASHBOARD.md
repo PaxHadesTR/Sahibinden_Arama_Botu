@@ -4,9 +4,9 @@
 - **Mode**: BUILD_AND_ITERATE_MODE
 - **Status**: COMPLETE & HARDENED
 - **Last Sync**: 2026-10-21
-- **Tech Stack**: Python 3.15, `discord.py` 2.7, `playwright`, `BeautifulSoup4`, `aiosqlite`, `pydantic`
+- **Tech Stack**: Python 3.12 / 3.15, `discord.py` 2.7, `aiohttp-socks`, `playwright`, `BeautifulSoup4`, `aiosqlite`, `pydantic`, Docker, Coolify, Xvfb, Cloudflare WARP
 
-## Current Stage: Full Audit, Bug Fixes & Enhancements Complete
+## Current Stage: Docker, Coolify & Cloudflare WARP Integration Complete
 - [x] Initial workspace reconnaissance and dependency check
 - [x] Root mesh artifacts initialized and synchronized (`DASHBOARD.md`, `DECISIONS.md`, `ASSUMPTIONS.md`)
 - [x] Anti-bot reverse engineering & live Sahibinden facet mapping
@@ -25,8 +25,18 @@
   - [x] Full 81 Turkish provinces catalog & city validation
   - [x] Defense-in-depth price post-filtering in `AlarmMonitor`
   - [x] Self-healing browser context recovery & `PROXY_URL` wiring in `StealthScraper`
-- [x] Automated Test Suite: 28/28 tests passing green (`tests/`)
-- [x] Documentation (`README.md`) updated
+- [x] Docker, WSL & Coolify Deployment Stack:
+  - [x] `Dockerfile` based on `python:3.12-slim-bookworm` with Playwright Chromium & Xvfb virtual display
+  - [x] `entrypoint.sh` with process signal handling and virtual framebuffer management
+  - [x] `docker-compose.yml` with `shm_size: 1gb`, persistent volume `bot_data`, and multi-mode network support
+  - [x] `.dockerignore` for minimal image footprint
+- [x] Cloudflare WARP Integration for Turkey (BTK Discord Ban Evasion):
+  - [x] `aiohttp-socks` integration for `discord.py` SOCKS5 proxying
+  - [x] Strict dual-channel network isolation: Discord traffic over WARP, Sahibinden scraping direct on local Turkish IP
+  - [x] Configurable via `USE_WARP`, `WARP_HOST`, `WARP_PORT`, and `DISCORD_PROXY_URL` in `.env`
+  - [x] Support for both WSL host-level `warp-cli` and embedded Docker `caomingjun/warp` sidecar
+- [x] Automated Test Suite: 33/33 tests passing green (`tests/`)
+- [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`) fully updated
 
 ## Kanban Board
 
@@ -37,4 +47,6 @@
 - Specificity-sorted category & alias resolver with 81 cities (`src/catalog/resolver.py`, `src/catalog/categories.json`)
 - Universal URL builder with mobile, angle-bracket & pagination sanitization (`src/services/url_builder.py`)
 - Discord slash command suite & interactive views (`src/bot/cogs/alarms.py`, `src/bot/views.py`)
-- Adversarial & E2E test suite (`tests/test_database.py`, `tests/test_resolver.py`, `tests/test_parser.py`, `tests/test_url_builder.py`, `tests/test_three_methods.py`)
+- Cloudflare WARP SOCKS5 proxy engine for Discord in Turkey (`src/config.py`, `src/bot/client.py`)
+- Docker containerization with Xvfb virtual display for Linux/Coolify (`Dockerfile`, `entrypoint.sh`, `docker-compose.yml`)
+- Adversarial & E2E test suite (`tests/`) - 33 tests passing

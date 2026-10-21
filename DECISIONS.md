@@ -44,3 +44,26 @@
   - Unprimed alarms (`is_primed = 0`) are automatically baselined on the first successful monitor poll without sending notifications.
   - Already-seen listings whose `price_val` drops strictly below the stored `price_val` trigger a dedicated `📉 Fiyat Düştü!` embed and update the stored price idempotently.
   - Defense-in-depth post-filtering in `AlarmMonitor` validates `price_val` against `min_fiyat`/`max_fiyat` before dispatching.
+
+## ADR-005: Cloudflare WARP SOCKS5 Proxy Integration & Isolated Traffic Routing
+- **Status**: Accepted
+- **Date**: 2026-10-21
+- **Context**: In Turkey and countries subject to national ISP blocks on Discord (BTK censorship), the Discord API and Gateway connections fail. Concurrently, Sahibinden.com employs aggressive Akamai/Cloudflare defenses that block non-Turkish and datacenter egress IPs (including WARP egress IPs).
+- **Decision**: Implement strictly separated dual-channel network routing:
+  1. Discord Gateway & REST API: Configured via `discord.py`'s `proxy` parameter leveraging `aiohttp-socks`. When `USE_WARP=True` or `DISCORD_PROXY_URL` is set, Discord traffic routes exclusively through SOCKS5 (`socks5://{WARP_HOST}:{WARP_PORT}`).
+  2. Sahibinden Scraping: Completely bypassed from the WARP proxy, running direct on the local Turkish residential IP (or via an explicitly configured residential `PROXY_URL`).
+- **Consequences**:
+  - The bot connects reliably to Discord from Turkey while evading Sahibinden's foreign/datacenter IP blocks.
+
+## ADR-006: Headless Linux Virtual Display (Xvfb) & Coolify Docker Architecture
+- **Status**: Accepted
+- **Date**: 2026-10-21
+- **Context**: Deploying on Coolify / WSL / Docker under Linux faces two challenges:
+  1. Running Chromium in standard `headless=True` mode on Linux triggers Cloudflare Turnstile blocks on Sahibinden.
+  2. Standard Docker containers default to 64MB `/dev/shm`, causing Chromium tab crashes (`TargetClosedError`).
+- **Decision**:
+  - Containerize using `python:3.12-slim-bookworm` with `playwright` dependencies.
+  - Run `Xvfb` (X Virtual Framebuffer) on display `:99` in `entrypoint.sh` with `DISPLAY=:99`.
+  - Launch Playwright with `headless=False` on the virtual framebuffer, effectively mimicking a genuine headful browser on physical hardware.
+  - Set `shm_size: "1gb"` in `docker-compose.yml` to prevent Chromium tab crashes.
+  - Persist `/app/data` (database and browser profile) in a named Docker volume.

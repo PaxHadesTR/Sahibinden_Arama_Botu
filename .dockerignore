@@ -1,0 +1,30 @@
+# Git & CI
+.git
+.github
+.gitignore
+
+# Python cache & virtual environment
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv/
+venv/
+ENV/
+
+# Development & Test files
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local database & browser profile data (managed via Docker volumes)
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Antigravity artifacts
+Antigravity_Autonomous_Mesh_Universal.xml
+*.log

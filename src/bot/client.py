@@ -14,8 +14,14 @@ class SahibindenBot(commands.Bot):
 
     def __init__(self):
         intents = discord.Intents.default()
-        super().__init__(command_prefix="!", intents=intents)
+        proxy = settings.get_discord_proxy()
+        super().__init__(command_prefix="!", intents=intents, proxy=proxy)
         self.monitor: AlarmMonitor | None = None
+
+        if proxy:
+            logger.info(f"Discord client initialized with proxy: {proxy}")
+        else:
+            logger.info("Discord client initialized with direct connection (no proxy).")
 
     async def setup_hook(self):
         """Loads cogs and syncs application slash commands."""
