@@ -1,8 +1,9 @@
-"""Tests for Sahibinden URL building and sanitization."""
+"""Tests for Sahibinden URL building, facet resolution, and redirect parameter recovery."""
 
 import pytest
 from urllib.parse import urlparse, parse_qs
 from src.services.url_builder import SahibindenURLBuilder
+from src.services.scraper import StealthScraper
 
 
 def test_build_url_with_ram_facets():
@@ -22,19 +23,58 @@ def test_build_url_with_ram_facets():
     assert parsed.path == "/ram-bellek-masaustu"
 
     qs = parse_qs(parsed.query)
-    # Check date sorting invariant
     assert qs.get("sorting") == ["date_desc"]
-    # Check DDR4 param ID
     assert qs.get("a3329") == ["1151866"]
-    # Check 16 GB param ID
     assert qs.get("a3332") == ["1168186"]
-    # Check price
     assert qs.get("price_min") == ["1000"]
     assert qs.get("price_max") == ["3000"]
-    # Check city code
     assert qs.get("address_city") == ["34"]
-    # Check text
     assert qs.get("query_text") == ["Corsair"]
+
+
+def test_build_url_laptop_ram_slug_and_key_facets():
+    """Verify Laptop RAM facets resolve properly whether passed by key ('ram-bellek-dizustu') or slug ('ram-bellek')."""
+    for identifier in ("ram-bellek-dizustu", "ram-bellek"):
+        url = SahibindenURLBuilder.build_url(
+            category_slug=identifier,
+            tipi="ddr4",
+            kapasite="16gb"
+        )
+        parsed = urlparse(url)
+        assert parsed.path == "/ram-bellek"
+        qs = parse_qs(parsed.query)
+        assert qs.get("a3329") == ["1151866"]
+        assert qs.get("a3332") == ["1168186"]
+
+
+def test_build_url_gpu_and_cpu_facets():
+    """Verify GPU chipset & VRAM and CPU brand facets map to their Sahibinden parameter IDs."""
+    gpu_url = SahibindenURLBuilder.build_url(
+        category_slug="ekran-karti-masaustu",
+        marka="nvidia",
+        kapasite="12 GB",
+        price_max=18000
+    )
+    gpu_qs = parse_qs(urlparse(gpu_url).query)
+    assert gpu_qs.get("a3345") == ["68145"]     # Nvidia chipset
+    assert gpu_qs.get("a3347") == ["1225091"]   # 12 GB VRAM
+
+    cpu_url = SahibindenURLBuilder.build_url(
+        category_slug="islemci-masaustu",
+        marka="AMD"
+    )
+    cpu_qs = parse_qs(urlparse(cpu_url).query)
+    assert cpu_qs.get("a3322") == ["67524"]     # AMD CPU
+
+
+def test_build_url_min_greater_than_max_raises():
+    """Verify invalid price range (min > max) raises ValueError."""
+    with pytest.raises(ValueError, match="büyük olamaz"):
+        SahibindenURLBuilder.build_url(
+            category_slug="otomobil",
+            price_min=900000,
+            price_max=500000
+        )
 
 
 def test_build_universal_search_url():
@@ -57,8 +97,8 @@ def test_build_universal_search_url():
 
 
 def test_sanitize_user_url():
-    """Verify user-provided URLs have sorting=date_desc enforced."""
-    raw = "https://www.sahibinden.com/ram-bellek?price_min=500&sorting=price_asc"
+    """Verify user-provided URLs (including angle-bracket wrapped) have sorting=date_desc enforced."""
+    raw = "<https://www.sahibinden.com/ram-bellek?price_min=500&sorting=price_asc>"
     sanitized = SahibindenURLBuilder.sanitize_user_url(raw)
 
     parsed = urlparse(sanitized)
@@ -68,6 +108,25 @@ def test_sanitize_user_url():
 
 
 def test_sanitize_invalid_domain_raises():
-    """Ensure non-sahibinden URLs are rejected."""
+    """Ensure non-sahibinden URLs (including spoofed subdomains) are rejected."""
     with pytest.raises(ValueError, match="sahibinden.com"):
         SahibindenURLBuilder.sanitize_user_url("https://www.google.com/search?q=ram")
+    with pytest.raises(ValueError, match="sahibinden.com"):
+        SahibindenURLBuilder.sanitize_user_url("https://fakesahibinden.com/ram-bellek")
+
+
+def test_merge_dropped_redirect_params():
+    """Verify redirect parameter recovery when /kelime-ile-arama redirects and drops price/sorting params."""
+    requested = "https://www.sahibinden.com/kelime-ile-arama?query_text=iphone+15&sorting=date_desc&price_min=30000&price_max=50000&address_city=34"
+    redirected = "https://www.sahibinden.com/cep-telefonu-aksesuar?query_textUnmodified=iphone+15&query_text=iphone+15"
+
+    merged = StealthScraper.merge_dropped_redirect_params(requested, redirected)
+    assert merged is not None
+    parsed = urlparse(merged)
+    assert parsed.path == "/cep-telefonu-aksesuar"
+    qs = parse_qs(parsed.query)
+    assert qs.get("sorting") == ["date_desc"]
+    assert qs.get("price_min") == ["30000"]
+    assert qs.get("price_max") == ["50000"]
+    assert qs.get("address_city") == ["34"]
+    assert qs.get("query_text") == ["iphone 15"]

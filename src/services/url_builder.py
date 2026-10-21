@@ -10,6 +10,19 @@ class SahibindenURLBuilder:
 
     BASE_URL = "https://www.sahibinden.com"
 
+    @staticmethod
+    def _match_facet_option(options: dict[str, str], user_val: str | None) -> str | None:
+        """Case-insensitive and whitespace-normalized option lookup in a facet dict."""
+        if not user_val:
+            return None
+        clean_val = user_val.strip().lower().replace(" ", "")
+        # Also handle numeric capacity shorthand like '16' -> '16gb'
+        for opt_label, opt_id in options.items():
+            clean_opt = opt_label.strip().lower().replace(" ", "")
+            if clean_val == clean_opt or (clean_val.isdigit() and f"{clean_val}gb" == clean_opt):
+                return opt_id
+        return None
+
     @classmethod
     def build_url(
         cls,
@@ -24,6 +37,10 @@ class SahibindenURLBuilder:
         extra_params: dict[str, Any] | None = None,
     ) -> str:
         """Builds a canonical search query URL with date_desc sorting."""
+        if price_min is not None and price_max is not None and price_min > 0 and price_max > 0:
+            if price_min > price_max:
+                raise ValueError("Minimum fiyat maksimum fiyattan büyük olamaz.")
+
         # Auto-infer specific category slug if generic search matches a known category
         target_slug = category_slug
         if target_slug in ("kelime-ile-arama", "genel-arama") and query_text:
@@ -31,16 +48,15 @@ class SahibindenURLBuilder:
             if inferred:
                 target_slug = inferred.get("slug", target_slug)
 
-        # In case the slug was passed as an alias or catalog key (e.g. 'genel-arama')
-        cat_info = resolver.categories.get(target_slug)
-        actual_slug = cat_info.get("slug", target_slug) if cat_info else target_slug
+        cat_data = resolver.get_category(target_slug)
+        actual_slug = cat_data.get("slug", target_slug) if cat_data else target_slug
 
         params: dict[str, Any] = {
             "sorting": "date_desc"  # CRITICAL: Always sort newest first
         }
 
         # Query text
-        if query_text:
+        if query_text and query_text.strip():
             params["query_text"] = query_text.strip()
 
         # Price range
@@ -55,30 +71,35 @@ class SahibindenURLBuilder:
             params["address_city"] = city_code
 
         # Category metadata lookup for facet parameter IDs
-        cat_data = resolver.categories.get(actual_slug) or cat_info
         if cat_data:
             facets = cat_data.get("facets", {})
 
-            # Tipi
-            if tipi and "tipi" in facets:
-                param_name = facets["tipi"]["param_name"]
-                opt_id = facets["tipi"]["options"].get(tipi)
-                if opt_id:
-                    params[param_name] = opt_id
+            # Tipi (or Chipset fallback if user passed GPU chipset in tipi)
+            if tipi:
+                for facet_key in ("tipi", "chipset"):
+                    if facet_key in facets:
+                        opt_id = cls._match_facet_option(facets[facet_key]["options"], tipi)
+                        if opt_id:
+                            params[facets[facet_key]["param_name"]] = opt_id
+                            break
 
-            # Kapasite
-            if kapasite and "kapasite" in facets:
-                param_name = facets["kapasite"]["param_name"]
-                opt_id = facets["kapasite"]["options"].get(kapasite)
-                if opt_id:
-                    params[param_name] = opt_id
+            # Kapasite (or Bellek for GPUs)
+            if kapasite:
+                for facet_key in ("kapasite", "bellek"):
+                    if facet_key in facets:
+                        opt_id = cls._match_facet_option(facets[facet_key]["options"], kapasite)
+                        if opt_id:
+                            params[facets[facet_key]["param_name"]] = opt_id
+                            break
 
-            # Marka
-            if marka and "marka" in facets:
-                param_name = facets["marka"]["param_name"]
-                opt_id = facets["marka"]["options"].get(marka)
-                if opt_id:
-                    params[param_name] = opt_id
+            # Marka (or Chipset for GPUs)
+            if marka:
+                for facet_key in ("marka", "chipset"):
+                    if facet_key in facets:
+                        opt_id = cls._match_facet_option(facets[facet_key]["options"], marka)
+                        if opt_id:
+                            params[facets[facet_key]["param_name"]] = opt_id
+                            break
 
         if extra_params:
             params.update(extra_params)
@@ -89,13 +110,16 @@ class SahibindenURLBuilder:
     @classmethod
     def sanitize_user_url(cls, raw_url: str) -> str:
         """Validates and sanitizes a user-supplied Sahibinden URL, enforcing date_desc sorting."""
-        cleaned = raw_url.strip()
+        cleaned = raw_url.strip().strip("<>").strip()
+        if not cleaned:
+            raise ValueError("URL boş olamaz.")
+
         if not cleaned.startswith("http://") and not cleaned.startswith("https://"):
             cleaned = f"https://{cleaned}"
 
         parsed = urlparse(cleaned)
         netloc = parsed.netloc.lower()
-        if "sahibinden.com" not in netloc:
+        if netloc != "sahibinden.com" and not netloc.endswith(".sahibinden.com"):
             raise ValueError("URL geçerli bir sahibinden.com adresi olmalıdır.")
 
         # Reject single ad detail URLs
@@ -105,8 +129,10 @@ class SahibindenURLBuilder:
                 "Lütfen arama sonuçları listesi URL'sini girin."
             )
 
+        path = parsed.path if parsed.path and parsed.path != "/" else "/kelime-ile-arama"
+
         # Parse query params
-        query_dict = parse_qs(parsed.query)
+        query_dict = parse_qs(parsed.query, keep_blank_values=False)
 
         # Flatten single-item lists
         flattened: dict[str, Any] = {k: v[0] if len(v) == 1 else v for k, v in query_dict.items()}
@@ -122,7 +148,7 @@ class SahibindenURLBuilder:
         sanitized = urlunparse((
             "https",
             "www.sahibinden.com",
-            parsed.path,
+            path,
             "",
             new_query,
             ""

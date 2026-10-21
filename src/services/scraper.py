@@ -4,7 +4,8 @@ import asyncio
 import logging
 import random
 from pathlib import Path
-from playwright.async_api import async_playwright, BrowserContext, Page, Playwright
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+from playwright.async_api import async_playwright, BrowserContext, Playwright
 from src.config import settings
 from src.services.parser import SahibindenParser, ListingItem
 
@@ -12,7 +13,9 @@ logger = logging.getLogger("sahibinden_bot.scraper")
 
 
 class StealthScraper:
-    """Automated browser session with Cloudflare/Akamai anti-bot evasion."""
+    """Automated browser session with Cloudflare/Akamai anti-bot evasion and self-healing recovery."""
+
+    PRESERVED_QUERY_KEYS = ("sorting", "price_min", "price_max", "address_city")
 
     def __init__(self):
         self._playwright: Playwright | None = None
@@ -21,10 +24,69 @@ class StealthScraper:
         self._profile_dir = Path(settings.USER_DATA_DIR)
         self._profile_dir.mkdir(parents=True, exist_ok=True)
 
+    @classmethod
+    def merge_dropped_redirect_params(cls, requested_url: str, final_url: str) -> str | None:
+        """
+        Detects if Sahibinden's server-side redirect (e.g. from /kelime-ile-arama to a category page)
+        stripped critical filter/sorting parameters, and returns the corrected URL if needed.
+        """
+        if not requested_url or not final_url or "checkLoading" in final_url:
+            return None
+
+        req_parsed = urlparse(requested_url)
+        fin_parsed = urlparse(final_url)
+
+        if "sahibinden.com" not in fin_parsed.netloc.lower():
+            return None
+
+        req_qs = parse_qs(req_parsed.query, keep_blank_values=False)
+        fin_qs = parse_qs(fin_parsed.query, keep_blank_values=False)
+
+        missing_any = False
+        for key in cls.PRESERVED_QUERY_KEYS:
+            if key in req_qs and req_qs[key] != fin_qs.get(key):
+                fin_qs[key] = req_qs[key]
+                missing_any = True
+
+        if not missing_any:
+            return None
+
+        flattened = {k: v[0] if len(v) == 1 else v for k, v in fin_qs.items()}
+        new_query = urlencode(flattened, doseq=True)
+        return urlunparse((
+            fin_parsed.scheme or "https",
+            fin_parsed.netloc,
+            fin_parsed.path,
+            "",
+            new_query,
+            ""
+        ))
+
+    async def _reset_context(self):
+        """Force-cleans dead browser context and playwright instances."""
+        if self._context:
+            try:
+                await self._context.close()
+            except Exception:
+                pass
+            self._context = None
+        if self._playwright:
+            try:
+                await self._playwright.stop()
+            except Exception:
+                pass
+            self._playwright = None
+
     async def _init_context(self) -> BrowserContext:
         """Initializes or returns persistent browser context with stealth flags."""
         if self._context is not None:
-            return self._context
+            try:
+                # Verify context is still alive
+                _ = self._context.pages
+                return self._context
+            except Exception:
+                logger.warning("Existing browser context appears closed or unresponsive. Recreating...")
+                await self._reset_context()
 
         self._playwright = await async_playwright().start()
 
@@ -36,7 +98,7 @@ class StealthScraper:
             "--disable-dev-shm-usage",
         ]
 
-        launch_kwargs = {
+        launch_kwargs: dict = {
             "user_data_dir": str(self._profile_dir),
             "headless": settings.HEADLESS,
             "ignore_default_args": ["--enable-automation"],
@@ -49,6 +111,10 @@ class StealthScraper:
             ),
         }
 
+        if settings.PROXY_URL and settings.PROXY_URL.strip():
+            launch_kwargs["proxy"] = {"server": settings.PROXY_URL.strip()}
+            logger.info("Configured Playwright proxy server.")
+
         # Try Edge channel first if available, fallback to chromium
         if settings.BROWSER_CHANNEL:
             try:
@@ -59,45 +125,60 @@ class StealthScraper:
                 logger.info(f"Initialized browser persistent context with channel: {settings.BROWSER_CHANNEL}")
                 return self._context
             except Exception as e:
-                logger.warning(f"Failed to launch with channel {settings.BROWSER_CHANNEL}: {e}. Falling back to default chromium.")
+                logger.warning(
+                    f"Failed to launch with channel {settings.BROWSER_CHANNEL}: {e}. "
+                    "Falling back to default chromium."
+                )
 
         self._context = await self._playwright.chromium.launch_persistent_context(**launch_kwargs)
         logger.info("Initialized default chromium persistent context.")
         return self._context
 
+    async def _wait_for_challenge_and_table(self, page):
+        """Waits for Cloudflare checkLoading interstitial and searchResultsTable."""
+        for _ in range(12):
+            if "checkLoading" not in page.url:
+                break
+            await asyncio.sleep(1)
+
+        try:
+            await page.wait_for_selector("tr.searchResultsItem, table#searchResultsTable", timeout=8000)
+        except Exception:
+            # Search may legitimately return 0 listings
+            pass
+
     async def fetch_page_content(self, url: str) -> str:
-        """Navigates to URL, resolves challenges, and returns full page HTML."""
+        """Navigates to URL, resolves challenges, restores redirect-dropped params, and returns HTML."""
         async with self._lock:
-            context = await self._init_context()
-            page = context.pages[0] if context.pages else await context.new_page()
-
-            try:
-                # Anti-bot jitter
-                jitter = random.uniform(settings.MIN_JITTER_SECONDS, settings.MAX_JITTER_SECONDS)
-                await asyncio.sleep(jitter)
-
-                logger.info(f"Fetching URL: {url}")
-                await page.goto(url, timeout=settings.SCRAPER_TIMEOUT_SECONDS * 1000)
-
-                # Wait for Cloudflare checkLoading resolution if triggered
-                for _ in range(12):
-                    current_url = page.url
-                    if "checkLoading" not in current_url:
-                        break
-                    await asyncio.sleep(1)
-
-                # Wait for listings table or timeout gracefully
+            for attempt in range(2):
                 try:
-                    await page.wait_for_selector("tr.searchResultsItem, table#searchResultsTable", timeout=8000)
-                except Exception:
-                    # Some searches return 0 results
-                    pass
+                    context = await self._init_context()
+                    page = context.pages[0] if context.pages else await context.new_page()
 
-                content = await page.content()
-                return content
-            except Exception as e:
-                logger.error(f"Error while fetching {url}: {e}", exc_info=True)
-                raise
+                    # Anti-bot jitter
+                    jitter = random.uniform(settings.MIN_JITTER_SECONDS, settings.MAX_JITTER_SECONDS)
+                    await asyncio.sleep(jitter)
+
+                    logger.info(f"Fetching URL: {url}")
+                    await page.goto(url, timeout=settings.SCRAPER_TIMEOUT_SECONDS * 1000)
+                    await self._wait_for_challenge_and_table(page)
+
+                    # Check if a redirect (e.g. from /kelime-ile-arama) dropped sorting or price filters
+                    corrected_url = self.merge_dropped_redirect_params(url, page.url)
+                    if corrected_url and corrected_url != page.url:
+                        logger.info(f"Re-applying redirect-stripped parameters: {corrected_url}")
+                        await page.goto(corrected_url, timeout=settings.SCRAPER_TIMEOUT_SECONDS * 1000)
+                        await self._wait_for_challenge_and_table(page)
+
+                    return await page.content()
+
+                except Exception as e:
+                    logger.warning(f"Fetch attempt {attempt + 1} failed for {url}: {e}")
+                    await self._reset_context()
+                    if attempt == 1:
+                        logger.error(f"Exhausted retries while fetching {url}", exc_info=True)
+                        raise
+            return ""
 
     async def fetch_listings(self, url: str) -> list[ListingItem]:
         """Fetches and parses listings from target search URL."""
@@ -109,12 +190,7 @@ class StealthScraper:
     async def close(self):
         """Closes browser session."""
         async with self._lock:
-            if self._context:
-                await self._context.close()
-                self._context = None
-            if self._playwright:
-                await self._playwright.stop()
-                self._playwright = None
+            await self._reset_context()
             logger.info("Browser session closed cleanly.")
 
 

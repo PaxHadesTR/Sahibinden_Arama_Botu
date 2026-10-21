@@ -1,5 +1,6 @@
 """Interactive Discord UI components (Modals, Select Menus, Buttons)."""
 
+import logging
 import discord
 from discord.ui import Modal, TextInput, View, Select
 from typing import Any
@@ -8,32 +9,34 @@ from src.services.url_builder import SahibindenURLBuilder
 from src.db.database import database
 from src.services.scraper import scraper
 
+logger = logging.getLogger("sahibinden_bot.views")
+
 
 class SpecFilterModal(Modal):
     """Universal modal for configuring granular filter criteria across any category."""
 
     def __init__(self, category_key: str, tipi: str | None = None, kapasite: str | None = None):
-        cat_info = resolver.categories.get(category_key, {})
-        title_name = cat_info.get("display_name", "Filtre Ayarları")[:40]
+        cat_info = resolver.get_category(category_key) or {}
+        title_name = cat_info.get("display_name", "Filtre Ayarları")[:34]
         super().__init__(title=f"{title_name} Kriterleri")
 
-        self.category_key = category_key
+        self.category_key = cat_info.get("slug", category_key)
         self.tipi = tipi
         self.kapasite = kapasite
 
         # Dynamic placeholder logic
-        if "otomobil" in category_key or "vasita" in category_key:
+        if "otomobil" in self.category_key or "vasita" in self.category_key:
             kw_hint = "Örn: Honda Civic 1.6, Otomatik, Boyasız"
             default_name = "Otomobil Alarmı"
-        elif "daire" in category_key or "emlak" in category_key:
+        elif "daire" in self.category_key or "emlak" in self.category_key:
             kw_hint = "Örn: Kadıköy 3+1, Kombili, Balkonlu"
             default_name = "Daire Alarmı"
-        elif "telefon" in category_key:
+        elif "telefon" in self.category_key:
             kw_hint = "Örn: iPhone 15 Pro 128 GB, Kutulu Faturalı"
             default_name = "Telefon Alarmı"
-        elif "ram" in category_key:
+        elif "ram" in self.category_key:
             kw_hint = "Örn: Corsair, 3200mhz, CL16"
-            default_name = f"RAM {tipi or ''} {kapasite or ''} Alarmı".strip()
+            default_name = " ".join(filter(None, ["RAM", tipi, kapasite, "Alarmı"]))
         else:
             kw_hint = "Örn: Anahtar kelime veya model (Opsiyonel)"
             default_name = f"{cat_info.get('display_name', 'Sahibinden')} Takibi"
@@ -41,7 +44,7 @@ class SpecFilterModal(Modal):
         self.alarm_name_input = TextInput(
             label="Alarm Adı",
             placeholder="Hatırlatıcı bir isim yazın",
-            default=default_name,
+            default=default_name[:60],
             required=True,
             max_length=60
         )
@@ -51,7 +54,7 @@ class SpecFilterModal(Modal):
             label="Minimum Fiyat (TL)",
             placeholder="Örn: 500 (Boş bırakılabilir)",
             required=False,
-            max_length=12
+            max_length=15
         )
         self.add_item(self.min_price_input)
 
@@ -59,7 +62,7 @@ class SpecFilterModal(Modal):
             label="Maksimum Fiyat (TL)",
             placeholder="Örn: 25000 (Boş bırakılabilir)",
             required=False,
-            max_length=12
+            max_length=15
         )
         self.add_item(self.max_price_input)
 
@@ -67,7 +70,7 @@ class SpecFilterModal(Modal):
             label="Şehir Filtresi",
             placeholder="Örn: İstanbul, Ankara (Tüm Türkiye için boş bırakın)",
             required=False,
-            max_length=20
+            max_length=25
         )
         self.add_item(self.city_input)
 
@@ -79,17 +82,37 @@ class SpecFilterModal(Modal):
         )
         self.add_item(self.keywords_input)
 
+    @staticmethod
+    def _parse_optional_int(raw: str) -> int | None:
+        cleaned = raw.strip().replace(".", "").replace(",", "").replace(" ", "")
+        if not cleaned:
+            return None
+        if cleaned.isdigit():
+            return int(cleaned)
+        raise ValueError(f"Geçersiz sayısal değer: '{raw}'")
+
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
-        min_price = None
-        max_price = None
-        if self.min_price_input.value.strip().isdigit():
-            min_price = int(self.min_price_input.value.strip())
-        if self.max_price_input.value.strip().isdigit():
-            max_price = int(self.max_price_input.value.strip())
+        try:
+            min_price = self._parse_optional_int(self.min_price_input.value)
+            max_price = self._parse_optional_int(self.max_price_input.value)
+        except ValueError as e:
+            await interaction.followup.send(f"❌ Fiyat alanı yalnızca rakam içermelidir ({e}).", ephemeral=True)
+            return
+
+        if min_price is not None and max_price is not None and min_price > max_price:
+            await interaction.followup.send("❌ Minimum fiyat maksimum fiyattan büyük olamaz.", ephemeral=True)
+            return
 
         city = self.city_input.value.strip() or None
+        if city and not resolver.resolve_city_code(city):
+            await interaction.followup.send(
+                f"❌ `{city}` geçerli bir Türkiye ili olarak bulunamadı. Lütfen il adını kontrol edin (örn: İstanbul, Ankara, Eskişehir).",
+                ephemeral=True
+            )
+            return
+
         query_text = self.keywords_input.value.strip() or None
         alarm_name = self.alarm_name_input.value.strip()
 
@@ -126,16 +149,18 @@ class SpecFilterModal(Modal):
 
         # Baseline prime: archive currently existing listings
         initial_listings = []
+        primed_immediately = False
         try:
             initial_listings = await scraper.fetch_listings(target_url)
             dict_items = [item.model_dump() for item in initial_listings]
             await database.prime_initial_listings(alarm_id, dict_items)
-        except Exception:
-            pass
+            primed_immediately = True
+        except Exception as e:
+            logger.warning(f"Initial baseline fetch deferred for alarm #{alarm_id}: {e}")
 
         embed = discord.Embed(
             title="✅ Alarm Başarıyla Oluşturuldu!",
-            description=f"**{alarm_name}** için dinleme başlatıldı.\nBu andan itibaren yeni bir ilan eklendiğinde bu kanala bildirim düşecek.",
+            description=f"**{alarm_name}** için dinleme başlatıldı.\nBu andan itibaren yeni bir ilan eklendiğinde veya mevcut ilanda fiyat düştüğünde bu kanala bildirim düşecek.",
             color=0x2ECC71,
             url=target_url
         )
@@ -145,18 +170,19 @@ class SpecFilterModal(Modal):
         if self.kapasite:
             embed.add_field(name="💾 Kapasite", value=self.kapasite, inline=True)
         if min_price or max_price:
-            embed.add_field(name="💰 Fiyat Aralığı", value=f"{min_price or 0:,} TL - {max_price or 'Limitsiz'} TL", inline=True)
+            max_str = f"{max_price:,}" if max_price else "Limitsiz"
+            embed.add_field(name="💰 Fiyat Aralığı", value=f"{min_price or 0:,} TL - {max_str} TL", inline=True)
         if city:
             embed.add_field(name="📍 Şehir", value=city.title(), inline=True)
         if query_text:
             embed.add_field(name="🔍 Kelime", value=f"`{query_text}`", inline=True)
 
-        embed.add_field(
-            name="📊 Başlangıç Durumu",
-            value=f"Şu an yayında olan **{len(initial_listings)}** mevcut ilan arşivlendi. Yalnızca **yeni** gelen ilanlar bildirilecek.",
-            inline=False
-        )
+        if primed_immediately:
+            baseline_msg = f"Şu an yayında olan **{len(initial_listings)}** mevcut ilan arşivlendi. Yalnızca **yeni** gelen veya **fiyatı düşen** ilanlar bildirilecek."
+        else:
+            baseline_msg = "İlk baz liste arka plan döngüsünde otomatik arşivlenecek ve geçmiş ilanlar spam yapılmayacaktır."
 
+        embed.add_field(name="📊 Başlangıç Durumu", value=baseline_msg, inline=False)
         await interaction.followup.send(embed=embed, ephemeral=True)
 
 
@@ -174,6 +200,7 @@ class UniversalCategorySelectView(View):
             discord.SelectOption(label="📱 Cep Telefonu", value="cep-telefonu", description="iPhone, Samsung ve akıllı telefonlar"),
             discord.SelectOption(label="💻 Dizüstü Bilgisayar (Laptop)", value="dizustu-bilgisayar", description="Laptop, MacBook, Gaming notebook"),
             discord.SelectOption(label="🧠 RAM Bellek (Masaüstü)", value="ram-bellek-masaustu", description="DDR4, DDR5 masaüstü RAM'ler"),
+            discord.SelectOption(label="💻 RAM Bellek (Laptop SODIMM)", value="ram-bellek-dizustu", description="DDR3, DDR4, DDR5 dizüstü RAM'ler"),
             discord.SelectOption(label="🎮 Ekran Kartı (GPU)", value="ekran-karti-masaustu", description="NVIDIA, AMD ekran kartları"),
             discord.SelectOption(label="⚡ İşlemci (CPU)", value="islemci-masaustu", description="AMD Ryzen, Intel Core işlemciler"),
             discord.SelectOption(label="🌐 Tüm Sahibinden (Genel Arama)", value="genel-arama", description="Tüm kategorilerde serbest arama"),
@@ -192,7 +219,6 @@ class UniversalCategorySelectView(View):
         selected = self.category_select.values[0]
 
         if "ram" in selected:
-            # Show RAM spec view
             view = RamSpecSelectView(category_key=selected)
             await interaction.response.edit_message(
                 content="Lütfen RAM neslini ve kapasiteyi seçip ardından **Kriterleri Ayarla** butonuna tıklayın:",
@@ -220,8 +246,9 @@ class RamSpecSelectView(View):
             max_values=1,
             options=[
                 discord.SelectOption(label="DDR5", value="DDR5", description="Yeni Nesil DDR5 RAM"),
-                discord.SelectOption(label="DDR4", value="DDR4", description="DDR4 Masaüstü RAM"),
-                discord.SelectOption(label="DDR3", value="DDR3", description="DDR3 Masaüstü RAM"),
+                discord.SelectOption(label="DDR4", value="DDR4", description="DDR4 RAM"),
+                discord.SelectOption(label="DDR3L", value="DDR3L", description="Düşük Voltaj DDR3L RAM"),
+                discord.SelectOption(label="DDR3", value="DDR3", description="DDR3 RAM"),
                 discord.SelectOption(label="Fark Etmez / Tümü", value="ALL", description="Tip filtresi uygulama"),
             ]
         )

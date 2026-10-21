@@ -9,37 +9,38 @@
   - Positive: High flexibility, mature ecosystem for stealth web automation and Discord integrations.
   - Challenges: Mitigation of aggressive anti-bot protections (Cloudflare / Akamai) and dynamic parameter schema management.
 
-## ADR-002: Stealth Scraping Engine (curl_cffi & Playwright Stealth Hybrid)
+## ADR-002: Stealth Scraping Engine & Self-Healing Context
 - **Status**: Accepted
 - **Date**: 2026-10-21
-- **Context**: Sahibinden.com employs aggressive WAF/anti-bot protection (TLS fingerprinting, browser environment checks, IP rate-limiting).
-- **Decision**: Implement a two-tiered scraping engine:
-  1. Fast path: `curl_cffi` with browser TLS fingerprint impersonation (`impersonate="chrome124"`), cookie jars, and custom headers.
-  2. Fallback / challenge path: Headless Playwright with stealth scripts (`playwright-stealth`) to handle JS challenges and session warm-up.
-  3. Pluggable residential / datacenter proxy support via environment configuration.
+- **Context**: Sahibinden.com employs aggressive WAF/anti-bot protection (Cloudflare Turnstile `checkLoading`, F-code blocks on standard headless browsers).
+- **Decision**: Implement a Playwright persistent browser context (`--start-minimized`, `--disable-blink-features=AutomationControlled`, `ignore_default_args=["--enable-automation"]`) with:
+  1. Automatic `checkLoading` interstitial resolution.
+  2. Self-healing context recovery (`_reset_context` and retry on closed/crashed browser target).
+  3. Pluggable proxy support (`PROXY_URL` wired into launch kwargs).
+  4. Automatic restoration of query parameters (`sorting=date_desc`, `price_min`, `price_max`, `address_city`) dropped during Sahibinden's server-side `/kelime-ile-arama` category redirects.
 - **Rejected Alternatives**:
-  - Plain `aiohttp` / `requests`: Blocked immediately by Cloudflare / Akamai 403 Forbidden.
+  - Plain `aiohttp` / `requests`: Blocked immediately by Cloudflare 403 Forbidden.
   - Reverse-engineered mobile API only: High fragility, frequent app signature changes.
 
-## ADR-003: Hybrid Filter Creation (Alias Resolver + Interactive UI + Direct URL Support)
+## ADR-003: Universal 3-Method Filter Architecture & Specificity Resolver
 - **Status**: Accepted
 - **Date**: 2026-10-21
-- **Context**: Users need to create alerts effortlessly via natural aliases (e.g. "ram", "ekran kartı") with specific hardware filters (DDR type, capacity, price min-max, city/district), while power users may want to paste a pre-filtered Sahibinden URL directly.
-- **Decision**: Build a modular category & alias catalog (`categories.json` / `resolver.py`):
-  - Pre-mapped popular hardware categories (e.g. RAM, GPU, CPU, SSD, Laptop) with granular spec parameter IDs.
-  - Universal category routing for Vasıta (Otomobil, Motosiklet), Emlak (Satılık, Kiralık Daire), Elektronik (Telefon, Laptop) and full platform-wide keyword search (`/alarm-ara`).
-  - Discord Slash Commands (`/alarm-ara`, `/alarm-kur`, `/alarm-hizli`, `/alarm-url`, `/alarmlarim`, `/alarm-sil`).
-  - Interactive Discord Modal / Select Menu for configuring granular specs (DDR, Capacity, Min/Max Price).
-  - Direct URL ingestion that extracts search parameters or monitors target query URLs verbatim across all 5,000+ Sahibinden categories.
+- **Context**: Users need to create alerts across all 5,000+ Sahibinden categories—ranging from granular hardware filters (RAM DDR type, capacity, GPU chipset/VRAM, CPU brand) to vehicles, real estate, and general items.
+- **Decision**:
+  - Provide 3 universal alarm creation workflows:
+    1. `/alarm-ara`: Site-wide keyword search with automatic category inference.
+    2. `/alarm-url`: Direct Sahibinden search URL tracking with domain validation, single-ad rejection, mobile normalization, and pagination stripping.
+    3. `/alarm-kur` & `/alarm-hizli`: Visual category selector, Discord autocomplete, and hardware spec wizards.
+  - Resolve categories and aliases using Turkish character normalization and word-boundary regexes sorted by specificity (longest phrase first) to prevent substring collisions (e.g., `"motor"` vs `"oto"`, `"kiralik daire"` vs `"satilik-daire"`).
+  - Include all 81 provinces of Turkey in `categories.json`.
 
-## ADR-004: Deduplication State Engine & Polling Scheduler
+## ADR-004: Deduplication State Engine, Deferred Priming & Price-Drop Detection
 - **Status**: Accepted
 - **Date**: 2026-10-21
-- **Context**: Alarms must only alert on listings appearing *after* the alarm start timestamp; duplicates must never be dispatched; polling must be throttled with randomized jitter to prevent IP blocks.
-- **Decision**: SQLite with WAL mode storing:
-  - `alarms`: `id`, `user_id`, `channel_id`, `guild_id`, `name`, `query_url`, `filters_json`, `created_at`, `last_checked_at`, `is_active`.
-  - `seen_listings`: `alarm_id`, `listing_id`, `title`, `price`, `seen_at`, `notified_at`.
-  - Polling worker runs an async loop with configurable intervals (e.g., 60-180s) and randomized jitter.
-- **Consequences**:
-  - Strict deduplication guarantee.
-  - Clean separation between Discord UI layer and scraping/worker layer.
+- **Context**: Alarms must never spam existing historical listings even if the initial scrape at command execution time fails or if a paused alarm is resumed. Furthermore, buyers benefit from knowing when an existing listing reduces its price.
+- **Decision**: SQLite with WAL mode and foreign key constraints storing:
+  - `alarms`: `id`, `name`, `user_id`, `channel_id`, `guild_id`, `target_url`, `filters_json`, `created_at`, `last_checked_at`, `is_active`, `is_primed`.
+  - `seen_listings`: `alarm_id`, `classified_id`, `title`, `price`, `price_val`, `first_seen_at`, `notified_at`.
+  - Unprimed alarms (`is_primed = 0`) are automatically baselined on the first successful monitor poll without sending notifications.
+  - Already-seen listings whose `price_val` drops strictly below the stored `price_val` trigger a dedicated `📉 Fiyat Düştü!` embed and update the stored price idempotently.
+  - Defense-in-depth post-filtering in `AlarmMonitor` validates `price_val` against `min_fiyat`/`max_fiyat` before dispatching.

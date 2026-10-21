@@ -1,6 +1,7 @@
 """Discord slash commands for alarm management."""
 
 import json
+import logging
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -15,6 +16,8 @@ from src.bot.views import (
     UniversalCategorySelectView,
 )
 from src.services.monitor import AlarmMonitor
+
+logger = logging.getLogger("sahibinden_bot.cogs.alarms")
 
 
 class AlarmCog(commands.Cog):
@@ -61,8 +64,19 @@ class AlarmCog(commands.Cog):
         """Universal site-wide search with auto-inferred category routing."""
         await interaction.response.defer(ephemeral=True)
 
-        if min_fiyat and max_fiyat and min_fiyat > max_fiyat:
+        if (min_fiyat is not None and min_fiyat < 0) or (max_fiyat is not None and max_fiyat < 0):
+            await interaction.followup.send("❌ Fiyat değerleri negatif olamaz.", ephemeral=True)
+            return
+
+        if min_fiyat is not None and max_fiyat is not None and min_fiyat > max_fiyat:
             await interaction.followup.send("❌ Minimum fiyat maksimum fiyattan büyük olamaz.", ephemeral=True)
+            return
+
+        if sehir and not resolver.resolve_city_code(sehir):
+            await interaction.followup.send(
+                f"❌ `{sehir}` geçerli bir Türkiye ili olarak tanınmadı. Lütfen il adını kontrol edin.",
+                ephemeral=True
+            )
             return
 
         target_url = SahibindenURLBuilder.build_url(
@@ -92,32 +106,36 @@ class AlarmCog(commands.Cog):
         )
 
         initial_count = 0
+        primed_immediately = False
         try:
             initial_listings = await scraper.fetch_listings(target_url)
             dict_items = [item.model_dump() for item in initial_listings]
             await database.prime_initial_listings(alarm_id, dict_items)
             initial_count = len(initial_listings)
-        except Exception:
-            pass
+            primed_immediately = True
+        except Exception as e:
+            logger.warning(f"Initial baseline fetch deferred for alarm #{alarm_id}: {e}")
 
         embed = discord.Embed(
             title="🌐 Evrensel Sahibinden Alarmı Başlatıldı!",
-            description=f"**{name}** arama kriterleriniz tüm Sahibinden genelinde dinlemeye alındı.\nYeni bir ilan eklendiğinde anında bildirim gönderilecek.",
+            description=f"**{name}** arama kriterleriniz tüm Sahibinden genelinde dinlemeye alındı.\nYeni bir ilan eklendiğinde veya fiyat düştüğünde anında bildirim gönderilecek.",
             color=0x2ECC71,
             url=target_url
         )
         embed.add_field(name="🆔 Alarm ID", value=f"`#{alarm_id}`", inline=True)
         embed.add_field(name="🔍 Arama Kelimesi", value=f"`{kelime}`", inline=True)
         if min_fiyat or max_fiyat:
-            embed.add_field(name="💰 Fiyat Aralığı", value=f"{min_fiyat or 0:,} TL - {max_fiyat or 'Limitsiz'} TL", inline=True)
+            max_str = f"{max_fiyat:,}" if max_fiyat else "Limitsiz"
+            embed.add_field(name="💰 Fiyat Aralığı", value=f"{min_fiyat or 0:,} TL - {max_str} TL", inline=True)
         if sehir:
             embed.add_field(name="📍 Şehir", value=sehir.title(), inline=True)
-        embed.add_field(
-            name="📊 Başlangıç Durumu",
-            value=f"Şu an arama sonucundaki **{initial_count}** ilan arşivlendi. Yalnızca yeni eklenen ilanlar bildirilecek.",
-            inline=False
-        )
 
+        if primed_immediately:
+            baseline_msg = f"Şu an arama sonucundaki **{initial_count}** ilan arşivlendi. Yalnızca yeni eklenen veya fiyatı düşen ilanlar bildirilecek."
+        else:
+            baseline_msg = "İlk baz liste arka plan döngüsünde otomatik arşivlenecek ve geçmiş ilanlar spam yapılmayacaktır."
+
+        embed.add_field(name="📊 Başlangıç Durumu", value=baseline_msg, inline=False)
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     # =========================================================================
@@ -151,13 +169,15 @@ class AlarmCog(commands.Cog):
         )
 
         initial_count = 0
+        primed_immediately = False
         try:
             initial_listings = await scraper.fetch_listings(sanitized_url)
             dict_items = [item.model_dump() for item in initial_listings]
             await database.prime_initial_listings(alarm_id, dict_items)
             initial_count = len(initial_listings)
-        except Exception:
-            pass
+            primed_immediately = True
+        except Exception as e:
+            logger.warning(f"Initial baseline fetch deferred for URL alarm #{alarm_id}: {e}")
 
         embed = discord.Embed(
             title="🔗 Özel URL Alarmı Başarıyla Kaydedildi!",
@@ -167,12 +187,13 @@ class AlarmCog(commands.Cog):
         )
         embed.add_field(name="🆔 Alarm ID", value=f"`#{alarm_id}`", inline=True)
         embed.add_field(name="🌐 Takip Edilen URL", value=f"[Arama Sayfası]({sanitized_url})", inline=True)
-        embed.add_field(
-            name="📊 Başlangıç Durumu",
-            value=f"Yayındaki **{initial_count}** ilan baseline olarak kaydedildi. Sadece yeni ilanlar bildirilecek.",
-            inline=False
-        )
 
+        if primed_immediately:
+            baseline_msg = f"Yayındaki **{initial_count}** ilan baseline olarak kaydedildi. Sadece yeni ilanlar ve fiyat düşüşleri bildirilecek."
+        else:
+            baseline_msg = "İlk baz liste arka plan döngüsünde otomatik arşivlenecek ve geçmiş ilanlar spam yapılmayacaktır."
+
+        embed.add_field(name="📊 Başlangıç Durumu", value=baseline_msg, inline=False)
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     # =========================================================================
@@ -198,12 +219,13 @@ class AlarmCog(commands.Cog):
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
             return
 
-        cat_data = resolver.resolve_category(kategori) or resolver.categories.get(kategori)
+        cat_data = resolver.get_category(kategori)
+        cat_key = cat_data["key"] if cat_data else "genel-arama"
         slug = cat_data["slug"] if cat_data else "kelime-ile-arama"
 
         # Specialized RAM wizard
-        if "ram" in slug:
-            view = RamSpecSelectView(category_key=slug)
+        if "ram" in slug or "ram" in cat_key:
+            view = RamSpecSelectView(category_key=cat_key)
             embed = discord.Embed(
                 title="🧠 RAM Bellek Filtre Sihirbazı",
                 description=(
@@ -214,7 +236,7 @@ class AlarmCog(commands.Cog):
             )
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         else:
-            modal = SpecFilterModal(category_key=slug)
+            modal = SpecFilterModal(category_key=cat_key)
             await interaction.response.send_modal(modal)
 
     @app_commands.command(
@@ -224,7 +246,8 @@ class AlarmCog(commands.Cog):
     @app_commands.describe(
         kategori="Kategori veya alias (örn: araba, daire, ram, gpu, telefon)",
         ddr="DDR tipi (RAM için: DDR3, DDR4, DDR5)",
-        kapasite="Kapasite (RAM için: 8 GB, 16 GB, 32 GB)",
+        kapasite="Kapasite (RAM/GPU için: 8 GB, 16 GB, 32 GB)",
+        marka="Marka veya Chipset (örn: Corsair, Kingston, Nvidia, AMD, Intel)",
         min_fiyat="Minimum Fiyat (TL)",
         max_fiyat="Maksimum Fiyat (TL)",
         sehir="Şehir filtresi (örn: İstanbul, Ankara, İzmir)",
@@ -238,6 +261,7 @@ class AlarmCog(commands.Cog):
         kategori: str,
         ddr: str | None = None,
         kapasite: str | None = None,
+        marka: str | None = None,
         min_fiyat: int | None = None,
         max_fiyat: int | None = None,
         sehir: str | None = None,
@@ -246,14 +270,36 @@ class AlarmCog(commands.Cog):
     ):
         await interaction.response.defer(ephemeral=True)
 
-        cat_data = resolver.resolve_category(kategori) or resolver.categories.get(kategori)
+        if (min_fiyat is not None and min_fiyat < 0) or (max_fiyat is not None and max_fiyat < 0):
+            await interaction.followup.send("❌ Fiyat değerleri negatif olamaz.", ephemeral=True)
+            return
+
+        if min_fiyat is not None and max_fiyat is not None and min_fiyat > max_fiyat:
+            await interaction.followup.send("❌ Minimum fiyat maksimum fiyattan büyük olamaz.", ephemeral=True)
+            return
+
+        if sehir and not resolver.resolve_city_code(sehir):
+            await interaction.followup.send(
+                f"❌ `{sehir}` geçerli bir Türkiye ili olarak tanınmadı. Lütfen il adını kontrol edin.",
+                ephemeral=True
+            )
+            return
+
+        cat_data = resolver.get_category(kategori)
         category_slug = cat_data["slug"] if cat_data else "kelime-ile-arama"
 
-        # Format DDR and capacity strings to match catalog options
-        formatted_ddr = ddr.upper().strip() if ddr else None
-        formatted_cap = kapasite.upper().strip() if kapasite else None
-        if formatted_cap and "GB" not in formatted_cap:
+        # Auto-extract embedded specs if user typed e.g. kategori="ddr4 16gb ram"
+        extracted = resolver.extract_specs_from_text(
+            f"{kategori} {kelime or ''}",
+            category_key=cat_data["key"] if cat_data else "ram-bellek-masaustu"
+        )
+
+        formatted_ddr = ddr.upper().strip() if ddr else extracted.get("tipi")
+        formatted_cap = kapasite.upper().strip() if kapasite else (extracted.get("kapasite") or extracted.get("bellek"))
+        if formatted_cap and "GB" not in formatted_cap and "MB" not in formatted_cap and "TB" not in formatted_cap:
             formatted_cap = f"{formatted_cap} GB"
+
+        formatted_brand = marka.strip() if marka else (extracted.get("marka") or extracted.get("chipset"))
 
         target_url = SahibindenURLBuilder.build_url(
             category_slug=category_slug,
@@ -262,7 +308,8 @@ class AlarmCog(commands.Cog):
             price_max=max_fiyat,
             city=sehir,
             tipi=formatted_ddr,
-            kapasite=formatted_cap
+            kapasite=formatted_cap,
+            marka=formatted_brand,
         )
 
         name = alarm_adi or f"{cat_data.get('display_name', kategori) if cat_data else kategori} Takibi"
@@ -271,6 +318,7 @@ class AlarmCog(commands.Cog):
             "kategori": category_slug,
             "tipi": formatted_ddr,
             "kapasite": formatted_cap,
+            "marka": formatted_brand,
             "min_fiyat": min_fiyat,
             "max_fiyat": max_fiyat,
             "sehir": sehir,
@@ -288,13 +336,15 @@ class AlarmCog(commands.Cog):
 
         # Baseline prime
         initial_count = 0
+        primed_immediately = False
         try:
             initial_listings = await scraper.fetch_listings(target_url)
             dict_items = [item.model_dump() for item in initial_listings]
             await database.prime_initial_listings(alarm_id, dict_items)
             initial_count = len(initial_listings)
-        except Exception:
-            pass
+            primed_immediately = True
+        except Exception as e:
+            logger.warning(f"Initial baseline fetch deferred for quick alarm #{alarm_id}: {e}")
 
         embed = discord.Embed(
             title="⚡ Hızlı Alarm Başlatıldı!",
@@ -307,41 +357,48 @@ class AlarmCog(commands.Cog):
             embed.add_field(name="⚡ Tip", value=formatted_ddr, inline=True)
         if formatted_cap:
             embed.add_field(name="💾 Kapasite", value=formatted_cap, inline=True)
+        if formatted_brand:
+            embed.add_field(name="🏷️ Marka/Chipset", value=formatted_brand, inline=True)
         if min_fiyat or max_fiyat:
-            embed.add_field(name="💰 Fiyat", value=f"{min_fiyat or 0:,} TL - {max_fiyat or 'Limitsiz'} TL", inline=True)
+            max_str = f"{max_fiyat:,}" if max_fiyat else "Limitsiz"
+            embed.add_field(name="💰 Fiyat", value=f"{min_fiyat or 0:,} TL - {max_str} TL", inline=True)
         if sehir:
             embed.add_field(name="📍 Şehir", value=sehir.title(), inline=True)
         if kelime:
             embed.add_field(name="🔍 Kelime", value=f"`{kelime}`", inline=True)
-        embed.add_field(
-            name="📊 Başlangıç Durumu",
-            value=f"Şu an yayında olan **{initial_count}** ilan arşivlendi. Sadece yeni ilanlar alert edilecek.",
-            inline=False
-        )
 
+        if primed_immediately:
+            baseline_msg = f"Şu an yayında olan **{initial_count}** ilan arşivlendi. Sadece yeni ilanlar ve fiyat düşüşleri alert edilecek."
+        else:
+            baseline_msg = "İlk baz liste arka plan döngüsünde otomatik arşivlenecek ve geçmiş ilanlar spam yapılmayacaktır."
+
+        embed.add_field(name="📊 Başlangıç Durumu", value=baseline_msg, inline=False)
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     # =========================================================================
-    # LİSTELEME, SİLME VE TEST KOMUTLARI
+    # LİSTELEME, DURAKLATMA, SİLME VE TEST KOMUTLARI
     # =========================================================================
     @app_commands.command(
         name="alarmlarim",
-        description="Tanımladığınız tüm aktif alarmları listeleyin."
+        description="Tanımladığınız tüm alarmları ve durumlarını listeleyin."
     )
     async def alarmlarim(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         user_alarms = await database.get_user_alarms(interaction.user.id)
 
         if not user_alarms:
-            await interaction.followup.send("📭 Henüz tanımlanmış bir alarmınız bulunmuyor. `/alarm-ara`, `/alarm-kur` veya `/alarm-url` ile oluşturabilirsiniz.", ephemeral=True)
+            await interaction.followup.send(
+                "📭 Henüz tanımlanmış bir alarmınız bulunmuyor. `/alarm-ara`, `/alarm-kur` veya `/alarm-url` ile oluşturabilirsiniz.",
+                ephemeral=True
+            )
             return
 
         embed = discord.Embed(
-            title=f"📋 Aktif Alarmlarınız ({len(user_alarms)})",
+            title=f"📋 Kayıtlı Alarmlarınız ({len(user_alarms)})",
             color=0x3498DB
         )
 
-        for a in user_alarms[:10]:
+        for a in user_alarms[:15]:
             filters = json.loads(a.get("filters_json") or "{}")
             filter_summary = []
             if filters.get("kelime"):
@@ -350,20 +407,54 @@ class AlarmCog(commands.Cog):
                 filter_summary.append(f"Tip: {filters['tipi']}")
             if filters.get("kapasite"):
                 filter_summary.append(f"Kapasite: {filters['kapasite']}")
-            if filters.get("min_fiyat") or filters.get("max_fiyat"):
-                filter_summary.append(f"Fiyat: {filters.get('min_fiyat', 0):,}-{filters.get('max_fiyat', '∞')} TL")
+            if filters.get("marka"):
+                filter_summary.append(f"Marka: {filters['marka']}")
+            if filters.get("min_fiyat") is not None or filters.get("max_fiyat") is not None:
+                min_v = filters.get("min_fiyat") or 0
+                max_v = filters.get("max_fiyat")
+                max_s = f"{max_v:,}" if max_v is not None else "∞"
+                filter_summary.append(f"Fiyat: {min_v:,}-{max_s} TL")
             if filters.get("sehir"):
                 filter_summary.append(f"Şehir: {filters['sehir'].title()}")
 
             details_text = " | ".join(filter_summary) if filter_summary else "Özel filtre yok"
+            status_badge = "🟢 Aktif" if a.get("is_active", 1) else "⏸️ Duraklatıldı"
 
             embed.add_field(
-                name=f"#{a['id']} - {a['name']}",
+                name=f"#{a['id']} - {a['name']} [{status_badge}]",
                 value=f"🎯 {details_text}\n📅 Oluşturulma: `{a['created_at'][:16]}`\n🔗 [Sahibinden'de Gör]({a['target_url']})",
                 inline=False
             )
 
         await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @app_commands.command(
+        name="alarm-durum",
+        description="Mevcut bir alarmı geçici olarak duraklatın veya yeniden aktifleştirin."
+    )
+    @app_commands.describe(
+        alarm_id="Durumunu değiştirmek istediğiniz alarmın ID numarası",
+        aktif="True: Aktifleştir (Devam Et), False: Duraklat"
+    )
+    async def alarm_durum(self, interaction: discord.Interaction, alarm_id: int, aktif: bool):
+        updated = await database.set_alarm_active(alarm_id, user_id=interaction.user.id, is_active=aktif)
+        if not updated:
+            await interaction.response.send_message(
+                f"❌ Alarm `#{alarm_id}` bulunamadı veya size ait değil.",
+                ephemeral=True
+            )
+            return
+
+        if aktif:
+            await interaction.response.send_message(
+                f"▶️ Alarm `#{alarm_id}` yeniden **aktifleştirildi**! Mevcut ilanlar baz alınarak yeni bildirimler devam edecek.",
+                ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                f"⏸️ Alarm `#{alarm_id}` **duraklatıldı**. `/alarm-durum alarm_id:{alarm_id} aktif:True` ile istediğiniz zaman devam ettirebilirsiniz.",
+                ephemeral=True
+            )
 
     @app_commands.command(
         name="alarm-sil",
@@ -402,14 +493,18 @@ class AlarmCog(commands.Cog):
 
         try:
             listings = await scraper.fetch_listings(alarm["target_url"])
-            if not listings:
-                await interaction.followup.send(f"⚠️ `{alarm['name']}` için şu an herhangi bir ilan bulunamadı.", ephemeral=True)
+            valid_listings = [item for item in listings if AlarmMonitor.matches_alarm_filters(alarm, item)]
+            if not valid_listings:
+                await interaction.followup.send(
+                    f"⚠️ `{alarm['name']}` kriterlerine uygun şu an herhangi bir ilan bulunamadı.",
+                    ephemeral=True
+                )
                 return
 
-            first = listings[0]
+            first = valid_listings[0]
             embed = AlarmMonitor.create_listing_embed(alarm, first)
             await interaction.followup.send(
-                content=f"🧪 **Alarm Test Sonucu** (Toplam {len(listings)} ilan bulundu, en günceli aşağıda):",
+                content=f"🧪 **Alarm Test Sonucu** (Filtreye uyan {len(valid_listings)} ilan bulundu, en günceli aşağıda):",
                 embed=embed,
                 ephemeral=True
             )

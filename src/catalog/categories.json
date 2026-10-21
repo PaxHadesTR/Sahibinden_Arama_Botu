@@ -20,11 +20,11 @@
       "slug": "otomobil",
       "breadcrumbs": "Vasıta > Otomobil",
       "aliases": [
-        "araba",
         "otomobil",
-        "oto",
+        "araba",
         "vasita",
         "arac",
+        "oto",
         "civic",
         "corolla",
         "bmw",
@@ -34,7 +34,10 @@
         "clio",
         "megane",
         "passat",
-        "focus"
+        "focus",
+        "golf",
+        "egea",
+        "octavia"
       ],
       "facets": {}
     },
@@ -44,9 +47,13 @@
       "slug": "motosiklet",
       "breadcrumbs": "Vasıta > Motosiklet",
       "aliases": [
-        "motor",
         "motosiklet",
-        "scooter"
+        "motorsiklet",
+        "motor",
+        "scooter",
+        "yamaha",
+        "kawasaki",
+        "ducati"
       ],
       "facets": {}
     },
@@ -56,10 +63,11 @@
       "slug": "satilik-daire",
       "breadcrumbs": "Emlak > Konut > Satılık > Daire",
       "aliases": [
-        "emlak",
-        "satilik",
-        "satilik ev",
         "satilik daire",
+        "satilik ev",
+        "satilik konut",
+        "satilik",
+        "emlak",
         "konut",
         "daire"
       ],
@@ -71,9 +79,10 @@
       "slug": "kiralik-daire",
       "breadcrumbs": "Emlak > Konut > Kiralık > Daire",
       "aliases": [
-        "kiralik",
-        "kiralik ev",
         "kiralik daire",
+        "kiralik ev",
+        "kiralik konut",
+        "kiralik",
         "kira"
       ],
       "facets": {}
@@ -84,11 +93,13 @@
       "slug": "cep-telefonu",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Cep Telefonu > Modeller",
       "aliases": [
-        "telefon",
         "cep telefonu",
         "akilli telefon",
+        "telefon",
         "iphone",
-        "samsung"
+        "samsung",
+        "xiaomi",
+        "redmi"
       ],
       "facets": {}
     },
@@ -98,6 +109,7 @@
       "slug": "dizustu-notebook-bilgisayar",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Dizüstü (Notebook)",
       "aliases": [
+        "dizustu bilgisayar",
         "laptop",
         "notebook",
         "dizustu",
@@ -105,20 +117,58 @@
       ],
       "facets": {}
     },
+    "ram-bellek-dizustu": {
+      "id": "22857",
+      "display_name": "RAM Bellek (Dizüstü/Laptop SODIMM)",
+      "slug": "ram-bellek",
+      "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Dizüstü (Notebook) > Donanım > RAM Bellek",
+      "aliases": [
+        "laptop ram",
+        "notebook ram",
+        "dizustu ram",
+        "sodimm ram",
+        "sodimm",
+        "so-dimm"
+      ],
+      "facets": {
+        "tipi": {
+          "param_name": "a3329",
+          "label": "Bellek Tipi",
+          "options": {
+            "DDR3": "67566",
+            "DDR3L": "1200094",
+            "DDR4": "1151866",
+            "DDR5": "1258772"
+          }
+        },
+        "kapasite": {
+          "param_name": "a3332",
+          "label": "Kapasite",
+          "options": {
+            "4 GB": "1094084",
+            "8 GB": "1131144",
+            "16 GB": "1168186",
+            "32 GB": "1168187",
+            "64 GB": "1173880"
+          }
+        }
+      }
+    },
     "ram-bellek-masaustu": {
       "id": "22858",
       "display_name": "RAM Bellek (Masaüstü)",
       "slug": "ram-bellek-masaustu",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Masaüstü > Donanım > RAM Bellek",
       "aliases": [
-        "ram",
-        "bellek",
-        "ram bellek",
         "masaustu ram",
-        "ddr ram",
+        "ram bellek",
         "ddr4 ram",
         "ddr5 ram",
-        "pc ram"
+        "ddr3 ram",
+        "ddr ram",
+        "pc ram",
+        "bellek",
+        "ram"
       ],
       "facets": {
         "tipi": {
@@ -162,54 +212,18 @@
         }
       }
     },
-    "ram-bellek-dizustu": {
-      "id": "22857",
-      "display_name": "RAM Bellek (Dizüstü/Laptop SODIMM)",
-      "slug": "ram-bellek",
-      "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Dizüstü (Notebook) > Donanım > RAM Bellek",
-      "aliases": [
-        "laptop ram",
-        "notebook ram",
-        "dizustu ram",
-        "sodimm",
-        "so-dimm"
-      ],
-      "facets": {
-        "tipi": {
-          "param_name": "a3329",
-          "label": "Bellek Tipi",
-          "options": {
-            "DDR3": "67566",
-            "DDR3L": "1200094",
-            "DDR4": "1151866",
-            "DDR5": "1258772"
-          }
-        },
-        "kapasite": {
-          "param_name": "a3332",
-          "label": "Kapasite",
-          "options": {
-            "4 GB": "1094084",
-            "8 GB": "1131144",
-            "16 GB": "1168186",
-            "32 GB": "1168187"
-          }
-        }
-      }
-    },
     "ekran-karti-masaustu": {
       "id": "111925",
       "display_name": "Ekran Kartı (Masaüstü)",
       "slug": "ekran-karti-masaustu",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Masaüstü > Donanım > Ekran Kartı",
       "aliases": [
-        "ekran kartı",
         "ekran karti",
         "gpu",
         "vga",
         "rtx",
         "gtx",
-        "rx"
+        "radeon"
       ],
       "facets": {
         "chipset": {
@@ -240,11 +254,11 @@
       "slug": "islemci-masaustu",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Masaüstü > Donanım > İşlemci",
       "aliases": [
-        "işlemci",
         "islemci",
         "cpu",
         "ryzen",
-        "intel core"
+        "intel core",
+        "threadripper"
       ],
       "facets": {
         "marka": {
@@ -259,20 +273,93 @@
     }
   },
   "cities": {
-    "istanbul": "34",
-    "ankara": "6",
-    "izmir": "35",
-    "bursa": "16",
-    "antalya": "7",
     "adana": "1",
-    "konya": "42",
-    "gaziantep": "27",
-    "kocaeli": "41",
+    "adiyaman": "2",
+    "afyon": "3",
+    "afyonkarahisar": "3",
+    "agri": "4",
+    "amasya": "5",
+    "ankara": "6",
+    "antalya": "7",
+    "artvin": "8",
+    "aydin": "9",
+    "balikesir": "10",
+    "bilecik": "11",
+    "bingol": "12",
+    "bitlis": "13",
+    "bolu": "14",
+    "burdur": "15",
+    "bursa": "16",
+    "canakkale": "17",
+    "cankiri": "18",
+    "corum": "19",
+    "denizli": "20",
+    "diyarbakir": "21",
+    "edirne": "22",
+    "elazig": "23",
+    "erzincan": "24",
+    "erzurum": "25",
     "eskisehir": "26",
-    "mugla": "48",
-    "trabzon": "61",
-    "samsun": "55",
+    "gaziantep": "27",
+    "antep": "27",
+    "giresun": "28",
+    "gumushane": "29",
+    "hakkari": "30",
+    "hatay": "31",
+    "isparta": "32",
     "mersin": "33",
-    "kayseri": "38"
+    "icel": "33",
+    "istanbul": "34",
+    "izmir": "35",
+    "kars": "36",
+    "kastamonu": "37",
+    "kayseri": "38",
+    "kirklareli": "39",
+    "kirsehir": "40",
+    "kocaeli": "41",
+    "izmit": "41",
+    "konya": "42",
+    "kutahya": "43",
+    "malatya": "44",
+    "manisa": "45",
+    "kahramanmaras": "46",
+    "maras": "46",
+    "mardin": "47",
+    "mugla": "48",
+    "mus": "49",
+    "nevsehir": "50",
+    "nigde": "51",
+    "ordu": "52",
+    "rize": "53",
+    "sakarya": "54",
+    "adapazari": "54",
+    "samsun": "55",
+    "siirt": "56",
+    "sinop": "57",
+    "sivas": "58",
+    "tekirdag": "59",
+    "tokat": "60",
+    "trabzon": "61",
+    "tunceli": "62",
+    "sanliurfa": "63",
+    "urfa": "63",
+    "usak": "64",
+    "van": "65",
+    "yozgat": "66",
+    "zonguldak": "67",
+    "aksaray": "68",
+    "bayburt": "69",
+    "karaman": "70",
+    "kirikkale": "71",
+    "batman": "72",
+    "sirnak": "73",
+    "bartin": "74",
+    "ardahan": "75",
+    "igdir": "76",
+    "yalova": "77",
+    "karabuk": "78",
+    "kilis": "79",
+    "osmaniye": "80",
+    "duzce": "81"
   }
 }

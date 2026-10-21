@@ -1,4 +1,4 @@
-"""SQLite state and deduplication database service."""
+"""SQLite state, baseline priming, price-drop, and deduplication database service."""
 
 import json
 from datetime import datetime, timezone
@@ -16,10 +16,11 @@ class Database:
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
 
     async def init_db(self):
-        """Initializes tables with WAL mode and indexes."""
+        """Initializes tables with WAL mode, foreign keys, indexes, and safe migrations."""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("PRAGMA journal_mode=WAL;")
             await db.execute("PRAGMA synchronous=NORMAL;")
+            await db.execute("PRAGMA foreign_keys=ON;")
 
             # Alarms table
             await db.execute("""
@@ -33,11 +34,12 @@ class Database:
                     filters_json TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_checked_at TIMESTAMP,
-                    is_active INTEGER DEFAULT 1
+                    is_active INTEGER DEFAULT 1,
+                    is_primed INTEGER DEFAULT 0
                 );
             """)
 
-            # Seen listings table for strict deduplication
+            # Seen listings table for strict deduplication & price-drop tracking
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS seen_listings (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,12 +47,24 @@ class Database:
                     classified_id TEXT NOT NULL,
                     title TEXT,
                     price TEXT,
+                    price_val INTEGER,
                     first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     notified_at TIMESTAMP,
                     FOREIGN KEY(alarm_id) REFERENCES alarms(id) ON DELETE CASCADE,
                     UNIQUE(alarm_id, classified_id)
                 );
             """)
+
+            # Safe schema migrations for pre-existing databases
+            async with db.execute("PRAGMA table_info(alarms);") as cursor:
+                alarm_cols = {row[1] for row in await cursor.fetchall()}
+            if "is_primed" not in alarm_cols:
+                await db.execute("ALTER TABLE alarms ADD COLUMN is_primed INTEGER DEFAULT 0;")
+
+            async with db.execute("PRAGMA table_info(seen_listings);") as cursor:
+                seen_cols = {row[1] for row in await cursor.fetchall()}
+            if "price_val" not in seen_cols:
+                await db.execute("ALTER TABLE seen_listings ADD COLUMN price_val INTEGER;")
 
             await db.execute("CREATE INDEX IF NOT EXISTS idx_seen_alarm_id ON seen_listings(alarm_id);")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_alarms_active ON alarms(is_active);")
@@ -65,30 +79,47 @@ class Database:
         target_url: str,
         filters: dict[str, Any] | None = None
     ) -> int:
-        """Creates a new alarm and returns its ID."""
+        """Creates a new alarm (initially unprimed) and returns its ID."""
         filters_str = json.dumps(filters or {}, ensure_ascii=False)
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
                 """
-                INSERT INTO alarms (name, user_id, channel_id, guild_id, target_url, filters_json)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO alarms (name, user_id, channel_id, guild_id, target_url, filters_json, is_primed)
+                VALUES (?, ?, ?, ?, ?, ?, 0)
                 """,
                 (name, user_id, channel_id, guild_id, target_url, filters_str)
             )
             await db.commit()
             return cursor.lastrowid
 
+    @staticmethod
+    def _extract_price_val(item: dict[str, Any]) -> int | None:
+        """Gets numeric price from item dict or parses it from price_text."""
+        if item.get("price_val") is not None:
+            return int(item["price_val"])
+        price_text = item.get("price_text") or item.get("price") or ""
+        from src.services.parser import SahibindenParser
+        val, _ = SahibindenParser.parse_price(price_text)
+        return val
+
     async def prime_initial_listings(self, alarm_id: int, classified_items: list[dict[str, Any]]):
-        """Marks currently active listings as baseline seen so they don't trigger alerts."""
+        """Marks currently active listings as baseline seen and marks the alarm as primed."""
+        now_iso = datetime.now(timezone.utc).isoformat()
         async with aiosqlite.connect(self.db_path) as db:
             for item in classified_items:
+                price_text = item.get("price_text") or item.get("price") or ""
+                price_val = self._extract_price_val(item)
                 await db.execute(
                     """
-                    INSERT OR IGNORE INTO seen_listings (alarm_id, classified_id, title, price, notified_at)
-                    VALUES (?, ?, ?, ?, NULL)
+                    INSERT OR IGNORE INTO seen_listings (alarm_id, classified_id, title, price, price_val, notified_at)
+                    VALUES (?, ?, ?, ?, ?, NULL)
                     """,
-                    (alarm_id, item["classified_id"], item["title"], item["price_text"])
+                    (alarm_id, str(item["classified_id"]), item.get("title", ""), price_text, price_val)
                 )
+            await db.execute(
+                "UPDATE alarms SET is_primed = 1, last_checked_at = ? WHERE id = ?",
+                (now_iso, alarm_id)
+            )
             await db.commit()
 
     async def filter_new_listings(self, alarm_id: int, listings: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -96,26 +127,62 @@ class Database:
         new_items: list[dict[str, Any]] = []
         async with aiosqlite.connect(self.db_path) as db:
             for item in listings:
+                cid = str(item["classified_id"])
                 async with db.execute(
                     "SELECT 1 FROM seen_listings WHERE alarm_id = ? AND classified_id = ?",
-                    (alarm_id, item["classified_id"])
+                    (alarm_id, cid)
                 ) as cursor:
                     row = await cursor.fetchone()
                     if not row:
                         new_items.append(item)
         return new_items
 
+    async def filter_price_drops(self, alarm_id: int, listings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """
+        Finds already-seen listings whose current price is strictly lower than the previously recorded price.
+        Returns items enriched with 'old_price_text' and 'old_price_val'.
+        """
+        price_drops: list[dict[str, Any]] = []
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            for item in listings:
+                cid = str(item["classified_id"])
+                new_val = self._extract_price_val(item)
+                if new_val is None or new_val <= 0:
+                    continue
+
+                async with db.execute(
+                    "SELECT price, price_val FROM seen_listings WHERE alarm_id = ? AND classified_id = ?",
+                    (alarm_id, cid)
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if not row:
+                        continue
+                    old_price_text = row["price"] or ""
+                    old_val = row["price_val"]
+                    if old_val is None and old_price_text:
+                        old_val = self._extract_price_val({"price_text": old_price_text})
+
+                    if old_val is not None and old_val > 0 and new_val < old_val:
+                        enriched = dict(item)
+                        enriched["old_price_text"] = old_price_text
+                        enriched["old_price_val"] = old_val
+                        price_drops.append(enriched)
+        return price_drops
+
     async def record_notified_listings(self, alarm_id: int, listings: list[dict[str, Any]]):
-        """Inserts newly notified listings into seen_listings to prevent duplicate alerts."""
+        """Inserts or updates notified listings in seen_listings to prevent duplicate alerts."""
         now_iso = datetime.now(timezone.utc).isoformat()
         async with aiosqlite.connect(self.db_path) as db:
             for item in listings:
+                price_text = item.get("price_text") or item.get("price") or ""
+                price_val = self._extract_price_val(item)
                 await db.execute(
                     """
-                    INSERT OR REPLACE INTO seen_listings (alarm_id, classified_id, title, price, notified_at)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT OR REPLACE INTO seen_listings (alarm_id, classified_id, title, price, price_val, notified_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                    (alarm_id, item["classified_id"], item["title"], item["price_text"], now_iso)
+                    (alarm_id, str(item["classified_id"]), item.get("title", ""), price_text, price_val, now_iso)
                 )
             await db.commit()
 
@@ -128,6 +195,22 @@ class Database:
                 (now_iso, alarm_id)
             )
             await db.commit()
+
+    async def set_alarm_active(self, alarm_id: int, user_id: int, is_active: bool) -> bool:
+        """Pauses or resumes an alarm. Re-primes on resume to avoid flooding missed ads."""
+        async with aiosqlite.connect(self.db_path) as db:
+            if is_active:
+                cursor = await db.execute(
+                    "UPDATE alarms SET is_active = 1, is_primed = 0 WHERE id = ? AND user_id = ?",
+                    (alarm_id, user_id)
+                )
+            else:
+                cursor = await db.execute(
+                    "UPDATE alarms SET is_active = 0 WHERE id = ? AND user_id = ?",
+                    (alarm_id, user_id)
+                )
+            await db.commit()
+            return cursor.rowcount > 0
 
     async def get_active_alarms(self) -> list[dict[str, Any]]:
         """Returns all currently active alarms."""
@@ -156,13 +239,16 @@ class Database:
     async def delete_alarm(self, alarm_id: int, user_id: int | None = None) -> bool:
         """Deletes an alarm (and cascading seen_listings). Returns True if deleted."""
         async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("PRAGMA foreign_keys=ON;")
             if user_id is not None:
                 cursor = await db.execute("DELETE FROM alarms WHERE id = ? AND user_id = ?", (alarm_id, user_id))
             else:
                 cursor = await db.execute("DELETE FROM alarms WHERE id = ?", (alarm_id,))
-            await db.execute("DELETE FROM seen_listings WHERE alarm_id = ?", (alarm_id,))
-            await db.commit()
-            return cursor.rowcount > 0
+            if cursor.rowcount > 0:
+                await db.execute("DELETE FROM seen_listings WHERE alarm_id = ?", (alarm_id,))
+                await db.commit()
+                return True
+            return False
 
 
 database = Database()

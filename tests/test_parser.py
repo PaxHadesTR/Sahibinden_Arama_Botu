@@ -1,15 +1,19 @@
-"""Tests for HTML parsing and price extraction."""
+"""Tests for HTML parsing, lazy-loaded image extraction, and price formatting."""
 
 from src.services.parser import SahibindenParser
 
 
 def test_parse_price_formats():
-    """Verify price formatting logic."""
+    """Verify price formatting logic including decimal cents and symbols."""
     num, cur = SahibindenParser.parse_price("2.100 TL")
     assert num == 2100
     assert cur == "TL"
 
-    num, cur = SahibindenParser.parse_price("15.500 TL")
+    num, cur = SahibindenParser.parse_price("2.100,50 TL")
+    assert num == 2100
+    assert cur == "TL"
+
+    num, cur = SahibindenParser.parse_price("15.500 ₺")
     assert num == 15500
     assert cur == "TL"
 
@@ -17,19 +21,30 @@ def test_parse_price_formats():
     assert num == 250
     assert cur == "USD"
 
+    num, cur = SahibindenParser.parse_price("1.200 €")
+    assert num == 1200
+    assert cur == "EUR"
+
     num, cur = SahibindenParser.parse_price("")
     assert num is None
 
 
-def test_parse_html_listings():
-    """Verify listing row parsing from sample HTML."""
+def test_parse_html_listings_and_skip_native_ads():
+    """Verify listing row parsing, lazy-loaded image placeholder rejection, and nativeAd filtering."""
     sample_html = """
     <table id="searchResultsTable">
         <tbody>
+            <tr class="searchResultsItem nativeAd" data-id="999999">
+                <td class="searchResultsTitleValue"><a href="/reklam">Promoted Banner</a></td>
+            </tr>
             <tr class="searchResultsItem" data-id="1347097051">
                 <td class="searchResultsLargeThumbnail">
                     <a href="/ilan/ikinci-el-ve-sifir-alisveris-bilgisayar-masaustu-8-gb-ram-1347097051/detay">
-                        <img src="https://i0.shbdn.com/photos/09/70/51/thmb_1347097051.jpg">
+                        <picture>
+                            <source srcset="https://i0.shbdn.com/photos/09/70/51/lthmb_1347097051.avif 1x, https://i0.shbdn.com/photos/09/70/51/lthmb_1347097051_2x.avif 2x">
+                            <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                                 data-src="https://i0.shbdn.com/photos/09/70/51/thmb_1347097051.jpg">
+                        </picture>
                     </a>
                 </td>
                 <td class="searchResultsTitleValue">
@@ -63,4 +78,5 @@ def test_parse_html_listings():
     assert "21 Ekim" in first.date_text
     assert "İstanbul" in first.location
     assert "https://www.sahibinden.com/ilan/" in first.url
+    # Must ignore data:image placeholder in src and pick the valid http(s) jpg from data-src
     assert first.image_url == "https://i0.shbdn.com/photos/09/70/51/thmb_1347097051.jpg"
