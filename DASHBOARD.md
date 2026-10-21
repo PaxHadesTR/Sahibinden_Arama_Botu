@@ -34,7 +34,7 @@
   - [x] `aiohttp-socks` integration for `discord.py` SOCKS5 proxying
   - [x] Strict dual-channel network isolation: Discord traffic over WARP, Sahibinden scraping direct on local Turkish IP
   - [x] Configurable via `USE_WARP`, `WARP_HOST`, `WARP_PORT`, and `DISCORD_PROXY_URL` in `.env`
-  - [x] Support for both WSL host-level `warp-cli` and embedded Docker `caomingjun/warp` sidecar
+  - [x] Method A (WSL Host `warp-cli` + `network_mode: host`) actively applied as default in `docker-compose.yml` and `.env`
 - [x] Automated Test Suite: 33/33 tests passing green (`tests/`)
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`) fully updated
 

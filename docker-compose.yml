@@ -4,51 +4,25 @@ services:
     container_name: sahibinden-discord-bot
     restart: unless-stopped
     shm_size: "1gb"
+
+    # =========================================================================
+    # YÖNTEM A (WSL Host Cloudflare WARP):
+    # -------------------------------------------------------------------------
+    # Konteyner WSL ağ katmanını doğrudan paylaşır. Böylece WSL üzerinde koşan
+    # warp-cli'a (socks5://127.0.0.1:40000) hiçbir köprü veya yönlendirme olmadan
+    # doğrudan ve en yüksek performansla bağlanır.
+    # =========================================================================
+    network_mode: "host"
+
     env_file:
       - .env
     environment:
-      # In Linux container, use default Chromium on Xvfb virtual display
+      # Linux konteynerinde Xvfb sanal ekranı üzerindeki varsayılan Chromium kullanılır
       - BROWSER_CHANNEL=
       - HEADLESS=false
     volumes:
       - bot_data:/app/data
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-    # =========================================================================
-    # DEPLOYMENT MODES FOR TURKEY / CLOUDFLARE WARP:
-    # -------------------------------------------------------------------------
-    # Option A (WSL Host warp-cli):
-    #   If warp-cli is running on your WSL distribution:
-    #   Uncomment "network_mode: host" below so the container shares the WSL
-    #   network and reaches warp-cli at socks5://127.0.0.1:40000 directly.
-    #
-    # network_mode: "host"
-    #
-    # -------------------------------------------------------------------------
-    # Option B (Coolify / Docker Sidecar WARP):
-    #   If deploying via Coolify or prefer a self-contained container stack
-    #   without installing warp-cli in WSL, uncomment the 'warp' service below
-    #   and uncomment 'depends_on' here.
-    #   In .env: USE_WARP=true, WARP_HOST=warp, WARP_PORT=1080
-    #
-    # depends_on:
-    #   - warp
-    # =========================================================================
-
-  # Optional Cloudflare WARP Sidecar container
-  # Exposes SOCKS5 proxy on warp:1080 to all services in this network.
-  # warp:
-  #   image: caomingjun/warp
-  #   container_name: sahibinden-warp-sidecar
-  #   restart: unless-stopped
-  #   environment:
-  #     - WARP_SLEEP=2
-  #   volumes:
-  #     - warp_data:/var/lib/cloudflare-warp
 
 volumes:
   bot_data:
     name: sahibinden_bot_data
-  # warp_data:
-  #   name: sahibinden_warp_data
