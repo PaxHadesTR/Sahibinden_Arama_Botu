@@ -17,7 +17,7 @@ class Database:
 
     async def init_db(self):
         """Initializes tables with WAL mode, foreign keys, indexes, and safe migrations."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             await db.execute("PRAGMA journal_mode=WAL;")
             await db.execute("PRAGMA synchronous=NORMAL;")
             await db.execute("PRAGMA foreign_keys=ON;")
@@ -72,14 +72,14 @@ class Database:
 
     async def get_total_alarms_count(self) -> int:
         """Returns the total number of alarms across the database."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             async with db.execute("SELECT COUNT(*) FROM alarms") as cursor:
                 row = await cursor.fetchone()
                 return int(row[0]) if row else 0
 
     async def get_user_alarms_count(self, user_id: int) -> int:
         """Returns the total number of alarms for a specific user."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             async with db.execute("SELECT COUNT(*) FROM alarms WHERE user_id = ?", (user_id,)) as cursor:
                 row = await cursor.fetchone()
                 return int(row[0]) if row else 0
@@ -123,7 +123,7 @@ class Database:
             raise ValueError(reason or "Alarm limit reached")
 
         filters_str = json.dumps(filters or {}, ensure_ascii=False)
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             cursor = await db.execute(
                 """
                 INSERT INTO alarms (name, user_id, channel_id, guild_id, target_url, filters_json, is_primed)
@@ -147,7 +147,7 @@ class Database:
     async def prime_initial_listings(self, alarm_id: int, classified_items: list[dict[str, Any]]):
         """Marks currently active listings as baseline seen and marks the alarm as primed."""
         now_iso = datetime.now(timezone.utc).isoformat()
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             for item in classified_items:
                 price_text = item.get("price_text") or item.get("price") or ""
                 price_val = self._extract_price_val(item)
@@ -167,7 +167,7 @@ class Database:
     async def filter_new_listings(self, alarm_id: int, listings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Compares incoming listings against seen_listings and returns truly new items."""
         new_items: list[dict[str, Any]] = []
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             for item in listings:
                 cid = str(item["classified_id"])
                 async with db.execute(
@@ -185,7 +185,7 @@ class Database:
         Returns items enriched with 'old_price_text' and 'old_price_val'.
         """
         price_drops: list[dict[str, Any]] = []
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             db.row_factory = aiosqlite.Row
             for item in listings:
                 cid = str(item["classified_id"])
@@ -215,7 +215,7 @@ class Database:
     async def record_notified_listings(self, alarm_id: int, listings: list[dict[str, Any]]):
         """Inserts or updates notified listings in seen_listings to prevent duplicate alerts."""
         now_iso = datetime.now(timezone.utc).isoformat()
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             for item in listings:
                 price_text = item.get("price_text") or item.get("price") or ""
                 price_val = self._extract_price_val(item)
@@ -231,7 +231,7 @@ class Database:
     async def update_last_checked(self, alarm_id: int):
         """Updates last_checked_at timestamp for an alarm."""
         now_iso = datetime.now(timezone.utc).isoformat()
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             await db.execute(
                 "UPDATE alarms SET last_checked_at = ? WHERE id = ?",
                 (now_iso, alarm_id)
@@ -240,7 +240,7 @@ class Database:
 
     async def set_alarm_active(self, alarm_id: int, user_id: int, is_active: bool) -> bool:
         """Pauses or resumes an alarm. Re-primes on resume to avoid flooding missed ads."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             if is_active:
                 cursor = await db.execute(
                     "UPDATE alarms SET is_active = 1, is_primed = 0 WHERE id = ? AND user_id = ?",
@@ -256,7 +256,7 @@ class Database:
 
     async def get_active_alarms(self) -> list[dict[str, Any]]:
         """Returns all currently active alarms."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             db.row_factory = aiosqlite.Row
             async with db.execute("SELECT * FROM alarms WHERE is_active = 1") as cursor:
                 rows = await cursor.fetchall()
@@ -264,7 +264,7 @@ class Database:
 
     async def get_user_alarms(self, user_id: int) -> list[dict[str, Any]]:
         """Returns all alarms belonging to a specific user."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             db.row_factory = aiosqlite.Row
             async with db.execute("SELECT * FROM alarms WHERE user_id = ? ORDER BY id DESC", (user_id,)) as cursor:
                 rows = await cursor.fetchall()
@@ -272,7 +272,7 @@ class Database:
 
     async def get_alarm(self, alarm_id: int) -> dict[str, Any] | None:
         """Retrieves a single alarm by ID."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             db.row_factory = aiosqlite.Row
             async with db.execute("SELECT * FROM alarms WHERE id = ?", (alarm_id,)) as cursor:
                 row = await cursor.fetchone()
@@ -280,7 +280,7 @@ class Database:
 
     async def delete_alarm(self, alarm_id: int, user_id: int | None = None) -> bool:
         """Deletes an alarm (and cascading seen_listings). Returns True if deleted."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             await db.execute("PRAGMA foreign_keys=ON;")
             if user_id is not None:
                 cursor = await db.execute("DELETE FROM alarms WHERE id = ? AND user_id = ?", (alarm_id, user_id))

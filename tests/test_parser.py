@@ -80,3 +80,24 @@ def test_parse_html_listings_and_skip_native_ads():
     assert "https://www.sahibinden.com/ilan/" in first.url
     # Must ignore data:image placeholder in src and pick the valid http(s) jpg from data-src
     assert first.image_url == "https://i0.shbdn.com/photos/09/70/51/thmb_1347097051.jpg"
+
+
+def test_is_blocked_or_challenge_page():
+    """Verify detection of Cloudflare challenge, login walls, vs valid search pages (including 0-result pages)."""
+    # 1. Valid page with listings
+    valid_html = '<table id="searchResultsTable"><tr class="searchResultsItem" data-id="1"></tr></table>'
+    assert SahibindenParser.is_blocked_or_challenge_page(valid_html, "https://www.sahibinden.com/ram-bellek") is False
+
+    # 2. Valid page with 0 results
+    empty_search_html = '<div class="searchResultsRight">Arama kriterlerinize uygun ilan bulunamadı.</div>'
+    assert SahibindenParser.is_blocked_or_challenge_page(empty_search_html, "https://www.sahibinden.com/ram-bellek") is False
+
+    # 3. Blocked by Cloudflare checkLoading URL
+    assert SahibindenParser.is_blocked_or_challenge_page("<html>Loading...</html>", "https://www.sahibinden.com/checkLoading") is True
+
+    # 4. Blocked by login wall redirect
+    assert SahibindenParser.is_blocked_or_challenge_page("<html>Giriş Yap</html>", "https://secure.sahibinden.com/giris") is True
+
+    # 5. Blocked by Cloudflare Turnstile HTML
+    turnstile_html = '<html><head><title>Just a moment...</title></head><body><div class="cf-turnstile"></div></body></html>'
+    assert SahibindenParser.is_blocked_or_challenge_page(turnstile_html, "https://www.sahibinden.com/ram-bellek") is True

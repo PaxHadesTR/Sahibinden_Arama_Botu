@@ -16,6 +16,8 @@ logger = logging.getLogger("sahibinden_bot.monitor")
 class AlarmMonitor:
     """Orchestrates periodic scraping, deduplication, price-drop detection, and Discord notifications."""
 
+    MAX_DISPATCH_PER_CYCLE = 10  # Prevents Discord channel flooding if many ads appear at once
+
     def __init__(self, bot: discord.Client):
         self.bot = bot
         self._running = False
@@ -125,20 +127,23 @@ class AlarmMonitor:
             listings = pre_fetched_listings
         else:
             listings = await scraper.fetch_listings(target_url)
-        if not listings:
-            await database.update_last_checked(alarm_id)
-            return []
 
         # Apply defense-in-depth filter validation
         valid_listings = [item for item in listings if self.matches_alarm_filters(alarm, item)]
         dict_items = [item.model_dump() for item in valid_listings]
 
-        # CRITICAL INVARIANT: If alarm was not primed at creation time, baseline it now without spamming
+        # CRITICAL INVARIANT: If alarm was not primed at creation time, baseline it now without spamming.
+        # Note: Even if dict_items is empty (legitimate 0-result search page), we mark is_primed = 1
+        # so the very first future listing triggers a notification rather than being swallowed as baseline.
         if not is_primed:
             await database.prime_initial_listings(alarm_id, dict_items)
             logger.info(
                 f"Alarm #{alarm_id} ({alarm['name']}) was unprimed; baselined {len(dict_items)} current listings."
             )
+            return []
+
+        if not valid_listings:
+            await database.update_last_checked(alarm_id)
             return []
 
         # 1. Check for price drops on previously seen listings
@@ -156,9 +161,10 @@ class AlarmMonitor:
             logger.warning(f"Skipping notification dispatch for alarm #{alarm_id}: channel {channel_id} unreachable.")
             return []
 
-        # Dispatch Price Drops (oldest to newest)
+        # Dispatch Price Drops (oldest to newest, capped at MAX_DISPATCH_PER_CYCLE)
+        drops_to_send = price_drops[:self.MAX_DISPATCH_PER_CYCLE]
         notified_drops: list[dict[str, Any]] = []
-        for drop_dict in reversed(price_drops):
+        for drop_dict in reversed(drops_to_send):
             item = ListingItem(**drop_dict)
             old_price_text = drop_dict.get("old_price_text", "")
             old_price_val = drop_dict.get("old_price_val")
@@ -178,11 +184,13 @@ class AlarmMonitor:
                 logger.error(f"Failed to send price-drop Discord message for {item.classified_id}: {e}")
 
         if notified_drops:
-            await database.record_notified_listings(alarm_id, notified_drops)
+            # Record all detected drops so overflow items don't re-trigger next cycle
+            await database.record_notified_listings(alarm_id, price_drops)
 
-        # Dispatch Brand New Listings (oldest to newest so newest appears at bottom)
+        # Dispatch Brand New Listings (oldest to newest so newest appears at bottom, capped at MAX_DISPATCH_PER_CYCLE)
+        new_to_send = new_items[:self.MAX_DISPATCH_PER_CYCLE]
         notified_new: list[dict[str, Any]] = []
-        for item_dict in reversed(new_items):
+        for item_dict in reversed(new_to_send):
             item = ListingItem(**item_dict)
             embed = self.create_listing_embed(alarm, item)
             try:
@@ -195,7 +203,8 @@ class AlarmMonitor:
                 logger.error(f"Failed to send new-listing Discord message for {item.classified_id}: {e}")
 
         if notified_new:
-            await database.record_notified_listings(alarm_id, notified_new)
+            # Record all new items so overflow items beyond MAX_DISPATCH_PER_CYCLE are marked seen
+            await database.record_notified_listings(alarm_id, new_items)
 
         await database.update_last_checked(alarm_id)
         return [ListingItem(**x) for x in notified_new]

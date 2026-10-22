@@ -165,6 +165,7 @@ class AlarmCog(commands.Cog):
 
         try:
             sanitized_url = SahibindenURLBuilder.sanitize_user_url(url)
+            extracted_filters = SahibindenURLBuilder.extract_filters_from_url(sanitized_url)
         except ValueError as e:
             await interaction.followup.send(f"❌ {e}", ephemeral=True)
             return
@@ -175,7 +176,7 @@ class AlarmCog(commands.Cog):
             channel_id=interaction.channel_id,
             guild_id=interaction.guild_id,
             target_url=sanitized_url,
-            filters={"kaynak": "dogrudan_url", "url": sanitized_url}
+            filters=extracted_filters
         )
 
         initial_count = 0
@@ -507,8 +508,11 @@ class AlarmCog(commands.Cog):
     async def alarm_test(self, interaction: discord.Interaction, alarm_id: int):
         await interaction.response.defer(ephemeral=True)
         alarm = await database.get_alarm(alarm_id)
-        if not alarm:
-            await interaction.followup.send(f"❌ `#{alarm_id}` numaralı alarm bulunamadı.", ephemeral=True)
+        if not alarm or alarm.get("user_id") != interaction.user.id:
+            await interaction.followup.send(
+                f"❌ `#{alarm_id}` numaralı alarm bulunamadı veya size ait değil.",
+                ephemeral=True
+            )
             return
 
         try:

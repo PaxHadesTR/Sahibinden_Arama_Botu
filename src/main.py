@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import signal
 import sys
 from src.config import settings
 from src.db.database import database
@@ -32,14 +33,26 @@ async def main():
 
     bot = SahibindenBot()
 
+    # Register POSIX SIGTERM handler for clean Docker / Coolify container stops
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, lambda: asyncio.create_task(bot.close()))
+        except NotImplementedError:
+            # Windows ProactorEventLoop does not support add_signal_handler
+            pass
+
     try:
         async with bot:
             await bot.start(settings.DISCORD_BOT_TOKEN)
-    except KeyboardInterrupt:
-        logger.info("Received interrupt signal. Shutting down gracefully...")
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        logger.info("Received shutdown signal. Closing bot gracefully...")
     finally:
         await bot.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass

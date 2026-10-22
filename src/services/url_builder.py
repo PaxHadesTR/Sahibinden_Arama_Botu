@@ -41,12 +41,12 @@ class SahibindenURLBuilder:
             if price_min > price_max:
                 raise ValueError("Minimum fiyat maksimum fiyattan büyük olamaz.")
 
-        # Auto-infer specific category slug if generic search matches a known category
+        # Auto-infer specific category key/slug if generic search matches a known category
         target_slug = category_slug
         if target_slug in ("kelime-ile-arama", "genel-arama") and query_text:
             inferred = resolver.infer_category_from_text(query_text)
             if inferred:
-                target_slug = inferred.get("slug", target_slug)
+                target_slug = inferred.get("key", inferred.get("slug", target_slug))
 
         cat_data = resolver.get_category(target_slug)
         actual_slug = cat_data.get("slug", target_slug) if cat_data else target_slug
@@ -154,3 +154,33 @@ class SahibindenURLBuilder:
             ""
         ))
         return sanitized
+
+    @classmethod
+    def extract_filters_from_url(cls, url: str) -> dict[str, Any]:
+        """Extracts price bounds and query text from a Sahibinden search URL for defense-in-depth post-filtering."""
+        parsed = urlparse(url)
+        qs = parse_qs(parsed.query, keep_blank_values=False)
+
+        extracted: dict[str, Any] = {"kaynak": "dogrudan_url", "url": url}
+
+        def _parse_int(key: str) -> int | None:
+            vals = qs.get(key)
+            if vals and str(vals[0]).strip().isdigit():
+                return int(str(vals[0]).strip())
+            return None
+
+        min_fiyat = _parse_int("price_min")
+        max_fiyat = _parse_int("price_max")
+
+        if min_fiyat is not None and max_fiyat is not None and min_fiyat > 0 and max_fiyat > 0:
+            if min_fiyat > max_fiyat:
+                raise ValueError("URL içindeki minimum fiyat maksimum fiyattan büyük olamaz.")
+
+        if min_fiyat is not None:
+            extracted["min_fiyat"] = min_fiyat
+        if max_fiyat is not None:
+            extracted["max_fiyat"] = max_fiyat
+        if "query_text" in qs and qs["query_text"]:
+            extracted["kelime"] = qs["query_text"][0]
+
+        return extracted

@@ -77,6 +77,19 @@ class StealthScraper:
                 pass
             self._playwright = None
 
+    def _cleanup_stale_singleton_locks(self):
+        """
+        Removes stale Chromium SingletonLock/SingletonCookie/SingletonSocket files from persistent volume.
+        Prevents 'ProcessSingleton: The profile appears to be in use' crashes after container restarts.
+        """
+        for lock_name in ("SingletonLock", "SingletonCookie", "SingletonSocket"):
+            lock_path = self._profile_dir / lock_name
+            try:
+                if lock_path.exists() or lock_path.is_symlink():
+                    lock_path.unlink(missing_ok=True)
+            except Exception as e:
+                logger.debug(f"Could not unlink stale lock {lock_path}: {e}")
+
     async def _init_context(self) -> BrowserContext:
         """Initializes or returns persistent browser context with stealth flags."""
         if self._context is not None:
@@ -88,6 +101,7 @@ class StealthScraper:
                 logger.warning("Existing browser context appears closed or unresponsive. Recreating...")
                 await self._reset_context()
 
+        self._cleanup_stale_singleton_locks()
         self._playwright = await async_playwright().start()
 
         args = [
@@ -170,7 +184,12 @@ class StealthScraper:
                         await page.goto(corrected_url, timeout=settings.SCRAPER_TIMEOUT_SECONDS * 1000)
                         await self._wait_for_challenge_and_table(page)
 
-                    return await page.content()
+                    html = await page.content()
+                    if SahibindenParser.is_blocked_or_challenge_page(html, page.url):
+                        raise RuntimeError(
+                            f"Page blocked by anti-bot challenge or login wall (final URL: {page.url})"
+                        )
+                    return html
 
                 except Exception as e:
                     logger.warning(f"Fetch attempt {attempt + 1} failed for {url}: {e}")

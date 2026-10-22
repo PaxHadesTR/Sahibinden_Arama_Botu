@@ -392,3 +392,61 @@ async def test_monitor_url_batching_optimization(monkeypatch):
     finally:
         if os.path.exists(path):
             os.remove(path)
+
+
+@pytest.mark.asyncio
+async def test_unprimed_zero_listings_primes_and_notifies_first_future_ad(monkeypatch):
+    """
+    Verify that if a rare search legitimately has 0 listings when first polled while unprimed,
+    it transitions to is_primed=1 so the very first listing posted later notifies the user.
+    """
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    test_db = Database(db_path=path)
+    sent_messages = []
+
+    class DummyChannel:
+        async def send(self, content=None, embed=None):
+            sent_messages.append({"content": content, "embed": embed})
+
+    class DummyBot:
+        def get_channel(self, cid):
+            return DummyChannel()
+
+    try:
+        await test_db.init_db()
+        monkeypatch.setattr("src.services.monitor.database", test_db)
+
+        alarm_id = await test_db.create_alarm(
+            name="Rare GPU",
+            user_id=777,
+            channel_id=888,
+            guild_id=1,
+            target_url="https://www.sahibinden.com/ekran-karti-masaustu?sorting=date_desc",
+        )
+
+        monitor = AlarmMonitor(bot=DummyBot())
+
+        # Cycle 1: 0 listings on Sahibinden -> should mark is_primed=1 with 0 messages
+        alarm_row = await test_db.get_alarm(alarm_id)
+        assert alarm_row["is_primed"] == 0
+        await monitor.check_alarm(alarm_row, pre_fetched_listings=[])
+        assert len(sent_messages) == 0
+
+        alarm_row = await test_db.get_alarm(alarm_id)
+        assert alarm_row["is_primed"] == 1
+
+        # Cycle 2: The very first listing is posted -> must notify the user!
+        first_ad = [
+            ListingItem(
+                classified_id="5001", title="RTX 5090 FE", price_text="95.000 TL",
+                price_val=95000, currency="TL", date_text="22 Ekim", location="İstanbul",
+                url="https://www.sahibinden.com/5001"
+            )
+        ]
+        await monitor.check_alarm(alarm_row, pre_fetched_listings=first_ad)
+        assert len(sent_messages) == 1
+        assert "Yeni İlan Bulundu" in sent_messages[0]["content"]
+    finally:
+        if os.path.exists(path):
+            os.remove(path)

@@ -130,3 +130,31 @@ def test_merge_dropped_redirect_params():
     assert qs.get("price_max") == ["50000"]
     assert qs.get("address_city") == ["34"]
     assert qs.get("query_text") == ["iphone 15"]
+
+
+def test_extract_filters_from_url():
+    """Verify price_min, price_max, and query_text are extracted from user-supplied URLs for defense-in-depth."""
+    url = "https://www.sahibinden.com/otomobil?price_min=500000&price_max=850000&query_text=civic&sorting=date_desc"
+    extracted = SahibindenURLBuilder.extract_filters_from_url(url)
+    assert extracted["min_fiyat"] == 500000
+    assert extracted["max_fiyat"] == 850000
+    assert extracted["kelime"] == "civic"
+
+    with pytest.raises(ValueError, match="büyük olamaz"):
+        SahibindenURLBuilder.extract_filters_from_url(
+            "https://www.sahibinden.com/otomobil?price_min=900000&price_max=500000"
+        )
+
+
+def test_cleanup_stale_singleton_locks(tmp_path):
+    """Verify stale Chromium SingletonLock files are removed before launching persistent context."""
+    scraper_inst = StealthScraper()
+    scraper_inst._profile_dir = tmp_path
+
+    for lock_name in ("SingletonLock", "SingletonCookie", "SingletonSocket"):
+        (tmp_path / lock_name).write_text("stale")
+
+    scraper_inst._cleanup_stale_singleton_locks()
+
+    for lock_name in ("SingletonLock", "SingletonCookie", "SingletonSocket"):
+        assert not (tmp_path / lock_name).exists()

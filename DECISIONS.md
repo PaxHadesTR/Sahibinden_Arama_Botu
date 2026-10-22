@@ -47,25 +47,27 @@
 
 ## ADR-005: Cloudflare WARP SOCKS5 Proxy Integration & Isolated Traffic Routing
 - **Status**: Accepted
-- **Date**: 2026-10-21
-- **Context**: In Turkey and countries subject to national ISP blocks on Discord (BTK censorship), the Discord API and Gateway connections fail. Concurrently, Sahibinden.com employs aggressive Akamai/Cloudflare defenses that block non-Turkish and datacenter egress IPs (including WARP egress IPs).
+- **Date**: 2026-10-22
+- **Context**: In Turkey and countries subject to national ISP blocks on Discord (BTK censorship), the Discord API and Gateway connections fail. Concurrently, Sahibinden.com employs aggressive Akamai/Cloudflare defenses that block non-Turkish and datacenter egress IPs (including WARP egress IPs). Additionally, standard `aiohttp.TCPConnector` sends HTTP `CONNECT` headers even when passed a `socks5://` proxy kwarg.
 - **Decision**: Implement strictly separated dual-channel network routing:
-  1. Discord Gateway & REST API: Configured via `discord.py`'s `proxy` parameter leveraging `aiohttp-socks`. When `USE_WARP=True` or `DISCORD_PROXY_URL` is set, Discord traffic routes exclusively through SOCKS5 (`socks5://{WARP_HOST}:{WARP_PORT}`).
+  1. Discord Gateway & REST API: For `socks5://` URLs (`USE_WARP=True` or `DISCORD_PROXY_URL`), bind `aiohttp_socks.ProxyConnector.from_url(...)` to `self.http.connector` (with `http.proxy=None`) so `discord.py` negotiates genuine binary SOCKS5 (`\x05\x01\x00`) with `warp-cli`. For `http://` URLs, pass `proxy=proxy_url` directly.
   2. Sahibinden Scraping: Completely bypassed from the WARP proxy, running direct on the local Turkish residential IP (or via an explicitly configured residential `PROXY_URL`).
 - **Consequences**:
-  - The bot connects reliably to Discord from Turkey while evading Sahibinden's foreign/datacenter IP blocks.
+  - The bot connects reliably to Discord from Turkey over SOCKS5 while evading Sahibinden's foreign/datacenter IP blocks.
 
-## ADR-006: Headless Linux Virtual Display (Xvfb) & Coolify Docker Architecture
+## ADR-006: Headless Linux Virtual Display (Xvfb), SingletonLock Healing & Coolify Docker Architecture
 - **Status**: Accepted
-- **Date**: 2026-10-21
-- **Context**: Deploying on Coolify / WSL / Docker under Linux faces two challenges:
+- **Date**: 2026-10-22
+- **Context**: Deploying on Coolify / WSL / Docker under Linux faces three challenges:
   1. Running Chromium in standard `headless=True` mode on Linux triggers Cloudflare Turnstile blocks on Sahibinden.
   2. Standard Docker containers default to 64MB `/dev/shm`, causing Chromium tab crashes (`TargetClosedError`).
+  3. Storing `/app/data/browser_profile` on a persistent Docker volume leaves stale `SingletonLock` symlinks after container restarts or `SIGKILL`, preventing Chromium from launching in a new container instance.
 - **Decision**:
   - Containerize using `python:3.12-slim-bookworm` with `playwright` dependencies.
   - Run `Xvfb` (X Virtual Framebuffer) on display `:99` in `entrypoint.sh` with `DISPLAY=:99`.
+  - Automatically purge stale `SingletonLock`, `SingletonCookie`, and `SingletonSocket` files in `entrypoint.sh` and `StealthScraper._init_context()`.
   - Launch Playwright with `headless=False` on the virtual framebuffer, effectively mimicking a genuine headful browser on physical hardware.
-  - Set `shm_size: "1gb"` in `docker-compose.yml` to prevent Chromium tab crashes.
+  - Set `shm_size: "1gb"` and `network_mode: "host"` in `docker-compose.yml`.
   - Persist `/app/data` (database and browser profile) in a named Docker volume (`bot_data`).
 
 ## ADR-007: Public Open-Source Packaging & Coolify Git-Based Deployment

@@ -107,6 +107,49 @@ class SahibindenParser:
         return candidates[0]
 
     @classmethod
+    def is_blocked_or_challenge_page(cls, html_content: str, current_url: str = "") -> bool:
+        """
+        Detects if the page is a Cloudflare Turnstile challenge, Sahibinden login wall,
+        or WAF block page rather than a legitimate search results page.
+        """
+        url_low = (current_url or "").lower()
+        if "checkloading" in url_low or "/giris" in url_low or "uye-girisi" in url_low:
+            return True
+
+        if not html_content or not html_content.strip():
+            return True
+
+        html_low = html_content.lower()
+
+        # If page contains legitimate search result table or empty-search result notice, it is valid
+        valid_markers = (
+            "searchresultstable",
+            "searchresultsitem",
+            "searchresultsright",
+            "ilan bulunamadı",
+            "sonuç bulunamadı",
+        )
+        if any(marker in html_low for marker in valid_markers):
+            return False
+
+        # Check known anti-bot / challenge / login-wall markers
+        block_markers = (
+            "checkloading",
+            "cf-browser-verification",
+            "cf-turnstile",
+            "challenge-platform",
+            "just a moment",
+            "bir dakika lütfen",
+            "olağan dışı erişim",
+            "robot olmadığınızı",
+            "erişiminiz engellendi",
+        )
+        if any(marker in html_low for marker in block_markers):
+            return True
+
+        return False
+
+    @classmethod
     def parse_listings(cls, html_content: str) -> list[ListingItem]:
         """Parses all search result items from the HTML page."""
         if not html_content:
