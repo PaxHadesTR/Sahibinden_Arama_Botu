@@ -81,3 +81,18 @@
   - Structure `README.md` with step-by-step Coolify Public Repo UI instructions, persistent storage details, and Discord Developer Portal bot creation guide.
 - **Consequences**:
   - Users can point Coolify directly to their public repository URL, define environment variables in the Coolify UI, and deploy with zero manual Docker command-line friction.
+
+## ADR-008: Xvfb UNIX Domain Socket Binding & Discord UI Truncation Feedback
+- **Status**: Accepted
+- **Date**: 2026-10-23
+- **Context**:
+  1. In the Linux container entrypoint, passing `-nolisten unix` alongside `-nolisten tcp` disabled both the local UNIX domain socket (`/tmp/.X11-unix/X99`) and TCP listening for `Xvfb`. As a consequence, Chromium clients binding to `DISPLAY=:99` via the local UNIX socket could not establish a connection to the virtual display.
+  2. In the `/alarmlarim` command, users with more than 15 active alarms (up to `MAX_ALARMS_PER_USER=100`) received an embed truncated to 15 items to respect Discord's 25-field limit, but lacked contextual feedback indicating how many alarms existed in total and how to manage them.
+- **Decision**:
+  1. Remove `-nolisten unix` from `entrypoint.sh` while retaining `-nolisten tcp` (`Xvfb :99 -screen 0 1280x800x24 -nolisten tcp &`). This protects against external network exposure while allowing local container processes to connect via `/tmp/.X11-unix/X99`.
+  2. Enrich `/alarmlarim` embed footer to display the total alarm count alongside guidance on managing or deleting items via `/alarm-sil` and `/alarm-durum`.
+  3. Ensure all user-provided XML system prompts (`Antigravity_Otonom_Sistem_Prompt.xml`, `*.xml`) are excluded in `.gitignore`.
+- **Consequences**:
+  - Headful Chromium on Xvfb initializes without display connection errors.
+  - Users with high alarm counts receive explicit pagination feedback.
+

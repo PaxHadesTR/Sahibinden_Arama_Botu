@@ -447,6 +447,16 @@ class AlarmCog(commands.Cog):
                 inline=False
             )
 
+        total_count = len(user_alarms)
+        if total_count > 15:
+            embed.set_footer(
+                text=f"Toplam {total_count} alarmınızdan ilk 15 tanesi listeleniyor. Alarmlarınızı yönetmek veya silmek için /alarm-sil kullanabilirsiniz."
+            )
+        else:
+            embed.set_footer(
+                text=f"Toplam {total_count} kayıtlı alarm. Yönetim için /alarm-durum ve /alarm-sil kullanabilirsiniz."
+            )
+
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(

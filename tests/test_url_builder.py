@@ -158,3 +158,13 @@ def test_cleanup_stale_singleton_locks(tmp_path):
 
     for lock_name in ("SingletonLock", "SingletonCookie", "SingletonSocket"):
         assert not (tmp_path / lock_name).exists()
+
+
+def test_entrypoint_xvfb_configuration():
+    """Verify entrypoint.sh configures Xvfb with -nolisten tcp and allows UNIX domain socket."""
+    from pathlib import Path
+    entrypoint_path = Path(__file__).resolve().parent.parent / "entrypoint.sh"
+    content = entrypoint_path.read_text(encoding="utf-8")
+    assert "-nolisten tcp" in content
+    assert "-nolisten unix" not in content
+    assert "exec python src/main.py" in content

@@ -10,6 +10,7 @@
    - Polling intervals feature randomized jitter, URL batching deduplication (scraping shared target URLs only once per cycle), and inter-alarm throttling to prevent IP blocks.
    - `SahibindenParser.is_blocked_or_challenge_page` verifies every response to ensure Cloudflare Turnstile (`checkLoading`, `cf-turnstile`), login walls (`/giris`), or WAF blocks raise an error and never masquerade as a 0-result search page.
    - Stale Chromium `SingletonLock` / `SingletonCookie` / `SingletonSocket` files in `/app/data/browser_profile` are automatically cleaned on container startup and browser context initialization to prevent persistent Docker volume lock crashes.
+   - `entrypoint.sh` initializes `Xvfb` on display `:99` with `-nolisten tcp` to shield external network exposure while preserving the local UNIX domain socket `/tmp/.X11-unix/X99` for Chromium clients.
    - When Sahibinden's server-side redirect (e.g., from `/kelime-ile-arama` to a specific category) strips query parameters (`sorting=date_desc`, `price_min`, `price_max`, `address_city`), `StealthScraper` automatically merges and re-applies the dropped parameters.
 3. **Dual-Channel Network Traffic Isolation (Turkey BTK Bypass)**:
    - Discord Gateway and REST API traffic routes through Cloudflare WARP SOCKS5 (`aiohttp_socks.ProxyConnector` speaking binary SOCKS5 `\x05\x01\x00`) when `USE_WARP=true`.
