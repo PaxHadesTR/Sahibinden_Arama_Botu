@@ -1,19 +1,25 @@
 services:
+  # =========================================================================
+  # CLOUDFLARE WARP SIDECAR (YÖNTEM B):
+  # -------------------------------------------------------------------------
+  # WSL veya sunucunuza hiçbir paket (warp-cli) kurmanıza gerek kalmaz.
+  # Docker bu hafif konteyneri otomatik ayağa kaldırır ve 1080 portunda
+  # SOCKS5 proxy sunar.
+  # =========================================================================
+  warp:
+    image: caomingjun/warp
+    container_name: sahibinden-warp
+    restart: unless-stopped
+    environment:
+      - WARP_SLEEP=2
+
   sahibinden-bot:
     build: .
     container_name: sahibinden-discord-bot
     restart: unless-stopped
     shm_size: "1gb"
-
-    # =========================================================================
-    # YÖNTEM A (WSL Host Cloudflare WARP):
-    # -------------------------------------------------------------------------
-    # Konteyner WSL ağ katmanını doğrudan paylaşır. Böylece WSL üzerinde koşan
-    # warp-cli'a (socks5://127.0.0.1:40000) hiçbir köprü veya yönlendirme olmadan
-    # doğrudan ve en yüksek performansla bağlanır.
-    # =========================================================================
-    network_mode: "host"
-
+    depends_on:
+      - warp
     env_file:
       - .env
     environment:
@@ -21,8 +27,10 @@ services:
       - BROWSER_CHANNEL=
       - HEADLESS=false
       - PYTHONPATH=/app
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      # WARP Sidecar ayarları
+      - USE_WARP=true
+      - WARP_HOST=warp
+      - WARP_PORT=1080
     volumes:
       - bot_data:/app/data
 

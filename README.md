@@ -101,35 +101,21 @@ Türkiye'de Discord servisleri BTK tarafından erişime engellendiğinde, botun 
 > [!IMPORTANT]
 > **Sahibinden.com, WARP ve yabancı veri merkezi IP'lerini anında engeller (Cloudflare 403 Forbidden).**
 > Bu bot **çift kanallı izole ağ mimarisi** kullanır:
-> - **Discord API & Gateway Trafiği:** Cloudflare WARP SOCKS5 tüneli üzerinden (`socks5://127.0.0.1:40000`) yönlendirilir ve BTK engeli aşılır.
-> - **Sahibinden Kazıma Trafiği:** WARP proxy'sine **asla** girmez; doğrudan WSL / sunucunuzun yerel Türk IP'sinden çıkar.
+> - **Discord API & Gateway Trafiği:** `docker-compose.yml` içindeki yerleşik `warp` sidecar konteyneri (`socks5://warp:1080`) üzerinden yönlendirilir ve BTK engeli aşılır.
+> - **Sahibinden Kazıma Trafiği:** WARP proxy'sine **asla** girmez; doğrudan sunucunuzun yerel Türk IP'sinden çıkar.
 
-### WSL Üzerinde Cloudflare WARP Kurulumu & Çalıştırma
+### Sıfır Kurulum: Docker Compose Sidecar (Önerilen & Varsayılan)
 
-Eğer `USE_WARP=true` kullanıyorsanız, WSL terminalinizde `warp-cli` servisinin SOCKS5 proxy modunda çalıştığından emin olun:
+WSL veya sunucunuza `warp-cli` kurmanıza **kesinlikle gerek yoktur!** `docker-compose.yml` dosyasında `caomingjun/warp` servisi hazır tanımlıdır. Coolify veya Docker Compose ile ayağa kalktığında:
 
-```bash
-# 1. WARP durumunu kontrol edin
-warp-cli status
-
-# 2. Modu SOCKS5 Proxy olarak ayarlayın
-warp-cli set-mode proxy      # (Eski warp-cli sürümlerinde: warp-cli mode proxy)
-
-# 3. Portu 40000 olarak sabitleyin
-warp-cli set-proxy-port 40000 # (Eski warp-cli sürümlerinde: warp-cli proxy port 40000)
-
-# 4. Bağlanın
-warp-cli connect
-
-# 5. Proxy'nin çalıştığını test edin (warp=on görmelisiniz)
-curl -x socks5://127.0.0.1:40000 https://cloudflare.com/cdn-cgi/trace
-```
+1. `warp` konteyneri arka planda otomatik başlar ve 1080 portunda SOCKS5 proxy sağlar.
+2. `sahibinden-bot` konteyneri `socks5://warp:1080` üzerinden Discord'a bağlanır.
+3. Sahibinden aramaları ise host makinenizin yerel Türk IP'sinden çıkar.
 
 > [!TIP]
-> - **Coolify Ağ Modu:** `docker-compose.yml` içinde `network_mode: "host"` tanımlıdır, bu sayede konteyner `127.0.0.1:40000` üzerinden doğrudan WSL host'una bağlanır.
-> - **Bridge Ağı Kullanıyorsanız:** Coolify ortam değişkenlerinde `WARP_HOST=host.docker.internal` tanımlayın.
-> - **WARP Kullanmak İstemiyorsanız:** `USE_WARP=false` yaparak botu doğrudan Discord'a bağlayabilirsiniz.
-> - **Otomatik Fallback:** `WARP_FALLBACK_TO_DIRECT=true` tanımlarsanız, WARP çevrimdışı olduğunda bot durmak yerine doğrudan bağlantıya geçer.
+> - **Tak-Çalıştır:** Coolify'da ek hiçbir ayar yapmadan deploy etmeniz yeterlidir.
+> - **WARP Kullanmak İstemiyorsanız:** Coolify Environment Variables paneline `USE_WARP=false` yazmanız yeterlidir.
+> - **Otomatik Fallback:** `WARP_FALLBACK_TO_DIRECT=true` tanımlarsanız, WARP geçici olarak çevrimdışı olsa bile bot durmaz ve doğrudan Discord'a bağlanır.
 
 ---
 
@@ -325,7 +311,7 @@ Sahibinden.com, standart HTTP istemcilerini (`requests`, `curl`) ve standart ba�
 Daha önce bildirilen bir ilanın fiyatı indirildiğinde bot bunu fark eder, eski ve yeni fiyatı indirim oranıyla hesaplayarak kanala `📉 Fiyat Düştü!` başlığıyla özel bir indirim embed kartı gönderir.
 
 #### 4. Testleri nasıl çalıştırırım?
-Proje 45 adet kapsamlı birim, entegrasyon, anti-bot challenge, limit, Docker Xvfb ve proxy testine sahiptir:
+Proje 46 adet kapsamlı birim, entegrasyon, anti-bot challenge, limit, Docker Xvfb ve proxy testine sahiptir:
 ```bash
 python -m pytest -v
 ```

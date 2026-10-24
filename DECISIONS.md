@@ -129,5 +129,21 @@
   - Raw unhandled exception crashes are replaced with instant, user-friendly diagnostic guidance.
   - Bridge networks can seamlessly resolve the host via `host.docker.internal`.
 
+## ADR-011: Docker Sidecar Cloudflare WARP Architecture for Coolify & WSL
+- **Status**: Accepted
+- **Date**: 2026-10-24
+- **Context**:
+  Users running on Coolify / WSL frequently do not have `warp-cli` installed directly on the host OS. Relying on host networking (`network_mode: host`) and `127.0.0.1:40000` required manual host package installation and daemon configuration, failing with `[Errno 111] Connection Refused` when absent. Other Coolify applications (such as PriceAlertBot) function seamlessly by executing WARP as a containerized Docker sidecar.
+- **Decision**:
+  1. Add an integrated `warp` service using `caomingjun/warp` directly into `docker-compose.yml`, listening on standard SOCKS5 port 1080.
+  2. Configure `sahibinden-bot` to depend on `warp` and connect via `socks5://warp:1080` (`WARP_HOST=warp`, `WARP_PORT=1080`).
+  3. Enhance `check_proxy_health` with configurable retry intervals (`retries=4, retry_delay=2.0s`) to smoothly wait for the sidecar container's Cloudflare TLS registration on initial boot.
+  4. Preserve traffic isolation: `sahibinden-bot` routes only Discord API/Gateway traffic through `socks5://warp:1080`, while Sahibinden web scraping exits directly through the container's default gateway (local Turkish host IP).
+- **Consequences**:
+  - Zero host dependencies: No need to install `warp-cli` inside WSL or Linux host.
+  - Coolify deployment is 100% turnkey and self-contained on "Deploy".
+  - Sahibinden scraping remains on the Turkish residential IP, avoiding Cloudflare 403 blocks.
+
+
 
 

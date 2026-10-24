@@ -13,8 +13,8 @@
    - `entrypoint.sh` initializes `Xvfb` on display `:99` with `-nolisten tcp` to shield external network exposure while preserving the local UNIX domain socket `/tmp/.X11-unix/X99` for Chromium clients.
    - When Sahibinden's server-side redirect (e.g., from `/kelime-ile-arama` to a specific category) strips query parameters (`sorting=date_desc`, `price_min`, `price_max`, `address_city`), `StealthScraper` automatically merges and re-applies the dropped parameters.
 3. **Dual-Channel Network Traffic Isolation (Turkey BTK Bypass)**:
-   - Discord Gateway and REST API traffic routes through Cloudflare WARP SOCKS5 (`aiohttp_socks.ProxyConnector` speaking binary SOCKS5 `\x05\x01\x00`) when `USE_WARP=true`.
-   - Pre-flight TCP health checks verify proxy reachability prior to authentication, displaying actionable diagnostic instructions if disconnected and supporting optional direct fallback via `WARP_FALLBACK_TO_DIRECT`.
+   - Discord Gateway and REST API traffic routes through Cloudflare WARP SOCKS5 (`aiohttp_socks.ProxyConnector` speaking binary SOCKS5 `\x05\x01\x00`) when `USE_WARP=true`, backed by an integrated Docker Compose sidecar (`caomingjun/warp`) requiring zero host-level package setup.
+   - Pre-flight TCP health checks with retry backoff verify proxy reachability prior to authentication, displaying actionable diagnostic instructions if disconnected and supporting optional direct fallback via `WARP_FALLBACK_TO_DIRECT`.
    - Sahibinden scraping traffic never routes through Cloudflare WARP; it uses the local Turkish residential IP (or explicit `PROXY_URL`) to avoid datacenter/WARP IP blocks.
 4. **Defense-in-Depth Post-Filtering & Flood Protection**:
    - Even after URL-level filtering (including `/alarm-url` where `price_min` and `price_max` are automatically extracted from the query string), `AlarmMonitor.matches_alarm_filters` validates extracted numeric prices against `min_fiyat` and `max_fiyat` to block promoted/ad-injected or out-of-budget rows.

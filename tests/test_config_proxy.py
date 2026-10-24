@@ -72,7 +72,11 @@ def test_bot_initialization_with_http_proxy(monkeypatch):
 @pytest.mark.asyncio
 async def test_proxy_preflight_health_check_failure():
     """Verify check_proxy_health returns False when target port is unreachable."""
-    is_healthy, err_msg = await SahibindenBot.check_proxy_health("socks5://127.0.0.1:59999", timeout=0.2)
+    is_healthy, err_msg = await SahibindenBot.check_proxy_health(
+        "socks5://127.0.0.1:59999",
+        timeout=0.1,
+        retries=1
+    )
     assert is_healthy is False
     assert err_msg is not None
 
@@ -86,6 +90,10 @@ async def test_bot_login_unreachable_proxy_raises(monkeypatch):
     monkeypatch.setattr("src.config.settings.WARP_FALLBACK_TO_DIRECT", False)
 
     bot = SahibindenBot()
+    async def mock_unhealthy(url):
+        return False, "Connection refused"
+    monkeypatch.setattr(bot, "check_proxy_health", mock_unhealthy)
+
     try:
         with pytest.raises(ConnectionRefusedError, match="Discord proxy .* unreachable"):
             await bot.login("dummy_token")
@@ -102,6 +110,10 @@ async def test_bot_login_unreachable_proxy_fallback(monkeypatch):
     monkeypatch.setattr("src.config.settings.WARP_FALLBACK_TO_DIRECT", True)
 
     bot = SahibindenBot()
+    async def mock_unhealthy(url):
+        return False, "Connection refused"
+    monkeypatch.setattr(bot, "check_proxy_health", mock_unhealthy)
+
     # Mock super().login so it doesn't try calling Discord API with dummy token
     async def mock_super_login(self, token):
         return None
@@ -113,3 +125,14 @@ async def test_bot_login_unreachable_proxy_fallback(monkeypatch):
         assert bot.http.proxy is None
     finally:
         await bot.close()
+
+
+def test_docker_compose_sidecar_warp_configuration():
+    """Verify docker-compose.yml defines caomingjun/warp sidecar service and dependencies."""
+    from pathlib import Path
+    compose_path = Path(__file__).resolve().parent.parent / "docker-compose.yml"
+    content = compose_path.read_text(encoding="utf-8")
+    assert "caomingjun/warp" in content
+    assert "depends_on:" in content
+    assert "WARP_HOST=warp" in content
+    assert "WARP_PORT=1080" in content

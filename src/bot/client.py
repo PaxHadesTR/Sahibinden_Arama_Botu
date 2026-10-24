@@ -55,21 +55,36 @@ class SahibindenBot(commands.Bot):
             logger.info("Discord client configured with direct connection (no proxy).")
 
     @staticmethod
-    async def check_proxy_health(proxy_url: str, timeout: float = 3.0) -> tuple[bool, str | None]:
+    async def check_proxy_health(
+        proxy_url: str,
+        timeout: float = 3.0,
+        retries: int = 4,
+        retry_delay: float = 2.0
+    ) -> tuple[bool, str | None]:
         """Tests basic TCP connectivity to the proxy before initiating Discord client login."""
-        try:
-            parsed = urlparse(proxy_url)
-            host = parsed.hostname or "127.0.0.1"
-            port = parsed.port or (40000 if "socks" in (parsed.scheme or "") else 8080)
-            _, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port),
-                timeout=timeout
-            )
-            writer.close()
-            await writer.wait_closed()
-            return True, None
-        except Exception as e:
-            return False, str(e)
+        parsed = urlparse(proxy_url)
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or (1080 if "socks" in (parsed.scheme or "") else 8080)
+        last_err = None
+
+        for attempt in range(1, retries + 1):
+            try:
+                _, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host, port),
+                    timeout=timeout
+                )
+                writer.close()
+                await writer.wait_closed()
+                return True, None
+            except Exception as e:
+                last_err = str(e)
+                if attempt < retries:
+                    logger.info(
+                        f"Waiting for proxy {host}:{port} to be ready (attempt {attempt}/{retries})..."
+                    )
+                    await asyncio.sleep(retry_delay)
+
+        return False, last_err
 
     def _ensure_proxy_connector(self):
         """Ensures SOCKS ProxyConnector is attached to HTTPClient once an event loop is active."""
@@ -93,16 +108,13 @@ class SahibindenBot(commands.Bot):
                     f"Bot, Discord API ve Gateway'e bağlanmak üzere proxy ile yapılandırıldı;\n"
                     f"ancak belirtilen proxy adresine TCP düzeyinde bağlanılamadı (Connection Refused).\n\n"
                     f"Olası Nedenler ve Çözüm Adımları:\n"
-                    f"1. WSL üzerinde Cloudflare WARP (warp-cli) henüz başlatılmamış olabilir:\n"
-                    f"   WSL terminalinizde şu komutları sırasıyla çalıştırın:\n"
+                    f"1. Docker Compose Sidecar (caomingjun/warp):\n"
+                    f"   Eğer 'warp' sidecar konteynerini kullanıyorsanız, konteyner durumunu kontrol edin:\n"
+                    f"     docker logs sahibinden-warp\n\n"
+                    f"2. WSL Host Modu (warp-cli):\n"
+                    f"   Eğer WSL üzerindeki warp-cli'ı kullanıyorsanız, WSL terminalinizde çalıştırın:\n"
                     f"     warp-cli status\n"
-                    f"     warp-cli set-mode proxy      (veya eski sürümlerde: 'warp-cli mode proxy')\n"
-                    f"     warp-cli set-proxy-port {settings.WARP_PORT}\n"
-                    f"     warp-cli connect\n\n"
-                    f"2. Docker/Coolify Ağ Modu (Bridge vs Host):\n"
-                    f"   Eğer konteyner bridge ağındaysa '127.0.0.1' WSL host'u değil konteynerin kendisidir.\n"
-                    f"   - Çözüm A: docker-compose.yml dosyasındaki 'network_mode: host' ayarını kullanın.\n"
-                    f"   - Çözüm B: Coolify ortam değişkenlerinde WARP_HOST=host.docker.internal tanımlayın.\n\n"
+                    f"     warp-cli set-mode proxy && warp-cli set-proxy-port {settings.WARP_PORT} && warp-cli connect\n\n"
                     f"3. WARP kullanmak istemiyorsanız:\n"
                     f"   - Coolify veya .env dosyasından USE_WARP=false yapın.\n"
                     f"{'=' * 76}"
