@@ -104,6 +104,33 @@ Türkiye'de Discord servisleri BTK tarafından erişime engellendiğinde, botun 
 > - **Discord API & Gateway Trafiği:** Cloudflare WARP SOCKS5 tüneli üzerinden (`socks5://127.0.0.1:40000`) yönlendirilir ve BTK engeli aşılır.
 > - **Sahibinden Kazıma Trafiği:** WARP proxy'sine **asla** girmez; doğrudan WSL / sunucunuzun yerel Türk IP'sinden çıkar.
 
+### WSL Üzerinde Cloudflare WARP Kurulumu & Çalıştırma
+
+Eğer `USE_WARP=true` kullanıyorsanız, WSL terminalinizde `warp-cli` servisinin SOCKS5 proxy modunda çalıştığından emin olun:
+
+```bash
+# 1. WARP durumunu kontrol edin
+warp-cli status
+
+# 2. Modu SOCKS5 Proxy olarak ayarlayın
+warp-cli set-mode proxy      # (Eski warp-cli sürümlerinde: warp-cli mode proxy)
+
+# 3. Portu 40000 olarak sabitleyin
+warp-cli set-proxy-port 40000 # (Eski warp-cli sürümlerinde: warp-cli proxy port 40000)
+
+# 4. Bağlanın
+warp-cli connect
+
+# 5. Proxy'nin çalıştığını test edin (warp=on görmelisiniz)
+curl -x socks5://127.0.0.1:40000 https://cloudflare.com/cdn-cgi/trace
+```
+
+> [!TIP]
+> - **Coolify Ağ Modu:** `docker-compose.yml` içinde `network_mode: "host"` tanımlıdır, bu sayede konteyner `127.0.0.1:40000` üzerinden doğrudan WSL host'una bağlanır.
+> - **Bridge Ağı Kullanıyorsanız:** Coolify ortam değişkenlerinde `WARP_HOST=host.docker.internal` tanımlayın.
+> - **WARP Kullanmak İstemiyorsanız:** `USE_WARP=false` yaparak botu doğrudan Discord'a bağlayabilirsiniz.
+> - **Otomatik Fallback:** `WARP_FALLBACK_TO_DIRECT=true` tanımlarsanız, WARP çevrimdışı olduğunda bot durmak yerine doğrudan bağlantıya geçer.
+
 ---
 
 ## 🔑 Discord Botu Oluşturma (Adım Adım)
@@ -298,7 +325,7 @@ Sahibinden.com, standart HTTP istemcilerini (`requests`, `curl`) ve standart ba�
 Daha önce bildirilen bir ilanın fiyatı indirildiğinde bot bunu fark eder, eski ve yeni fiyatı indirim oranıyla hesaplayarak kanala `📉 Fiyat Düştü!` başlığıyla özel bir indirim embed kartı gönderir.
 
 #### 4. Testleri nasıl çalıştırırım?
-Proje 42 adet kapsamlı birim, entegrasyon, anti-bot challenge, limit, Docker Xvfb ve proxy testine sahiptir:
+Proje 45 adet kapsamlı birim, entegrasyon, anti-bot challenge, limit, Docker Xvfb ve proxy testine sahiptir:
 ```bash
 python -m pytest -v
 ```

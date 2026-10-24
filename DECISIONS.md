@@ -110,4 +110,24 @@
 - **Consequences**:
   - Completely prevents `ModuleNotFoundError: No module named 'src'` regardless of whether the application is executed as a package (`-m`), directly as a script file, or inside Docker/Coolify containers.
 
+## ADR-010: Pre-Flight Discord Proxy Health Checking & Actionable Troubleshooting Diagnostics
+- **Status**: Accepted
+- **Date**: 2026-10-24
+- **Context**:
+  When `USE_WARP=true` is enabled, if the local Cloudflare WARP daemon (`warp-cli`) on WSL is disconnected, not listening on port 40000, or if Coolify deploys on a bridge network where `127.0.0.1` targets the container loopback rather than the host, `aiohttp_socks` aborted abruptly with an unhandled `ProxyConnectionError` (`ConnectionRefusedError: [Errno 111]`). Users faced a 60-line raw stack trace without actionable guidance on how to fix the WSL proxy or network configuration.
+- **Decision**:
+  1. Implement an asynchronous pre-flight TCP health check (`SahibindenBot.check_proxy_health`) before attempting Discord authentication.
+  2. If the proxy connection is refused or timed out, display a structured, prominent diagnostic banner outlining:
+     - The target proxy URL and exact error detail.
+     - Step-by-step WSL commands to verify and start `warp-cli` (`warp-cli status`, `warp-cli set-mode proxy`, `warp-cli set-proxy-port 40000`, `warp-cli connect`).
+     - Docker/Coolify network resolution guidelines (`network_mode: host` vs `WARP_HOST=host.docker.internal`).
+     - Instructions to disable proxy via `USE_WARP=false` if not needed.
+  3. Add `WARP_FALLBACK_TO_DIRECT: bool = False` configuration in `src/config.py` to allow optional automated fallback to direct connection.
+  4. Add `extra_hosts: ["host.docker.internal:host-gateway"]` to `docker-compose.yml` to guarantee bridge container resolution to host.
+  5. Handle `ConnectionRefusedError` in `main.py` with clean graceful termination (`sys.exit(1)`).
+- **Consequences**:
+  - Raw unhandled exception crashes are replaced with instant, user-friendly diagnostic guidance.
+  - Bridge networks can seamlessly resolve the host via `host.docker.internal`.
+
+
 

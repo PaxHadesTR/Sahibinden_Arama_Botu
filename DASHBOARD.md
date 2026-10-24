@@ -40,7 +40,10 @@
   - [x] `docker-compose.yml` with `shm_size: 1gb`, persistent volume `bot_data`, and `network_mode: host` (Method A)
 - [x] Cloudflare WARP Integration for Turkey (BTK Discord Ban Evasion):
   - [x] True binary SOCKS5 proxy integration via `aiohttp_socks.ProxyConnector`
+  - [x] Pre-flight TCP proxy health check & structured troubleshooting diagnostics (`ADR-010`)
+  - [x] Optional automatic fallback to direct connection via `WARP_FALLBACK_TO_DIRECT`
+  - [x] Bridge resolution for `host.docker.internal` via `extra_hosts` in `docker-compose.yml`
   - [x] Strict dual-channel network isolation: Discord traffic over WARP, Sahibinden scraping direct on local Turkish IP
-- [x] Automated Test Suite: 42/42 tests passing green (`tests/`)
+- [x] Automated Test Suite: 45/45 tests passing green (`tests/`)
 - [x] Public Repository Format: MIT License, hardened `.gitignore` (ignoring all XML mesh artifacts), zero secrets tracked, Coolify Public Repo guide
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`) fully updated and synchronized

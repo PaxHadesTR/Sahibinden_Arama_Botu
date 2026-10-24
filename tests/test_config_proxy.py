@@ -67,3 +67,49 @@ def test_bot_initialization_with_http_proxy(monkeypatch):
     bot = SahibindenBot()
     assert bot.discord_proxy_url == "http://127.0.0.1:8080"
     assert bot.http.proxy == "http://127.0.0.1:8080"
+
+
+@pytest.mark.asyncio
+async def test_proxy_preflight_health_check_failure():
+    """Verify check_proxy_health returns False when target port is unreachable."""
+    is_healthy, err_msg = await SahibindenBot.check_proxy_health("socks5://127.0.0.1:59999", timeout=0.2)
+    assert is_healthy is False
+    assert err_msg is not None
+
+
+@pytest.mark.asyncio
+async def test_bot_login_unreachable_proxy_raises(monkeypatch):
+    """Verify bot.login raises ConnectionRefusedError with actionable diagnostic when proxy is unreachable."""
+    monkeypatch.setattr("src.config.settings.USE_WARP", True)
+    monkeypatch.setattr("src.config.settings.WARP_HOST", "127.0.0.1")
+    monkeypatch.setattr("src.config.settings.WARP_PORT", 59999)
+    monkeypatch.setattr("src.config.settings.WARP_FALLBACK_TO_DIRECT", False)
+
+    bot = SahibindenBot()
+    try:
+        with pytest.raises(ConnectionRefusedError, match="Discord proxy .* unreachable"):
+            await bot.login("dummy_token")
+    finally:
+        await bot.close()
+
+
+@pytest.mark.asyncio
+async def test_bot_login_unreachable_proxy_fallback(monkeypatch):
+    """Verify bot.login falls back to direct connection when WARP_FALLBACK_TO_DIRECT is True."""
+    monkeypatch.setattr("src.config.settings.USE_WARP", True)
+    monkeypatch.setattr("src.config.settings.WARP_HOST", "127.0.0.1")
+    monkeypatch.setattr("src.config.settings.WARP_PORT", 59999)
+    monkeypatch.setattr("src.config.settings.WARP_FALLBACK_TO_DIRECT", True)
+
+    bot = SahibindenBot()
+    # Mock super().login so it doesn't try calling Discord API with dummy token
+    async def mock_super_login(self, token):
+        return None
+
+    monkeypatch.setattr("discord.Client.login", mock_super_login)
+    try:
+        await bot.login("dummy_token")
+        assert bot.discord_proxy_url is None
+        assert bot.http.proxy is None
+    finally:
+        await bot.close()

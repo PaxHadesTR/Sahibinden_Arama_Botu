@@ -54,6 +54,9 @@ async def main():
             await bot.start(settings.DISCORD_BOT_TOKEN)
     except (KeyboardInterrupt, asyncio.CancelledError):
         logger.info("Received shutdown signal. Closing bot gracefully...")
+    except ConnectionRefusedError:
+        # Pre-flight diagnostic message has already been logged by SahibindenBot
+        sys.exit(1)
     finally:
         await bot.close()
 

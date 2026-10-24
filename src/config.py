@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     USE_WARP: bool = False
     WARP_HOST: str = "127.0.0.1"  # '127.0.0.1' (host mode), 'host.docker.internal' (bridge), or 'warp' (sidecar)
     WARP_PORT: int = 40000  # 40000 for warp-cli; 1080 for caomingjun/warp docker sidecar
+    WARP_FALLBACK_TO_DIRECT: bool = False  # If True, falls back to direct connection if WARP proxy is unreachable
     DISCORD_PROXY_URL: str | None = None  # Explicit override (e.g. socks5://host:port or http://host:port)
 
     # Polling & Scraper Settings
