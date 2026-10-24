@@ -1,9 +1,16 @@
 """Main application entry point."""
 
+import sys
+from pathlib import Path
+
+# Ensure project root is in sys.path when executed directly as a script (e.g. 'python src/main.py')
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import asyncio
 import logging
 import signal
-import sys
 from src.config import settings
 from src.db.database import database
 from src.bot.client import SahibindenBot

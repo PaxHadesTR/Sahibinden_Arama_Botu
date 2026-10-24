@@ -24,6 +24,9 @@
 6. **Data Isolation, Capacity Limits & State Persistence**:
    - All active alarms, `is_primed` flags, `is_active` states, and seen ad IDs persist across bot restarts and Coolify redeployments using SQLite in WAL mode (`sahibinden_bot_data` volume) with a 15-second busy timeout and foreign key enforcement.
    - Configurable alarm limits (`MAX_ALARMS_TOTAL=1000`, `MAX_ALARMS_PER_USER=100`) protect system resources.
+7. **Module Resolution & Container Bootstrapping**:
+   - `src/main.py` bootstraps `sys.path` with its repository root directory prior to any local package imports.
+   - Container environments explicitly configure `PYTHONPATH=/app` across `Dockerfile`, `docker-compose.yml`, and `entrypoint.sh` while executing the bot as a module (`python -m src.main`).
 
 ## Acceptance Criteria
 - Users can define alarms via 3 universal methods: `/alarm-ara` (site-wide keyword search), `/alarm-url` (direct Sahibinden URL tracking), and `/alarm-kur` / `/alarm-hizli` (visual wizard & alias/spec resolver).

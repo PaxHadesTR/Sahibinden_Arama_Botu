@@ -298,7 +298,7 @@ Sahibinden.com, standart HTTP istemcilerini (`requests`, `curl`) ve standart ba�
 Daha önce bildirilen bir ilanın fiyatı indirildiğinde bot bunu fark eder, eski ve yeni fiyatı indirim oranıyla hesaplayarak kanala `📉 Fiyat Düştü!` başlığıyla özel bir indirim embed kartı gönderir.
 
 #### 4. Testleri nasıl çalıştırırım?
-Proje 41 adet kapsamlı birim, entegrasyon, anti-bot challenge, limit, Docker Xvfb ve proxy testine sahiptir:
+Proje 42 adet kapsamlı birim, entegrasyon, anti-bot challenge, limit, Docker Xvfb ve proxy testine sahiptir:
 ```bash
 python -m pytest -v
 ```

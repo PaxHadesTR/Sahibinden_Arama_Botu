@@ -3,7 +3,7 @@
 ## Metadata
 - **Mode**: BUILD_AND_ITERATE_MODE
 - **Status**: COMPLETE & HARDENED
-- **Last Sync**: 2026-10-23
+- **Last Sync**: 2026-10-24
 - **Tech Stack**: Python 3.12 / 3.15, `discord.py` 2.7, `aiohttp-socks`, `playwright`, `BeautifulSoup4`, `aiosqlite`, `pydantic`, Docker, Coolify, Xvfb, Cloudflare WARP
 
 ## Current Stage: Deep End-to-End Audit, Docker Hardening & Performance Optimization Complete
@@ -35,11 +35,12 @@
   - [x] Full 81 Turkish provinces catalog & city validation
 - [x] Docker, WSL & Coolify Deployment Stack:
   - [x] `Dockerfile` based on `python:3.12-slim-bookworm` with Playwright Chromium & Xvfb virtual display
-  - [x] `entrypoint.sh` with process signal handling, stale lock cleanup, and virtual framebuffer management (`Xvfb :99 -nolisten tcp &`)
+  - [x] `entrypoint.sh` with process signal handling, stale lock cleanup, virtual framebuffer management (`Xvfb :99 -nolisten tcp &`), and package execution (`python -m src.main`)
+  - [x] Multi-layer `PYTHONPATH` bootstrapping (`sys.path` injection in `main.py`, `entrypoint.sh`, `Dockerfile`, and `docker-compose.yml`) resolving `ModuleNotFoundError` (`ADR-009`)
   - [x] `docker-compose.yml` with `shm_size: 1gb`, persistent volume `bot_data`, and `network_mode: host` (Method A)
 - [x] Cloudflare WARP Integration for Turkey (BTK Discord Ban Evasion):
   - [x] True binary SOCKS5 proxy integration via `aiohttp_socks.ProxyConnector`
   - [x] Strict dual-channel network isolation: Discord traffic over WARP, Sahibinden scraping direct on local Turkish IP
-- [x] Automated Test Suite: 41/41 tests passing green (`tests/`)
+- [x] Automated Test Suite: 42/42 tests passing green (`tests/`)
 - [x] Public Repository Format: MIT License, hardened `.gitignore` (ignoring all XML mesh artifacts), zero secrets tracked, Coolify Public Repo guide
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`) fully updated and synchronized

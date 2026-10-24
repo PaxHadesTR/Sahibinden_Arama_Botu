@@ -96,3 +96,18 @@
   - Headful Chromium on Xvfb initializes without display connection errors.
   - Users with high alarm counts receive explicit pagination feedback.
 
+## ADR-009: Python Path Bootstrapping & Container Package Execution (-m src.main)
+- **Status**: Accepted
+- **Date**: 2026-10-24
+- **Context**:
+  When launching the container via `python src/main.py`, Python sets `sys.path[0]` to `/app/src` rather than `/app`. As a result, top-level imports such as `from src.config import settings` failed immediately with `ModuleNotFoundError: No module named 'src'`.
+- **Decision**:
+  Implement defense-in-depth module resolution across four layers:
+  1. In `src/main.py`, dynamically bootstrap `PROJECT_ROOT = Path(__file__).resolve().parent.parent` into `sys.path[0]` before importing any `src.*` modules. This ensures direct script invocations (`python src/main.py`) succeed regardless of current working directory.
+  2. In `entrypoint.sh`, export `PYTHONPATH="/app:${PYTHONPATH:-}"` and execute via `python -m src.main`.
+  3. In `Dockerfile`, define `ENV PYTHONPATH=/app`.
+  4. In `docker-compose.yml`, define `PYTHONPATH: /app` under container environment variables.
+- **Consequences**:
+  - Completely prevents `ModuleNotFoundError: No module named 'src'` regardless of whether the application is executed as a package (`-m`), directly as a script file, or inside Docker/Coolify containers.
+
+

@@ -4,6 +4,7 @@ FROM python:3.12-slim-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH=/app
 ENV DISPLAY=:99
 
 # Install system dependencies required for Xvfb and Playwright

@@ -20,6 +20,7 @@ services:
       # Linux konteynerinde Xvfb sanal ekranı üzerindeki varsayılan Chromium kullanılır
       - BROWSER_CHANNEL=
       - HEADLESS=false
+      - PYTHONPATH=/app
     volumes:
       - bot_data:/app/data
 

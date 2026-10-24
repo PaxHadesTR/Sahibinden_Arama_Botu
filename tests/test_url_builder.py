@@ -160,11 +160,33 @@ def test_cleanup_stale_singleton_locks(tmp_path):
         assert not (tmp_path / lock_name).exists()
 
 
-def test_entrypoint_xvfb_configuration():
-    """Verify entrypoint.sh configures Xvfb with -nolisten tcp and allows UNIX domain socket."""
+def test_entrypoint_xvfb_and_pythonpath_configuration():
+    """Verify entrypoint.sh configures Xvfb with -nolisten tcp, PYTHONPATH, and python -m src.main."""
     from pathlib import Path
     entrypoint_path = Path(__file__).resolve().parent.parent / "entrypoint.sh"
     content = entrypoint_path.read_text(encoding="utf-8")
     assert "-nolisten tcp" in content
     assert "-nolisten unix" not in content
-    assert "exec python src/main.py" in content
+    assert "PYTHONPATH" in content
+    assert "python -m src.main" in content
+
+
+def test_main_script_sys_path_bootstrapping():
+    """Verify src/main.py bootstraps sys.path so direct execution succeeds without ModuleNotFoundError."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    main_script = Path(__file__).resolve().parent.parent / "src" / "main.py"
+    clean_env = os.environ.copy()
+    clean_env["PYTHONPATH"] = ""
+    result = subprocess.run(
+        [sys.executable, str(main_script)],
+        capture_output=True,
+        text=True,
+        env=clean_env
+    )
+    assert "ModuleNotFoundError" not in result.stderr
+    output = result.stdout + result.stderr
+    assert "Starting Sahibinden Discord Alert Bot" in output
