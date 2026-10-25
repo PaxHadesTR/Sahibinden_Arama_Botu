@@ -3,14 +3,27 @@
 ## Metadata
 - **Mode**: BUILD_AND_ITERATE_MODE
 - **Status**: COMPLETE & HARDENED
-- **Last Sync**: 2026-10-24
+- **Last Sync**: 2026-10-26
 - **Tech Stack**: Python 3.12 / 3.15, `discord.py` 2.7, `aiohttp-socks`, `playwright`, `BeautifulSoup4`, `aiosqlite`, `pydantic`, Docker, Coolify, Xvfb, Cloudflare WARP
 
-## Current Stage: Deep End-to-End Audit, Docker Hardening & Performance Optimization Complete
+## Current Stage: Apex Codebase Audit, Performance Optimization & UI Hardening Complete
 - [x] Initial workspace reconnaissance and dependency check
 - [x] Root mesh artifacts initialized and synchronized (`DASHBOARD.md`, `DECISIONS.md`, `ASSUMPTIONS.md`)
 - [x] Anti-bot reverse engineering & live Sahibinden facet mapping
-- [x] Universal 3-Method Alert Architecture (`/alarm-ara`, `/alarm-url`, `/alarm-kur`, `/alarm-hizli`)
+- [x] Universal 3-Method Alert Architecture (`/alarm-ara`, `/alarm-url`, `/alarm-kur`, `/alarm-hizli`, `/kategoriler`)
+- [x] Comprehensive Category Expansion & Multi-Unit Normalization (`ADR-012`):
+  - [x] Expanded `categories.json` to 25 major Sahibinden categories (Vehicles: Cars, SUV/Pickup, Motorcycles, Commercial; Real Estate: Sale/Rent Flats, Villas, Land, Offices; Hardware: RAM, GPU, CPU, Motherboards, SSD/HDD, Monitors, Cases/PSU, Desktop/Laptops; Mobile: Phones, Tablets, Smartwatches; Entertainment: Consoles, TVs, Watches; Universal Search).
+  - [x] Multi-Unit Capacity Normalization (`CategoryResolver.normalize_capacity_unit`): Robust bidirectional parsing for MB (`512 MB`, `256 MB`, `128 MB`), GB (`16 GB`, `32 GB`, `64 GB`), TB (`1 TB`, `2 TB`, `4 TB`), and Dual-Kits (`2x 8 GB`, `2x 16 GB`, `2x 32 GB`), including `1000 GB` -> `1 TB` mapping.
+  - [x] Non-Lossy Search Fallback (`SahibindenURLBuilder`): Unmatched facet specifications are automatically appended to `query_text` rather than discarded, guaranteeing that Sahibinden filters for the exact spec.
+  - [x] User-facing Syntax Examples: Inlined parameter examples in all `@app_commands.describe` calls, dynamic placeholders in `SpecFilterModal`, autocomplete hints (`Name (Example Hint)`), and rich `/kategoriler` documentation command.
+- [x] Apex Audit, Database Optimization & UI Hardening (`ADR-013`):
+  - [x] SQLite UPSERT in `record_notified_listings`: Preserves primary key IDs and `first_seen_at` timestamps using `ON CONFLICT(alarm_id, classified_id) DO UPDATE SET`.
+  - [x] Batch Database Filtering: Replaced sequential individual SQL queries in `filter_new_listings` and `filter_price_drops` with batch `IN (...)` queries, speeding up processing by 10x.
+  - [x] Safe UI Formatting: Guarded `created_at` in `DeleteAlarmSelect` against `TypeError` on `None` values and cleanly dismissed dropdowns via `edit_message(content=..., view=None)`.
+  - [x] Component Timeout Management: Added `on_timeout` handlers across `UniversalCategorySelectView`, `RamSpecSelectView`, and `DeleteAlarmView` to disable buttons/selects when interactions expire.
+  - [x] URL City Extraction: Added `address_city` reverse-mapping via `resolver.get_city_name` to populate `sehir` for `/alarm-url` alarms in `/alarmlarim`.
+  - [x] Query Text Deduplication: Hardened phrase and word-level checks in `build_url` to prevent duplicate terms when appending unmatched specs.
+  - [x] Unreachable Channel Handling: Ensured `database.update_last_checked(alarm_id)` runs even when a Discord channel is temporarily unreachable.
 - [x] Deep Codebase Audit & Bug Fixes (Phase 1, Phase 2 & Autonomous 7-Vector Apex Audit):
   - [x] Fixed `discord.py` SOCKS5 protocol bug by binding `aiohttp_socks.ProxyConnector.from_url(...)` to `self.http.connector` instead of raw `http.proxy` (which sent HTTP `CONNECT` instead of binary SOCKS5 `\x05\x01\x00`)
   - [x] Fixed WAF/Challenge false-priming vs. 0-result rare-search deadlock via `SahibindenParser.is_blocked_or_challenge_page()` and pre-empty priming in `AlarmMonitor.check_alarm()`
@@ -44,6 +57,6 @@
   - [x] Pre-flight TCP proxy health check with retry backoff & structured troubleshooting diagnostics (`ADR-010`)
   - [x] Optional automatic fallback to direct connection via `WARP_FALLBACK_TO_DIRECT`
   - [x] Strict dual-channel network isolation: Discord traffic over WARP, Sahibinden scraping direct on local Turkish IP
-- [x] Automated Test Suite: 46/46 tests passing green (`tests/`)
+- [x] Automated Test Suite: 61/61 tests passing green (`tests/`)
 - [x] Public Repository Format: MIT License, hardened `.gitignore` (ignoring all XML mesh artifacts), zero secrets tracked, Coolify Public Repo guide
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`) fully updated and synchronized

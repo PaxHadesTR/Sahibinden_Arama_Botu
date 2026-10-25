@@ -67,6 +67,7 @@ class Database:
                 await db.execute("ALTER TABLE seen_listings ADD COLUMN price_val INTEGER;")
 
             await db.execute("CREATE INDEX IF NOT EXISTS idx_seen_alarm_id ON seen_listings(alarm_id);")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_seen_alarm_classified ON seen_listings(alarm_id, classified_id);")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_alarms_active ON alarms(is_active);")
             await db.commit()
 
@@ -153,8 +154,12 @@ class Database:
                 price_val = self._extract_price_val(item)
                 await db.execute(
                     """
-                    INSERT OR IGNORE INTO seen_listings (alarm_id, classified_id, title, price, price_val, notified_at)
+                    INSERT INTO seen_listings (alarm_id, classified_id, title, price, price_val, notified_at)
                     VALUES (?, ?, ?, ?, ?, NULL)
+                    ON CONFLICT(alarm_id, classified_id) DO UPDATE SET
+                        title = excluded.title,
+                        price = excluded.price,
+                        price_val = excluded.price_val
                     """,
                     (alarm_id, str(item["classified_id"]), item.get("title", ""), price_text, price_val)
                 )
@@ -165,55 +170,68 @@ class Database:
             await db.commit()
 
     async def filter_new_listings(self, alarm_id: int, listings: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Compares incoming listings against seen_listings and returns truly new items."""
-        new_items: list[dict[str, Any]] = []
+        """Compares incoming listings against seen_listings in batch and returns truly new items."""
+        if not listings:
+            return []
+        cids = [str(item["classified_id"]) for item in listings]
+        placeholders = ",".join("?" for _ in cids)
+
         async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
-            for item in listings:
-                cid = str(item["classified_id"])
-                async with db.execute(
-                    "SELECT 1 FROM seen_listings WHERE alarm_id = ? AND classified_id = ?",
-                    (alarm_id, cid)
-                ) as cursor:
-                    row = await cursor.fetchone()
-                    if not row:
-                        new_items.append(item)
-        return new_items
+            async with db.execute(
+                f"SELECT classified_id FROM seen_listings WHERE alarm_id = ? AND classified_id IN ({placeholders})",
+                [alarm_id, *cids]
+            ) as cursor:
+                seen_cids = {str(row[0]) for row in await cursor.fetchall()}
+
+        return [item for item in listings if str(item["classified_id"]) not in seen_cids]
 
     async def filter_price_drops(self, alarm_id: int, listings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Finds already-seen listings whose current price is strictly lower than the previously recorded price.
         Returns items enriched with 'old_price_text' and 'old_price_val'.
         """
+        if not listings:
+            return []
         price_drops: list[dict[str, Any]] = []
+        cids = [str(item["classified_id"]) for item in listings]
+        placeholders = ",".join("?" for _ in cids)
+
         async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             db.row_factory = aiosqlite.Row
-            for item in listings:
-                cid = str(item["classified_id"])
-                new_val = self._extract_price_val(item)
-                if new_val is None or new_val <= 0:
-                    continue
+            async with db.execute(
+                f"SELECT classified_id, price, price_val FROM seen_listings WHERE alarm_id = ? AND classified_id IN ({placeholders})",
+                [alarm_id, *cids]
+            ) as cursor:
+                seen_rows = {str(row["classified_id"]): row for row in await cursor.fetchall()}
 
-                async with db.execute(
-                    "SELECT price, price_val FROM seen_listings WHERE alarm_id = ? AND classified_id = ?",
-                    (alarm_id, cid)
-                ) as cursor:
-                    row = await cursor.fetchone()
-                    if not row:
-                        continue
-                    old_price_text = row["price"] or ""
-                    old_val = row["price_val"]
-                    if old_val is None and old_price_text:
-                        old_val = self._extract_price_val({"price_text": old_price_text})
+        for item in listings:
+            cid = str(item["classified_id"])
+            if cid not in seen_rows:
+                continue
 
-                    if old_val is not None and old_val > 0 and new_val < old_val:
-                        enriched = dict(item)
-                        enriched["old_price_text"] = old_price_text
-                        enriched["old_price_val"] = old_val
-                        price_drops.append(enriched)
+            new_val = self._extract_price_val(item)
+            if new_val is None or new_val <= 0:
+                continue
+
+            row = seen_rows[cid]
+            old_price_text = row["price"] or ""
+            old_val = row["price_val"]
+            if old_val is None and old_price_text:
+                old_val = self._extract_price_val({"price_text": old_price_text})
+
+            if old_val is not None and old_val > 0 and new_val < old_val:
+                enriched = dict(item)
+                enriched["old_price_text"] = old_price_text
+                enriched["old_price_val"] = old_val
+                price_drops.append(enriched)
+
         return price_drops
 
     async def record_notified_listings(self, alarm_id: int, listings: list[dict[str, Any]]):
-        """Inserts or updates notified listings in seen_listings to prevent duplicate alerts."""
+        """
+        Inserts or updates notified listings in seen_listings using SQLite UPSERT.
+        Preserves original row IDs and first_seen_at timestamps while updating current price and notified_at.
+        """
         now_iso = datetime.now(timezone.utc).isoformat()
         async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             for item in listings:
@@ -221,8 +239,13 @@ class Database:
                 price_val = self._extract_price_val(item)
                 await db.execute(
                     """
-                    INSERT OR REPLACE INTO seen_listings (alarm_id, classified_id, title, price, price_val, notified_at)
+                    INSERT INTO seen_listings (alarm_id, classified_id, title, price, price_val, notified_at)
                     VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(alarm_id, classified_id) DO UPDATE SET
+                        title = excluded.title,
+                        price = excluded.price,
+                        price_val = excluded.price_val,
+                        notified_at = excluded.notified_at
                     """,
                     (alarm_id, str(item["classified_id"]), item.get("title", ""), price_text, price_val, now_iso)
                 )

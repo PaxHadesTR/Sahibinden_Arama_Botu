@@ -28,9 +28,16 @@
 7. **Module Resolution & Container Bootstrapping**:
    - `src/main.py` bootstraps `sys.path` with its repository root directory prior to any local package imports.
    - Container environments explicitly configure `PYTHONPATH=/app` across `Dockerfile`, `docker-compose.yml`, and `entrypoint.sh` while executing the bot as a module (`python -m src.main`).
+8. **Multi-Unit Normalization & Non-Lossy Spec Fallback**:
+   - Capacity specifications are unit-normalized across MB (`128 MB`, `256 MB`, `512 MB`), GB (`1 GB` to `64 GB`), TB (`1 TB` to `8 TB`), and Dual-Kits (`2x 8 GB`, `2x 16 GB`, `2x 32 GB`).
+   - If any user-specified facet parameter (e.g., `tipi`, `kapasite`, `marka`) lacks a hardcoded numeric Sahibinden facet ID in `categories.json`, it is automatically appended to `query_text` to guarantee non-lossy search execution without discarding user filters.
+9. **Batch SQLite Filtering & Atomic UPSERT**:
+   - `filter_new_listings` and `filter_price_drops` execute set-based batch queries with `IN (...)` to minimize SQLite round-trips.
+   - `record_notified_listings` uses atomic `ON CONFLICT(alarm_id, classified_id) DO UPDATE SET` to preserve original row IDs and `first_seen_at` timestamps.
 
 ## Acceptance Criteria
 - Users can define alarms via 3 universal methods: `/alarm-ara` (site-wide keyword search), `/alarm-url` (direct Sahibinden URL tracking), and `/alarm-kur` / `/alarm-hizli` (visual wizard & alias/spec resolver).
 - All 81 provinces of Turkey are supported for city filtering.
+- All 25 major categories and hardware units (MB, GB, TB, Dual-Kit) are supported with `/kategoriler` reference manual.
 - Bot polls listings at configurable intervals and notifies the target Discord channel on both brand-new listings (`🔔 Yeni İlan`) and price drops (`📉 Fiyat Düştü`).
 - Alarms can be listed (`/alarmlarim`), tested (`/alarm-test` with ownership verification), paused/resumed (`/alarm-durum`), and deleted (`/alarm-sil`).

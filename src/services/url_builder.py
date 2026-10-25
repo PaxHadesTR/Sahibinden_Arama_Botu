@@ -1,5 +1,6 @@
 """Sahibinden URL construction and sanitization utility."""
 
+import re
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from typing import Any
 from src.catalog.resolver import resolver
@@ -10,17 +11,39 @@ class SahibindenURLBuilder:
 
     BASE_URL = "https://www.sahibinden.com"
 
-    @staticmethod
-    def _match_facet_option(options: dict[str, str], user_val: str | None) -> str | None:
-        """Case-insensitive and whitespace-normalized option lookup in a facet dict."""
+    @classmethod
+    def _match_facet_option(cls, options: dict[str, str], user_val: str | None) -> str | None:
+        """Case-insensitive and multi-unit normalized option lookup in a facet dict."""
         if not user_val:
             return None
         clean_val = user_val.strip().lower().replace(" ", "")
-        # Also handle numeric capacity shorthand like '16' -> '16gb'
+
+        # 1. Direct normalized match
         for opt_label, opt_id in options.items():
             clean_opt = opt_label.strip().lower().replace(" ", "")
-            if clean_val == clean_opt or (clean_val.isdigit() and f"{clean_val}gb" == clean_opt):
+            if clean_val == clean_opt:
                 return opt_id
+
+        # 2. Multi-unit normalized lookup (e.g. '512' -> '512 MB', '16' -> '16 GB', '1tb' -> '1 TB', '2x16' -> '2x 16 GB')
+        norm_val = resolver.normalize_capacity_unit(user_val)
+        if norm_val:
+            clean_norm = norm_val.strip().lower().replace(" ", "")
+            for opt_label, opt_id in options.items():
+                clean_opt = opt_label.strip().lower().replace(" ", "")
+                if clean_norm == clean_opt:
+                    return opt_id
+
+        # 3. Numeric shorthand fallback (e.g. '16' -> '16gb', '512' -> '512mb', '1' -> '1tb')
+        if clean_val.isdigit():
+            for opt_label, opt_id in options.items():
+                clean_opt = opt_label.strip().lower().replace(" ", "")
+                if (
+                    f"{clean_val}gb" == clean_opt
+                    or f"{clean_val}mb" == clean_opt
+                    or f"{clean_val}tb" == clean_opt
+                ):
+                    return opt_id
+
         return None
 
     @classmethod
@@ -36,7 +59,7 @@ class SahibindenURLBuilder:
         marka: str | None = None,
         extra_params: dict[str, Any] | None = None,
     ) -> str:
-        """Builds a canonical search query URL with date_desc sorting."""
+        """Builds a canonical search query URL with date_desc sorting and multi-unit non-lossy fallback."""
         if price_min is not None and price_max is not None and price_min > 0 and price_max > 0:
             if price_min > price_max:
                 raise ValueError("Minimum fiyat maksimum fiyattan büyük olamaz.")
@@ -70,36 +93,74 @@ class SahibindenURLBuilder:
         if city_code:
             params["address_city"] = city_code
 
+        # Unmatched specs for non-lossy search fallback
+        unmatched_specs: list[str] = []
+
         # Category metadata lookup for facet parameter IDs
         if cat_data:
             facets = cat_data.get("facets", {})
 
             # Tipi (or Chipset fallback if user passed GPU chipset in tipi)
             if tipi:
+                matched = False
                 for facet_key in ("tipi", "chipset"):
                     if facet_key in facets:
                         opt_id = cls._match_facet_option(facets[facet_key]["options"], tipi)
                         if opt_id:
                             params[facets[facet_key]["param_name"]] = opt_id
+                            matched = True
                             break
+                if not matched:
+                    unmatched_specs.append(tipi)
 
             # Kapasite (or Bellek for GPUs)
             if kapasite:
+                matched = False
                 for facet_key in ("kapasite", "bellek"):
                     if facet_key in facets:
                         opt_id = cls._match_facet_option(facets[facet_key]["options"], kapasite)
                         if opt_id:
                             params[facets[facet_key]["param_name"]] = opt_id
+                            matched = True
                             break
+                if not matched:
+                    unmatched_specs.append(kapasite)
 
             # Marka (or Chipset for GPUs)
             if marka:
+                matched = False
                 for facet_key in ("marka", "chipset"):
                     if facet_key in facets:
                         opt_id = cls._match_facet_option(facets[facet_key]["options"], marka)
                         if opt_id:
                             params[facets[facet_key]["param_name"]] = opt_id
+                            matched = True
                             break
+                if not matched:
+                    unmatched_specs.append(marka)
+        else:
+            for s in (tipi, kapasite, marka):
+                if s:
+                    unmatched_specs.append(s)
+
+        # Non-lossy fallback: append any unmatched specs into query_text so Sahibinden filters for them
+        if unmatched_specs:
+            current_q = params.get("query_text", "")
+            current_low = f" {current_q.lower()} " if current_q else " "
+            to_add = []
+            for s in unmatched_specs:
+                s_clean = s.strip()
+                if not s_clean:
+                    continue
+                s_low = s_clean.lower()
+                s_words = s_low.split()
+                if s_low in current_low or (s_words and all(w in current_low for w in s_words)):
+                    continue
+                to_add.append(s_clean)
+
+            if to_add:
+                merged_q = f"{current_q} {' '.join(to_add)}".strip()
+                params["query_text"] = merged_q
 
         if extra_params:
             params.update(extra_params)
@@ -129,7 +190,8 @@ class SahibindenURLBuilder:
                 "Lütfen arama sonuçları listesi URL'sini girin."
             )
 
-        path = parsed.path if parsed.path and parsed.path != "/" else "/kelime-ile-arama"
+        raw_path = parsed.path if parsed.path and parsed.path != "/" else "/kelime-ile-arama"
+        path = re.sub(r"/+", "/", raw_path)
 
         # Parse query params
         query_dict = parse_qs(parsed.query, keep_blank_values=False)
@@ -157,7 +219,7 @@ class SahibindenURLBuilder:
 
     @classmethod
     def extract_filters_from_url(cls, url: str) -> dict[str, Any]:
-        """Extracts price bounds and query text from a Sahibinden search URL for defense-in-depth post-filtering."""
+        """Extracts price bounds, city, and query text from a Sahibinden search URL for defense-in-depth post-filtering."""
         parsed = urlparse(url)
         qs = parse_qs(parsed.query, keep_blank_values=False)
 
@@ -182,5 +244,12 @@ class SahibindenURLBuilder:
             extracted["max_fiyat"] = max_fiyat
         if "query_text" in qs and qs["query_text"]:
             extracted["kelime"] = qs["query_text"][0]
+
+        # Extract city from address_city parameter if present
+        if "address_city" in qs and qs["address_city"]:
+            city_code = qs["address_city"][0]
+            city_name = resolver.get_city_name(city_code)
+            if city_name:
+                extracted["sehir"] = city_name
 
         return extracted

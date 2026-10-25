@@ -190,3 +190,80 @@ def test_main_script_sys_path_bootstrapping():
     assert "ModuleNotFoundError" not in result.stderr
     output = result.stdout + result.stderr
     assert "Starting Sahibinden Discord Alert Bot" in output
+
+
+def test_build_url_with_legacy_mb_ram_facets():
+    """Verify legacy MB RAM capacities (128 MB, 256 MB, 512 MB) and DDR2 map to Sahibinden facet IDs."""
+    url = SahibindenURLBuilder.build_url(
+        category_slug="ram-bellek-masaustu",
+        tipi="DDR2",
+        kapasite="512 MB",
+        marka="Kingston"
+    )
+    parsed = urlparse(url)
+    qs = parse_qs(parsed.query)
+    assert qs.get("a3329") == ["67565"]     # DDR2
+    assert qs.get("a3332") == ["67569"]     # 512 MB
+    assert qs.get("a3333") == ["67588"]     # Kingston
+
+
+def test_build_url_with_ssd_tb_and_gb_facets():
+    """Verify SSD storage capacity maps to TB and GB facet IDs."""
+    # 1 TB SSD
+    tb_url = SahibindenURLBuilder.build_url(
+        category_slug="ssd-dahili-sabit-disk",
+        kapasite="1 TB"
+    )
+    tb_qs = parse_qs(urlparse(tb_url).query)
+    assert tb_qs.get("a3350") == ["1168189"]  # 1 TB
+
+    # 500 GB SSD
+    gb_url = SahibindenURLBuilder.build_url(
+        category_slug="ssd-dahili-sabit-disk",
+        kapasite="500 GB"
+    )
+    gb_qs = parse_qs(urlparse(gb_url).query)
+    assert gb_qs.get("a3350") == ["1131146"]  # 500 GB
+
+
+def test_build_url_non_lossy_fallback_appends_unmatched_specs_to_query_text():
+    """Verify that any spec or brand without a hardcoded numeric facet is preserved in query_text."""
+    url = SahibindenURLBuilder.build_url(
+        category_slug="ram-bellek-masaustu",
+        query_text="CL16",
+        tipi="DDR4",
+        kapasite="16 GB",
+        marka="BilinmeyenMarka"  # Unmatched brand
+    )
+    parsed = urlparse(url)
+    qs = parse_qs(parsed.query)
+    # Native facets applied
+    assert qs.get("a3329") == ["1151866"]  # DDR4
+    assert qs.get("a3332") == ["1168186"]  # 16 GB
+    # Unmatched brand is safely appended to query_text
+    assert "BilinmeyenMarka" in qs.get("query_text", [""])[0]
+    assert "CL16" in qs.get("query_text", [""])[0]
+
+
+def test_extract_city_from_user_url():
+    """Verify city name is extracted from address_city query parameter in custom URLs."""
+    url = "https://www.sahibinden.com/otomobil/ankara?address_city=6&price_max=800000"
+    filters = SahibindenURLBuilder.extract_filters_from_url(url)
+    assert filters.get("sehir") == "Ankara"
+    assert filters.get("max_fiyat") == 800000
+
+
+def test_build_url_unmatched_spec_deduplication():
+    """Verify unmatched specs already present in query_text are not duplicated."""
+    url = SahibindenURLBuilder.build_url(
+        category_slug="ram-bellek-masaustu",
+        query_text="Corsair 16 GB 3200mhz",
+        kapasite="16 GB"
+    )
+    parsed = urlparse(url)
+    qs = parse_qs(parsed.query)
+    q_text = qs.get("query_text", [""])[0]
+    # '16 GB' should not be appended a second time
+    assert q_text.count("16 GB") == 1
+
+

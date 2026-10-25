@@ -102,7 +102,8 @@ class SahibindenParser:
 
         # Prefer standard image formats (.jpg, .png, .webp) for maximum Discord embed compatibility
         for url in candidates:
-            if not url.lower().endswith(".avif"):
+            clean_url_path = url.lower().split("?")[0]
+            if not clean_url_path.endswith(".avif"):
                 return url
         return candidates[0]
 

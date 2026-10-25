@@ -159,6 +159,7 @@ class AlarmMonitor:
         channel = await self._resolve_channel(channel_id)
         if not channel:
             logger.warning(f"Skipping notification dispatch for alarm #{alarm_id}: channel {channel_id} unreachable.")
+            await database.update_last_checked(alarm_id)
             return []
 
         # Dispatch Price Drops (oldest to newest, capped at MAX_DISPATCH_PER_CYCLE)

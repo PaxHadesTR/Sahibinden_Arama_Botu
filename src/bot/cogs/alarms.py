@@ -31,7 +31,7 @@ class AlarmCog(commands.Cog):
         interaction: discord.Interaction,
         current: str
     ) -> list[app_commands.Choice[str]]:
-        """Provides dynamic autocomplete choices for category inputs."""
+        """Provides dynamic autocomplete choices for category inputs with example hints."""
         matches = resolver.get_autocomplete_choices(current)
         return [
             app_commands.Choice(name=display[:100], value=cat_key)
@@ -46,11 +46,11 @@ class AlarmCog(commands.Cog):
         description="Tüm Sahibinden genelinde (Vasıta, Emlak, Elektronik vb.) kategori bağımsız evrensel alarm kurun."
     )
     @app_commands.describe(
-        kelime="Aranacak ürün, emlak, araç veya herhangi bir kelime (örn: 'honda civic', 'kadıköy satılık', 'ps5')",
-        min_fiyat="Minimum Fiyat (TL)",
-        max_fiyat="Maksimum Fiyat (TL)",
-        sehir="Şehir filtresi (örn: İstanbul, Ankara, İzmir)",
-        alarm_adi="Alarmınız için hatırlatıcı bir başlık (opsiyonel)"
+        kelime="Aranacak ürün, araç, emlak veya kelime (örn: 'honda civic', 'kadıköy 3+1', 'ps5 konsol', '512 mb ram')",
+        min_fiyat="Minimum Fiyat TL (örn: 1000)",
+        max_fiyat="Maksimum Fiyat TL (örn: 25000)",
+        sehir="Şehir filtresi (örn: 'İstanbul', 'Ankara', 'İzmir')",
+        alarm_adi="Alarmınız için isim (örn: 'Civic Takip', 'Kadıköy Ev') (opsiyonel)"
     )
     async def alarm_ara(
         self,
@@ -79,7 +79,7 @@ class AlarmCog(commands.Cog):
 
         if sehir and not resolver.resolve_city_code(sehir):
             await interaction.followup.send(
-                f"❌ `{sehir}` geçerli bir Türkiye ili olarak tanınmadı. Lütfen il adını kontrol edin.",
+                f"❌ `{sehir}` geçerli bir Türkiye ili olarak tanınmadı. Lütfen il adını kontrol edin (örn: İstanbul, Ankara).",
                 ephemeral=True
             )
             return
@@ -110,13 +110,15 @@ class AlarmCog(commands.Cog):
             filters=filters
         )
 
+        alarm_meta = {"id": alarm_id, "name": name, "filters_json": json.dumps(filters, ensure_ascii=False)}
         initial_count = 0
         primed_immediately = False
         try:
             initial_listings = await scraper.fetch_listings(target_url)
-            dict_items = [item.model_dump() for item in initial_listings]
+            valid_listings = [item for item in initial_listings if AlarmMonitor.matches_alarm_filters(alarm_meta, item)]
+            dict_items = [item.model_dump() for item in valid_listings]
             await database.prime_initial_listings(alarm_id, dict_items)
-            initial_count = len(initial_listings)
+            initial_count = len(dict_items)
             primed_immediately = True
         except Exception as e:
             logger.warning(f"Initial baseline fetch deferred for alarm #{alarm_id}: {e}")
@@ -151,8 +153,8 @@ class AlarmCog(commands.Cog):
         description="Sahibinden üzerinde filtrelediğiniz herhangi bir kategorideki arama linkini doğrudan takibe alın."
     )
     @app_commands.describe(
-        url="Sahibinden arama sonuçları URL'si (Tüm özel filtrelerinizi içeren arama sayfası linki)",
-        alarm_adi="Alarm için hatırlatıcı bir isim"
+        url="Sahibinden arama linki (örn: https://www.sahibinden.com/ram-bellek-masaustu?a3329=1151866)",
+        alarm_adi="Alarm için hatırlatıcı bir isim (örn: 'DDR4 Corsair RAM')"
     )
     async def alarm_url(self, interaction: discord.Interaction, url: str, alarm_adi: str):
         """Monitors any Sahibinden search results URL verbatim."""
@@ -179,13 +181,15 @@ class AlarmCog(commands.Cog):
             filters=extracted_filters
         )
 
+        alarm_meta = {"id": alarm_id, "name": alarm_adi, "filters_json": json.dumps(extracted_filters, ensure_ascii=False)}
         initial_count = 0
         primed_immediately = False
         try:
             initial_listings = await scraper.fetch_listings(sanitized_url)
-            dict_items = [item.model_dump() for item in initial_listings]
+            valid_listings = [item for item in initial_listings if AlarmMonitor.matches_alarm_filters(alarm_meta, item)]
+            dict_items = [item.model_dump() for item in valid_listings]
             await database.prime_initial_listings(alarm_id, dict_items)
-            initial_count = len(initial_listings)
+            initial_count = len(dict_items)
             primed_immediately = True
         except Exception as e:
             logger.warning(f"Initial baseline fetch deferred for URL alarm #{alarm_id}: {e}")
@@ -215,7 +219,7 @@ class AlarmCog(commands.Cog):
         description="Sahibinden için görsel kategori ve filtre sihirbazı ile yeni bir alarm kurun."
     )
     @app_commands.describe(
-        kategori="Aradığınız kategori veya takma ad (örn: ram, bellek, araba, emlak, telefon)"
+        kategori="Kategori veya takma ad (örn: 'ram', 'ssd', 'ekran kartı', 'telefon', 'araba', 'daire')"
     )
     @app_commands.autocomplete(kategori=category_autocomplete)
     async def alarm_kur(self, interaction: discord.Interaction, kategori: str | None = None):
@@ -257,18 +261,18 @@ class AlarmCog(commands.Cog):
 
     @app_commands.command(
         name="alarm-hizli",
-        description="Tek satırda kategori ve parametrelerle hızlıca alarm oluşturun."
+        description="Tek satırda kategori, birim türleri (MB/GB/TB) ve parametrelerle hızlı alarm oluşturun."
     )
     @app_commands.describe(
-        kategori="Kategori veya alias (örn: araba, daire, ram, gpu, telefon)",
-        ddr="DDR tipi (RAM için: DDR3, DDR4, DDR5)",
-        kapasite="Kapasite (RAM/GPU için: 8 GB, 16 GB, 32 GB)",
-        marka="Marka veya Chipset (örn: Corsair, Kingston, Nvidia, AMD, Intel)",
-        min_fiyat="Minimum Fiyat (TL)",
-        max_fiyat="Maksimum Fiyat (TL)",
-        sehir="Şehir filtresi (örn: İstanbul, Ankara, İzmir)",
-        kelime="Arama kelimesi veya model (örn: Civic, 3200mhz, iPhone 15)",
-        alarm_adi="Alarmınıza vermek istediğiniz isim"
+        kategori="Kategori veya takma ad (örn: 'ram', 'gpu', 'ssd', 'telefon', 'araba', 'daire')",
+        ddr="RAM bellek tipi (örn: 'DDR4', 'DDR5', 'DDR3', 'DDR3L', 'DDR2', 'DDR')",
+        kapasite="Kapasite ve birimi (örn: '16 GB', '512 MB', '1 TB', '2x 16 GB', '256 MB')",
+        marka="Marka veya Chipset (örn: 'Corsair', 'Kingston', 'Nvidia', 'AMD', 'Intel', 'Samsung')",
+        min_fiyat="Minimum Fiyat TL (örn: 500, 2000)",
+        max_fiyat="Maksimum Fiyat TL (örn: 5000, 35000)",
+        sehir="Şehir filtresi (örn: 'İstanbul', 'Ankara', 'İzmir', 'Bursa')",
+        kelime="Arama kelimesi veya model (örn: 'Civic 1.6', '3200mhz CL16', 'iPhone 15 Pro')",
+        alarm_adi="Alarm için hatırlatıcı isim (örn: '16 GB DDR4 RAM', 'Kadıköy 3+1 Daire')"
     )
     @app_commands.autocomplete(kategori=category_autocomplete)
     async def alarm_hizli(
@@ -301,24 +305,26 @@ class AlarmCog(commands.Cog):
 
         if sehir and not resolver.resolve_city_code(sehir):
             await interaction.followup.send(
-                f"❌ `{sehir}` geçerli bir Türkiye ili olarak tanınmadı. Lütfen il adını kontrol edin.",
+                f"❌ `{sehir}` geçerli bir Türkiye ili olarak tanınmadı. Lütfen il adını kontrol edin (örn: İstanbul, Ankara).",
                 ephemeral=True
             )
             return
 
         cat_data = resolver.get_category(kategori)
+        cat_key = cat_data["key"] if cat_data else "genel-arama"
         category_slug = cat_data["slug"] if cat_data else "kelime-ile-arama"
 
         # Auto-extract embedded specs if user typed e.g. kategori="ddr4 16gb ram"
         extracted = resolver.extract_specs_from_text(
             f"{kategori} {kelime or ''}",
-            category_key=cat_data["key"] if cat_data else "ram-bellek-masaustu"
+            category_key=cat_key
         )
 
         formatted_ddr = ddr.upper().strip() if ddr else extracted.get("tipi")
-        formatted_cap = kapasite.upper().strip() if kapasite else (extracted.get("kapasite") or extracted.get("bellek"))
-        if formatted_cap and "GB" not in formatted_cap and "MB" not in formatted_cap and "TB" not in formatted_cap:
-            formatted_cap = f"{formatted_cap} GB"
+
+        # Multi-unit capacity normalization (supports MB, GB, TB, Dual-Kit)
+        raw_cap = kapasite.strip() if kapasite else (extracted.get("kapasite") or extracted.get("bellek"))
+        formatted_cap = resolver.normalize_capacity_unit(raw_cap, category_key=cat_key) if raw_cap else None
 
         formatted_brand = marka.strip() if marka else (extracted.get("marka") or extracted.get("chipset"))
 
@@ -356,13 +362,15 @@ class AlarmCog(commands.Cog):
         )
 
         # Baseline prime
+        alarm_meta = {"id": alarm_id, "name": name, "filters_json": json.dumps(filters, ensure_ascii=False)}
         initial_count = 0
         primed_immediately = False
         try:
             initial_listings = await scraper.fetch_listings(target_url)
-            dict_items = [item.model_dump() for item in initial_listings]
+            valid_listings = [item for item in initial_listings if AlarmMonitor.matches_alarm_filters(alarm_meta, item)]
+            dict_items = [item.model_dump() for item in valid_listings]
             await database.prime_initial_listings(alarm_id, dict_items)
-            initial_count = len(initial_listings)
+            initial_count = len(dict_items)
             primed_immediately = True
         except Exception as e:
             logger.warning(f"Initial baseline fetch deferred for quick alarm #{alarm_id}: {e}")
@@ -382,14 +390,14 @@ class AlarmCog(commands.Cog):
             embed.add_field(name="🏷️ Marka/Chipset", value=formatted_brand, inline=True)
         if min_fiyat or max_fiyat:
             max_str = f"{max_fiyat:,}" if max_fiyat else "Limitsiz"
-            embed.add_field(name="💰 Fiyat", value=f"{min_fiyat or 0:,} TL - {max_str} TL", inline=True)
+            embed.add_field(name="💰 Fiyat Aralığı", value=f"{min_fiyat or 0:,} TL - {max_str} TL", inline=True)
         if sehir:
             embed.add_field(name="📍 Şehir", value=sehir.title(), inline=True)
         if kelime:
-            embed.add_field(name="🔍 Kelime", value=f"`{kelime}`", inline=True)
+            embed.add_field(name="🔍 Arama Kelimesi", value=f"`{kelime}`", inline=True)
 
         if primed_immediately:
-            baseline_msg = f"Şu an yayında olan **{initial_count}** ilan arşivlendi. Sadece yeni ilanlar ve fiyat düşüşleri alert edilecek."
+            baseline_msg = f"Şu an arama sonucundaki **{initial_count}** ilan arşivlendi. Yalnızca yeni gelen veya fiyatı düşen ilanlar bildirilecek."
         else:
             baseline_msg = "İlk baz liste arka plan döngüsünde otomatik arşivlenecek ve geçmiş ilanlar spam yapılmayacaktır."
 
@@ -397,53 +405,126 @@ class AlarmCog(commands.Cog):
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     # =========================================================================
-    # LİSTELEME, DURAKLATMA, SİLME VE TEST KOMUTLARI
+    # KATEGORİ VE BİRİM REHBERİ (/kategoriler)
+    # =========================================================================
+    @app_commands.command(
+        name="kategoriler",
+        description="Desteklenen tüm kategoriler, birim türleri (MB, GB, TB) ve komut örnekleri rehberi."
+    )
+    async def kategoriler(self, interaction: discord.Interaction):
+        """Displays a rich reference manual explaining all categories, spec units, and syntax examples."""
+        embed = discord.Embed(
+            title="📚 Sahibinden Alarm Botu: Kategori & Birim Rehberi",
+            description=(
+                "Bot; Vasıta, Emlak, Bilgisayar Donanımı, Cep Telefonu ve Oyun Konsolu dahil "
+                "Sahibinden'in tüm ana kategorilerini ve bunlara ait farklı birim türlerini hesaplar.\n"
+                "Aşağıdaki örnek sözdizimlerini inceleyerek hızlıca alarm oluşturabilirsiniz:"
+            ),
+            color=0x3498DB
+        )
+
+        embed.add_field(
+            name="🧠 RAM Bellek Türleri ve Birimleri",
+            value=(
+                "• **Kapasite Birimleri**: `512 MB`, `256 MB`, `128 MB`, `1 GB`, `2 GB`, `4 GB`, `8 GB`, `16 GB`, `32 GB`, `64 GB`\n"
+                "• **Dual Kit Birimleri**: `2x 8 GB` (16GB), `2x 16 GB` (32GB), `2x 32 GB` (64GB)\n"
+                "• **Bellek Nesilleri**: `DDR5`, `DDR4`, `DDR3L`, `DDR3`, `DDR2`, `DDR`\n"
+                "• *Örnek Komut*: `/alarm-hizli kategori:ram ddr:DDR4 kapasite:16 GB marka:Corsair max_fiyat:2500`\n"
+                "• *Eski Nesil Örnek*: `/alarm-hizli kategori:ram ddr:DDR2 kapasite:512 MB max_fiyat:300`"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="💾 SSD & Sabit Disk Birimleri",
+            value=(
+                "• **GB Birimleri**: `120 GB`, `240 GB`, `250 GB`, `256 GB`, `480 GB`, `500 GB`, `512 GB`\n"
+                "• **TB Birimleri**: `1 TB`, `2 TB`, `4 TB`, `8 TB`\n"
+                "• *Örnek Komut*: `/alarm-hizli kategori:ssd kapasite:1 TB kelime:NVMe max_fiyat:3500`"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="🎮 Ekran Kartı (GPU) & İşlemci (CPU)",
+            value=(
+                "• **GPU VRAM**: `4 GB`, `6 GB`, `8 GB`, `10 GB`, `12 GB`, `16 GB`, `24 GB`\n"
+                "• **GPU Chipset**: `Nvidia`, `AMD`, `Intel`\n"
+                "• **CPU Marka**: `AMD`, `Intel` (Ryzen 5, i7, AM5, LGA1700)\n"
+                "• *Örnek Komut*: `/alarm-hizli kategori:gpu kapasite:12 GB marka:Nvidia kelime:RTX 4070`"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="🚗 Vasıta & 🏠 Emlak Kategorileri",
+            value=(
+                "• **Vasıta**: `otomobil` (Civic, Clio, BMW), `suv` (Qashqai, Duster), `motosiklet` (Yamaha, Honda)\n"
+                "• **Emlak**: `satilik-daire`, `kiralik-daire`, `satilik-arsa`, `satilik-villa`, `satilik-isyeri`\n"
+                "• *Örnek Vasıta*: `/alarm-hizli kategori:araba kelime:Civic 1.6 Otomatik sehir:Ankara max_fiyat:950000`\n"
+                "• *Örnek Emlak*: `/alarm-ara kelime:Kadıköy 3+1 satılık daire min_fiyat:4000000 max_fiyat:7500000`"
+            ),
+            inline=False
+        )
+
+        embed.set_footer(text="İpucu: /alarm-ara ile kategori gözetmeksizin tüm Sahibinden'de serbest arama yapabilirsiniz.")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    # =========================================================================
+    # ALARM YÖNETİM KOMUTLARI (/alarmlarim, /alarm-durum, /alarm-sil, /alarm-test)
     # =========================================================================
     @app_commands.command(
         name="alarmlarim",
-        description="Tanımladığınız tüm alarmları ve durumlarını listeleyin."
+        description="Hesabınıza kayıtlı tüm alarmları ve takip durumlarını listeleyin."
     )
     async def alarmlarim(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         user_alarms = await database.get_user_alarms(interaction.user.id)
 
         if not user_alarms:
-            await interaction.followup.send(
-                "📭 Henüz tanımlanmış bir alarmınız bulunmuyor. `/alarm-ara`, `/alarm-kur` veya `/alarm-url` ile oluşturabilirsiniz.",
-                ephemeral=True
+            embed = discord.Embed(
+                title="📭 Kayıtlı Alarmınız Bulunmuyor",
+                description=(
+                    "Henüz aktif bir alarm kurmadınız.\n"
+                    "• `/alarm-ara`: Tüm sitede serbest arama\n"
+                    "• `/alarm-hizli`: Tek satırda parametrelerle alarm\n"
+                    "• `/alarm-url`: Sahibinden filtre linkinizi doğrudan yapıştırarak alarm kurabilirsiniz."
+                ),
+                color=0xE67E22
             )
+            await interaction.followup.send(embed=embed, ephemeral=True)
             return
 
         embed = discord.Embed(
-            title=f"📋 Kayıtlı Alarmlarınız ({len(user_alarms)})",
+            title=f"📋 Aktif Alarmlarınız ({len(user_alarms)} Adet)",
+            description="Aşağıda kurduğunuz Sahibinden ilan dinleyicileri listelenmektedir:",
             color=0x3498DB
         )
 
-        for a in user_alarms[:15]:
-            filters = json.loads(a.get("filters_json") or "{}")
-            filter_summary = []
-            if filters.get("kelime"):
-                filter_summary.append(f"Kelime: {filters['kelime']}")
+        for alarm in user_alarms[:15]:
+            status_icon = "🟢 Aktif" if alarm["is_active"] else "⏸️ Duraklatıldı"
+            filters = json.loads(alarm["filters_json"]) if alarm.get("filters_json") else {}
+
+            filter_parts = []
             if filters.get("tipi"):
-                filter_summary.append(f"Tip: {filters['tipi']}")
+                filter_parts.append(f"Tip: {filters['tipi']}")
             if filters.get("kapasite"):
-                filter_summary.append(f"Kapasite: {filters['kapasite']}")
+                filter_parts.append(f"Kapasite: {filters['kapasite']}")
             if filters.get("marka"):
-                filter_summary.append(f"Marka: {filters['marka']}")
-            if filters.get("min_fiyat") is not None or filters.get("max_fiyat") is not None:
-                min_v = filters.get("min_fiyat") or 0
-                max_v = filters.get("max_fiyat")
-                max_s = f"{max_v:,}" if max_v is not None else "∞"
-                filter_summary.append(f"Fiyat: {min_v:,}-{max_s} TL")
+                filter_parts.append(f"Marka: {filters['marka']}")
+            if filters.get("kelime"):
+                filter_parts.append(f"Kelime: '{filters['kelime']}'")
+            if filters.get("min_fiyat") or filters.get("max_fiyat"):
+                min_f = f"{filters.get('min_fiyat', 0):,} TL" if filters.get("min_fiyat") else "0 TL"
+                max_f = f"{filters.get('max_fiyat', 0):,} TL" if filters.get("max_fiyat") else "Limitsiz"
+                filter_parts.append(f"Fiyat: {min_f} - {max_f}")
             if filters.get("sehir"):
-                filter_summary.append(f"Şehir: {filters['sehir'].title()}")
+                filter_parts.append(f"Şehir: {filters['sehir'].title()}")
 
-            details_text = " | ".join(filter_summary) if filter_summary else "Özel filtre yok"
-            status_badge = "🟢 Aktif" if a.get("is_active", 1) else "⏸️ Duraklatıldı"
-
+            desc_text = " | ".join(filter_parts) if filter_parts else "Evrensel Arama Filtresi"
             embed.add_field(
-                name=f"#{a['id']} - {a['name']} [{status_badge}]",
-                value=f"🎯 {details_text}\n📅 Oluşturulma: `{a['created_at'][:16]}`\n🔗 [Sahibinden'de Gör]({a['target_url']})",
+                name=f"#{alarm['id']} - {alarm['name']} ({status_icon})",
+                value=f"🔍 {desc_text}\n🌐 [Arama Sayfası]({alarm['target_url']})\n📅 Kurulum: {alarm['created_at'][:16]}",
                 inline=False
             )
 
@@ -464,7 +545,7 @@ class AlarmCog(commands.Cog):
         description="Mevcut bir alarmı geçici olarak duraklatın veya yeniden aktifleştirin."
     )
     @app_commands.describe(
-        alarm_id="Durumunu değiştirmek istediğiniz alarmın ID numarası",
+        alarm_id="Durumunu değiştirmek istediğiniz alarmın ID numarası (örn: 1, 5)",
         aktif="True: Aktifleştir (Devam Et), False: Duraklat"
     )
     async def alarm_durum(self, interaction: discord.Interaction, alarm_id: int, aktif: bool):
@@ -491,7 +572,7 @@ class AlarmCog(commands.Cog):
         name="alarm-sil",
         description="Mevcut bir alarmı silin."
     )
-    @app_commands.describe(alarm_id="Silmek istediğiniz alarmın ID numarası (boş bırakırsanız liste açılır)")
+    @app_commands.describe(alarm_id="Silmek istediğiniz alarmın ID numarası (örn: 1, 5 - boş bırakırsanız liste açılır)")
     async def alarm_sil(self, interaction: discord.Interaction, alarm_id: int | None = None):
         if alarm_id is not None:
             deleted = await database.delete_alarm(alarm_id, user_id=interaction.user.id)
@@ -514,7 +595,7 @@ class AlarmCog(commands.Cog):
         name="alarm-test",
         description="Bir alarmı anında test edin ve en güncel ilanı önizleyin."
     )
-    @app_commands.describe(alarm_id="Test etmek istediğiniz alarmın ID numarası")
+    @app_commands.describe(alarm_id="Test etmek istediğiniz alarmın ID numarası (örn: 1, 5)")
     async def alarm_test(self, interaction: discord.Interaction, alarm_id: int):
         await interaction.response.defer(ephemeral=True)
         alarm = await database.get_alarm(alarm_id)

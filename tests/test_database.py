@@ -450,3 +450,18 @@ async def test_unprimed_zero_listings_primes_and_notifies_first_future_ad(monkey
     finally:
         if os.path.exists(path):
             os.remove(path)
+
+
+def test_delete_alarm_view_safe_with_null_created_at():
+    """Verify DeleteAlarmView doesn't crash if an alarm record has created_at=None."""
+    from src.bot.views import DeleteAlarmView
+    mock_alarms = [
+        {"id": 1, "name": "Alarm without created_at", "created_at": None},
+        {"id": 2, "name": "Normal Alarm", "created_at": "2026-10-26 01:00:00"},
+    ]
+    view = DeleteAlarmView(mock_alarms)
+    select_item = view.children[0]
+    assert len(select_item.options) == 2
+    assert "Bilinmiyor" in select_item.options[0].description
+    assert "2026-10-26 01:00" in select_item.options[1].description
+

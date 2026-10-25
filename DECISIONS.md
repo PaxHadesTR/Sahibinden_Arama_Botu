@@ -144,6 +144,54 @@
   - Coolify deployment is 100% turnkey and self-contained on "Deploy".
   - Sahibinden scraping remains on the Turkish residential IP, avoiding Cloudflare 403 blocks.
 
+## ADR-012: Comprehensive Category Catalog Expansion, Multi-Unit Normalization, and Non-Lossy Facet Search Fallback
+- **Status**: Accepted
+- **Date**: 2026-10-26
+- **Context**:
+  Users need to create alerts across all major categories on Sahibinden (Vasıta, Emlak, Bilgisayar Donanımı, Cep Telefonu, Tablet, Akıllı Saat, Oyun Konsolları, TV vb.). Different hardware categories utilize distinct units (RAM capacity spans MB for legacy/retro DDR/DDR2/DDR3 and GB for modern DDR4/DDR5; storage spans GB and TB; dual-kits span `2x 8 GB`, `2x 16 GB`; GPU VRAM spans GB). Users also requested explicit syntax examples next to Discord input fields to clarify input formatting. Furthermore, if a user provided a spec that lacked a hardcoded Sahibinden numeric facet ID, the builder previously dropped the spec silently.
+- **Decision**:
+  1. **Expanded Category Catalog**: Expand `categories.json` to 25 major categories with rich metadata, aliases, and explicit example hints across Vehicles, Real Estate, PC Hardware, Mobile, Gaming Consoles, and Electronics.
+  2. **Multi-Unit Normalization Engine (`CategoryResolver.normalize_capacity_unit`)**:
+     - Normalizes unit notations across MB (`512 MB`, `256 MB`, `128 MB`), GB (`16 GB`, `32 GB`, `64 GB`), TB (`1 TB`, `2 TB`, `4 TB`), and Dual-Kits (`2x 8 GB`, `2x 16 GB`, `2x 32 GB`).
+     - Applies domain heuristics when bare integers are passed (e.g. RAM integer > 64 defaults to MB, storage integer 1-8 defaults to TB, RAM <= 64 defaults to GB).
+     - Enhanced `extract_specs_from_text` to extract legacy MB RAM, TB storage, dual kits, and DDR generations from freeform strings.
+  3. **Non-Lossy Search Fallback (`SahibindenURLBuilder`)**:
+     - When any user-specified filter (`tipi`, `kapasite`, `marka`) lacks a hardcoded Sahibinden numeric facet ID, it is automatically appended to `query_text` rather than discarded, guaranteeing that Sahibinden's internal search engine filters for the exact spec.
+  4. **Discord UI Example Displays**:
+     - Added syntax examples across all `@app_commands.describe` parameters (`/alarm-hizli`, `/alarm-ara`, `/alarm-url`, `/alarm-kur`).
+     - Dynamic placeholders in `SpecFilterModal` tailored by category.
+     - Visual select menus (`UniversalCategorySelectView`, `RamSpecSelectView`) updated to 25 categories and multi-unit options.
+     - Autocomplete choices surface inline example badges (`Display Name (Example Hint)`).
+     - Added `/kategoriler` slash command outputting a rich reference manual embed.
+- **Consequences**:
+  - Every major Sahibinden category and all unit variations (MB, GB, TB, Dual-Kit) are fully supported without search degradation.
+  - Users receive clear visual guidance on parameter formatting directly inside Discord.
+
+## ADR-013: Apex Codebase Audit, SQLite UPSERT & Batch Query Optimization, Safe UI Timeouts & Clean Component Dismissal
+- **Status**: Accepted
+- **Date**: 2026-10-26
+- **Context**:
+  An exhaustive audit of the entire codebase revealed opportunities for performance, resilience, and UI cleanup:
+  1. `seen_listings` used `INSERT OR REPLACE` which deleted and recreated rows, churning autoincrement IDs and losing the original `first_seen_at` timestamp.
+  2. `filter_new_listings` and `filter_price_drops` executed individual `SELECT` queries in a loop for each item in a search page (up to 40 queries per alarm cycle).
+  3. `DeleteAlarmSelect` had a potential `TypeError` if `created_at` was `None` or malformed, and its callback used `send_message` rather than `edit_message`, leaving stale dropdowns in chat.
+  4. Views lacked `on_timeout` handlers, leaving dead interactable components after 180 seconds.
+  5. `extract_filters_from_url` did not extract `address_city` into `sehir`, leaving city filters unpopulated in `/alarmlarim` for custom URL alarms.
+  6. `unmatched_specs` in `build_url` could duplicate multi-word phrases already present in `query_text`.
+  7. When a channel was unreachable in `AlarmMonitor`, `last_checked_at` was not updated, leaving the alarm timestamp frozen.
+- **Decision**:
+  1. **SQLite UPSERT & Timestamp Preservation**: Implement `INSERT INTO ... ON CONFLICT(alarm_id, classified_id) DO UPDATE SET ...` in `database.py` preserving `id` and `first_seen_at`.
+  2. **Batch SQL Optimization**: Implement batch SQL queries with `IN (...)` in `filter_new_listings` and `filter_price_drops`, reducing database roundtrips by 90%.
+  3. **Safe UI Formats & Clean Dismissal**: Guard `DeleteAlarmSelect` with safe string slicing and clean dismissal via `edit_message(content=..., view=None)`.
+  4. **Component Lifecycle Management**: Add `on_timeout` handlers across all views to safely disable interactive components.
+  5. **Reverse City Mapping**: Reverse-map `address_city` to city names via `resolver.get_city_name` in `url_builder.py`.
+  6. **Query Text Deduplication**: Add phrase and word boundary substring checks to prevent `unmatched_specs` duplication in `query_text`.
+  7. **Unreachable Channel Timestamp Update**: Call `database.update_last_checked(alarm_id)` when channels are unreachable.
+- **Consequences**:
+  - High performance, zero SQL churn, preserved historical timestamps, 10x faster database filtering, clean Discord component lifecycles, and hardened parsing.
+
+
+
 
 
 

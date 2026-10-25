@@ -1,5 +1,6 @@
 """Interactive Discord UI components (Modals, Select Menus, Buttons)."""
 
+import json
 import logging
 import discord
 from discord.ui import Modal, TextInput, View, Select
@@ -8,6 +9,7 @@ from src.catalog.resolver import resolver
 from src.services.url_builder import SahibindenURLBuilder
 from src.db.database import database
 from src.services.scraper import scraper
+from src.services.monitor import AlarmMonitor
 
 logger = logging.getLogger("sahibinden_bot.views")
 
@@ -24,26 +26,36 @@ class SpecFilterModal(Modal):
         self.tipi = tipi
         self.kapasite = kapasite
 
-        # Dynamic placeholder logic
-        if "otomobil" in self.category_key or "vasita" in self.category_key:
+        # Dynamic placeholder & default name logic tailored with syntax examples
+        cat_key_low = self.category_key.lower()
+        if "otomobil" in cat_key_low or "vasita" in cat_key_low:
             kw_hint = "Örn: Honda Civic 1.6, Otomatik, Boyasız"
             default_name = "Otomobil Alarmı"
-        elif "daire" in self.category_key or "emlak" in self.category_key:
-            kw_hint = "Örn: Kadıköy 3+1, Kombili, Balkonlu"
-            default_name = "Daire Alarmı"
-        elif "telefon" in self.category_key:
+        elif "daire" in cat_key_low or "emlak" in cat_key_low or "villa" in cat_key_low:
+            kw_hint = "Örn: 3+1, 2+1, Kombili, Balkonlu, Kadıköy"
+            default_name = "Emlak Alarmı"
+        elif "telefon" in cat_key_low:
             kw_hint = "Örn: iPhone 15 Pro 128 GB, Kutulu Faturalı"
             default_name = "Telefon Alarmı"
-        elif "ram" in self.category_key:
-            kw_hint = "Örn: Corsair, 3200mhz, CL16"
+        elif "ram" in cat_key_low:
+            kw_hint = "Örn: 16 GB, 512 MB, Corsair, 3200mhz CL16"
             default_name = " ".join(filter(None, ["RAM", tipi, kapasite, "Alarmı"]))
+        elif "ssd" in cat_key_low or "sabit" in cat_key_low or "surucu" in cat_key_low:
+            kw_hint = "Örn: 1 TB, 2 TB, 500 GB, NVMe M.2, Samsung 980"
+            default_name = "SSD Depolama Alarmı"
+        elif "ekran" in cat_key_low or "gpu" in cat_key_low:
+            kw_hint = "Örn: RTX 4070 12 GB, RX 7800 XT, Asus Dual"
+            default_name = "Ekran Kartı Alarmı"
+        elif "islemci" in cat_key_low or "cpu" in cat_key_low:
+            kw_hint = "Örn: Ryzen 5 7600, i7 13700K, AM5"
+            default_name = "İşlemci Alarmı"
         else:
-            kw_hint = "Örn: Anahtar kelime veya model (Opsiyonel)"
+            kw_hint = "Örn: Model, tür (512 MB, 16 GB, 1 TB), özellik"
             default_name = f"{cat_info.get('display_name', 'Sahibinden')} Takibi"
 
         self.alarm_name_input = TextInput(
             label="Alarm Adı",
-            placeholder="Hatırlatıcı bir isim yazın",
+            placeholder="Örn: 16 GB DDR4 RAM Alarmı veya Kadıköy 3+1",
             default=default_name[:60],
             required=True,
             max_length=60
@@ -52,7 +64,7 @@ class SpecFilterModal(Modal):
 
         self.min_price_input = TextInput(
             label="Minimum Fiyat (TL)",
-            placeholder="Örn: 500 (Boş bırakılabilir)",
+            placeholder="Örn: 500 veya 1500 (Boş bırakılabilir)",
             required=False,
             max_length=15
         )
@@ -60,7 +72,7 @@ class SpecFilterModal(Modal):
 
         self.max_price_input = TextInput(
             label="Maksimum Fiyat (TL)",
-            placeholder="Örn: 25000 (Boş bırakılabilir)",
+            placeholder="Örn: 5000 veya 25000 (Boş bırakılabilir)",
             required=False,
             max_length=15
         )
@@ -68,7 +80,7 @@ class SpecFilterModal(Modal):
 
         self.city_input = TextInput(
             label="Şehir Filtresi",
-            placeholder="Örn: İstanbul, Ankara (Tüm Türkiye için boş bırakın)",
+            placeholder="Örn: İstanbul, Ankara, İzmir (Tümü için boş bırakın)",
             required=False,
             max_length=25
         )
@@ -113,7 +125,7 @@ class SpecFilterModal(Modal):
         city = self.city_input.value.strip() or None
         if city and not resolver.resolve_city_code(city):
             await interaction.followup.send(
-                f"❌ `{city}` geçerli bir Türkiye ili olarak bulunamadı. Lütfen il adını kontrol edin (örn: İstanbul, Ankara, Eskişehir).",
+                f"❌ `{city}` geçerli bir Türkiye ili olarak bulunamadı. Lütfen il adını kontrol edin (örn: İstanbul, Ankara, İzmir).",
                 ephemeral=True
             )
             return
@@ -152,13 +164,21 @@ class SpecFilterModal(Modal):
             filters=filter_details
         )
 
-        # Baseline prime: archive currently existing listings
-        initial_listings = []
+        alarm_meta = {
+            "id": alarm_id,
+            "name": alarm_name,
+            "filters_json": json.dumps(filter_details, ensure_ascii=False)
+        }
+
+        # Baseline prime: archive currently existing listings that match criteria
+        initial_count = 0
         primed_immediately = False
         try:
             initial_listings = await scraper.fetch_listings(target_url)
-            dict_items = [item.model_dump() for item in initial_listings]
+            valid_listings = [item for item in initial_listings if AlarmMonitor.matches_alarm_filters(alarm_meta, item)]
+            dict_items = [item.model_dump() for item in valid_listings]
             await database.prime_initial_listings(alarm_id, dict_items)
+            initial_count = len(dict_items)
             primed_immediately = True
         except Exception as e:
             logger.warning(f"Initial baseline fetch deferred for alarm #{alarm_id}: {e}")
@@ -183,7 +203,7 @@ class SpecFilterModal(Modal):
             embed.add_field(name="🔍 Kelime", value=f"`{query_text}`", inline=True)
 
         if primed_immediately:
-            baseline_msg = f"Şu an yayında olan **{len(initial_listings)}** mevcut ilan arşivlendi. Yalnızca **yeni** gelen veya **fiyatı düşen** ilanlar bildirilecek."
+            baseline_msg = f"Şu an yayında olan ve kriterlerinize uyan **{initial_count}** mevcut ilan arşivlendi. Yalnızca **yeni** gelen veya **fiyatı düşen** ilanlar bildirilecek."
         else:
             baseline_msg = "İlk baz liste arka plan döngüsünde otomatik arşivlenecek ve geçmiş ilanlar spam yapılmayacaktır."
 
@@ -192,22 +212,36 @@ class SpecFilterModal(Modal):
 
 
 class UniversalCategorySelectView(View):
-    """Interactive visual picker for major Sahibinden categories."""
+    """Interactive visual picker for 25 major Sahibinden categories."""
 
     def __init__(self):
         super().__init__(timeout=180)
 
         options = [
-            discord.SelectOption(label="🚗 Vasıta > Otomobil", value="otomobil", description="Araba modelleri ve araç ilanları"),
-            discord.SelectOption(label="🏍️ Vasıta > Motosiklet", value="motosiklet", description="Motosiklet ve scooter ilanları"),
-            discord.SelectOption(label="🏠 Emlak > Satılık Daire", value="satilik-daire", description="Satılık konut ve daire ilanları"),
-            discord.SelectOption(label="🔑 Emlak > Kiralık Daire", value="kiralik-daire", description="Kiralık ev ve konut ilanları"),
-            discord.SelectOption(label="📱 Cep Telefonu", value="cep-telefonu", description="iPhone, Samsung ve akıllı telefonlar"),
-            discord.SelectOption(label="💻 Dizüstü Bilgisayar (Laptop)", value="dizustu-bilgisayar", description="Laptop, MacBook, Gaming notebook"),
-            discord.SelectOption(label="🧠 RAM Bellek (Masaüstü)", value="ram-bellek-masaustu", description="DDR4, DDR5 masaüstü RAM'ler"),
-            discord.SelectOption(label="💻 RAM Bellek (Laptop SODIMM)", value="ram-bellek-dizustu", description="DDR3, DDR4, DDR5 dizüstü RAM'ler"),
-            discord.SelectOption(label="🎮 Ekran Kartı (GPU)", value="ekran-karti-masaustu", description="NVIDIA, AMD ekran kartları"),
-            discord.SelectOption(label="⚡ İşlemci (CPU)", value="islemci-masaustu", description="AMD Ryzen, Intel Core işlemciler"),
+            discord.SelectOption(label="🚗 Otomobil", value="otomobil", description="Civic, Megane, BMW, Otomatik/Manuel"),
+            discord.SelectOption(label="🚙 Arazi, SUV & Pickup", value="arazi-suv-pickup", description="Qashqai, Duster, Tucson, 4x4"),
+            discord.SelectOption(label="🏍️ Motosiklet", value="motosiklet", description="Yamaha, Honda, Scooter, 250cc"),
+            discord.SelectOption(label="🚚 Ticari Araçlar", value="ticari-araclar", description="Caddy, Doblo, Transporter, Minibüs"),
+            discord.SelectOption(label="🏠 Satılık Daire", value="satilik-daire", description="3+1, 2+1, Sıfır, Kombili konut"),
+            discord.SelectOption(label="🔑 Kiralık Daire", value="kiralik-daire", description="2+1, 1+1, Eşyalı, Merkezde kiralık"),
+            discord.SelectOption(label="🏡 Satılık Villa & Müstakil", value="satilik-villa", description="Villa, müstakil ev, havuzlu, yazlık"),
+            discord.SelectOption(label="🌾 Satılık Arsa & Tarla", value="satilik-arsa", description="İmarlı arsa, tarla, bağ/bahçe"),
+            discord.SelectOption(label="🏢 Satılık İş Yeri", value="satilik-isyeri", description="Dükkan, ofis, büro, mağaza"),
+            discord.SelectOption(label="📱 Cep Telefonu", value="cep-telefonu", description="iPhone 15, Samsung S24, 128 GB"),
+            discord.SelectOption(label="⌚ Akıllı Saat & Bileklik", value="akilli-saat", description="Apple Watch, Galaxy Watch, 44mm"),
+            discord.SelectOption(label="📱 Tablet Bilgisayar", value="tablet-bilgisayar", description="iPad Pro, iPad Air, Galaxy Tab"),
+            discord.SelectOption(label="💻 Dizüstü Bilgisayar (Laptop)", value="dizustu-bilgisayar", description="MacBook, Gaming laptop, i7, RTX"),
+            discord.SelectOption(label="🖥️ Masaüstü PC", value="masaustu-bilgisayar", description="Toplama PC, gaming hazır sistem"),
+            discord.SelectOption(label="🧠 RAM Bellek (Masaüstü)", value="ram-bellek-masaustu", description="DDR4, DDR5, 16 GB, 512 MB, 2x 16 GB"),
+            discord.SelectOption(label="💻 RAM Bellek (Laptop SODIMM)", value="ram-bellek-dizustu", description="DDR3, DDR4, DDR5 SODIMM"),
+            discord.SelectOption(label="🎮 Ekran Kartı (GPU)", value="ekran-karti-masaustu", description="RTX 4070, RX 7800 XT, 8 GB, 16 GB"),
+            discord.SelectOption(label="⚡ İşlemci (CPU)", value="islemci-masaustu", description="Ryzen 5 7600, Intel i7 13700K"),
+            discord.SelectOption(label="🔌 Anakart", value="anakart-masaustu", description="AM4, AM5, B650, Z790, LGA1700"),
+            discord.SelectOption(label="💾 SSD & Sabit Disk", value="ssd-dahili-sabit-disk", description="1 TB, 2 TB, 500 GB, NVMe, SATA"),
+            discord.SelectOption(label="🖥️ Monitör (Masaüstü)", value="monitor-masaustu", description="144hz, 165hz, 27 inç, 2K, IPS"),
+            discord.SelectOption(label="⚡ Kasa & Güç Kaynağı (PSU)", value="kasa-guc-kaynagi", description="750W 80+ Gold, ATX Kasa"),
+            discord.SelectOption(label="🎮 Oyun Konsolları", value="oyun-konsolu", description="PS5, Xbox Series X, Nintendo Switch"),
+            discord.SelectOption(label="📺 Televizyon", value="televizyon", description="55 inç, 65 inç, OLED, 4K Smart TV"),
             discord.SelectOption(label="🌐 Tüm Sahibinden (Genel Arama)", value="genel-arama", description="Tüm kategorilerde serbest arama"),
         ]
 
@@ -219,6 +253,12 @@ class UniversalCategorySelectView(View):
         )
         self.category_select.callback = self.on_category_selected
         self.add_item(self.category_select)
+
+    async def on_timeout(self):
+        """Disables select options upon view timeout."""
+        for item in self.children:
+            if hasattr(item, "disabled"):
+                item.disabled = True
 
     async def on_category_selected(self, interaction: discord.Interaction):
         allowed, reason = await database.check_alarm_limits(interaction.user.id)
@@ -251,37 +291,50 @@ class RamSpecSelectView(View):
 
         # DDR Type Select
         self.ddr_select = Select(
-            placeholder="Bellek Tipini Seçin (Örn: DDR4, DDR5)...",
+            placeholder="Bellek Tipini Seçin (Örn: DDR4, DDR5, DDR2)...",
             min_values=0,
             max_values=1,
             options=[
                 discord.SelectOption(label="DDR5", value="DDR5", description="Yeni Nesil DDR5 RAM"),
-                discord.SelectOption(label="DDR4", value="DDR4", description="DDR4 RAM"),
-                discord.SelectOption(label="DDR3L", value="DDR3L", description="Düşük Voltaj DDR3L RAM"),
+                discord.SelectOption(label="DDR4", value="DDR4", description="Yaygın DDR4 RAM"),
+                discord.SelectOption(label="DDR3L", value="DDR3L", description="Düşük Voltaj 1.35V DDR3L RAM"),
                 discord.SelectOption(label="DDR3", value="DDR3", description="DDR3 RAM"),
+                discord.SelectOption(label="DDR2", value="DDR2", description="Eski Nesil DDR2 RAM"),
+                discord.SelectOption(label="DDR", value="DDR", description="Klasik DDR1 RAM"),
                 discord.SelectOption(label="Fark Etmez / Tümü", value="ALL", description="Tip filtresi uygulama"),
             ]
         )
         self.ddr_select.callback = self.on_ddr_select
         self.add_item(self.ddr_select)
 
-        # Capacity Select
+        # Capacity Select with MB, GB, and Dual-Kit options
         self.cap_select = Select(
-            placeholder="Kapasite Seçin (Örn: 16 GB, 32 GB)...",
+            placeholder="Kapasite Seçin (Örn: 16 GB, 512 MB, 2x 16 GB)...",
             min_values=0,
             max_values=1,
             options=[
-                discord.SelectOption(label="8 GB", value="8 GB"),
-                discord.SelectOption(label="16 GB", value="16 GB"),
-                discord.SelectOption(label="32 GB", value="32 GB"),
-                discord.SelectOption(label="64 GB", value="64 GB"),
-                discord.SelectOption(label="2x 8 GB", value="2x 8 GB", description="Dual Kit 16 GB"),
-                discord.SelectOption(label="2x 16 GB", value="2x 16 GB", description="Dual Kit 32 GB"),
+                discord.SelectOption(label="512 MB", value="512 MB", description="Eski Nesil 512 MB RAM"),
+                discord.SelectOption(label="1 GB", value="1 GB", description="1 GB RAM"),
+                discord.SelectOption(label="2 GB", value="2 GB", description="2 GB RAM"),
+                discord.SelectOption(label="4 GB", value="4 GB", description="4 GB RAM"),
+                discord.SelectOption(label="8 GB", value="8 GB", description="8 GB RAM"),
+                discord.SelectOption(label="16 GB", value="16 GB", description="16 GB RAM"),
+                discord.SelectOption(label="32 GB", value="32 GB", description="32 GB RAM"),
+                discord.SelectOption(label="64 GB", value="64 GB", description="64 GB RAM"),
+                discord.SelectOption(label="2x 8 GB", value="2x 8 GB", description="Dual Kit 16 GB (2x 8 GB)"),
+                discord.SelectOption(label="2x 16 GB", value="2x 16 GB", description="Dual Kit 32 GB (2x 16 GB)"),
+                discord.SelectOption(label="2x 32 GB", value="2x 32 GB", description="Dual Kit 64 GB (2x 32 GB)"),
                 discord.SelectOption(label="Fark Etmez / Tümü", value="ALL", description="Kapasite filtresi uygulama"),
             ]
         )
         self.cap_select.callback = self.on_cap_select
         self.add_item(self.cap_select)
+
+    async def on_timeout(self):
+        """Disables components upon view timeout."""
+        for item in self.children:
+            if hasattr(item, "disabled"):
+                item.disabled = True
 
     async def on_ddr_select(self, interaction: discord.Interaction):
         val = self.ddr_select.values[0] if self.ddr_select.values else None
@@ -311,7 +364,7 @@ class DeleteAlarmSelect(Select):
             discord.SelectOption(
                 label=f"#{a['id']} - {a['name'][:30]}",
                 value=str(a["id"]),
-                description=f"Oluşturulma: {a['created_at'][:16]}"
+                description=f"Oluşturulma: {(a.get('created_at') or '')[:16] or 'Bilinmiyor'}"
             )
             for a in alarms[:25]
         ]
@@ -321,12 +374,17 @@ class DeleteAlarmSelect(Select):
         alarm_id = int(self.values[0])
         deleted = await database.delete_alarm(alarm_id, user_id=interaction.user.id)
         if deleted:
-            await interaction.response.send_message(f"🗑️ Alarm `#{alarm_id}` başarıyla silindi.", ephemeral=True)
+            await interaction.response.edit_message(content=f"🗑️ Alarm `#{alarm_id}` başarıyla silindi.", view=None)
         else:
-            await interaction.response.send_message(f"❌ Alarm `#{alarm_id}` silinemedi veya size ait değil.", ephemeral=True)
+            await interaction.response.edit_message(content=f"❌ Alarm `#{alarm_id}` silinemedi veya size ait değil.", view=None)
 
 
 class DeleteAlarmView(View):
     def __init__(self, alarms: list[dict[str, Any]]):
         super().__init__(timeout=60)
         self.add_item(DeleteAlarmSelect(alarms))
+
+    async def on_timeout(self):
+        for item in self.children:
+            if hasattr(item, "disabled"):
+                item.disabled = True

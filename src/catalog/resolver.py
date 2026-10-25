@@ -17,12 +17,17 @@ class CategoryResolver:
         self.categories: dict[str, Any] = data.get("categories", {})
         self.cities: dict[str, str] = data.get("cities", {})
         self._slug_to_key: dict[str, str] = {}
+        self.code_to_city: dict[str, str] = {}
 
         for cat_key, cat_data in self.categories.items():
             cat_data["key"] = cat_key
             slug = cat_data.get("slug")
             if slug:
                 self._slug_to_key[slug] = cat_key
+
+        for name, code in self.cities.items():
+            if code not in self.code_to_city:
+                self.code_to_city[code] = name.title()
 
     @staticmethod
     def normalize_turkish(text: str) -> str:
@@ -39,6 +44,77 @@ class CategoryResolver:
             .replace("ö", "o")
             .replace("ç", "c")
         )
+
+    @classmethod
+    def normalize_capacity_unit(cls, raw_val: str | None, category_key: str = "") -> str | None:
+        """Normalizes capacity specs across multiple unit types (MB, GB, TB, Dual-Kit).
+
+        Examples:
+            '512' (in RAM) -> '512 MB'
+            '512mb' -> '512 MB'
+            '16' -> '16 GB'
+            '16gb' -> '16 GB'
+            '1000 GB' -> '1 TB'
+            '1tb' -> '1 TB'
+            '2x8' -> '2x 8 GB'
+            '2x 16gb' -> '2x 16 GB'
+            '500' (in SSD) -> '500 GB'
+            '2' (in SSD) -> '2 TB'
+        """
+        if not raw_val or not str(raw_val).strip():
+            return None
+
+        clean = str(raw_val).strip()
+
+        # 1. Dual kit detection: '2x8', '2x 8gb', '2x16 GB', '2 x 32'
+        dual_match = re.match(r"^(\d+)\s*[xX*]\s*(\d+)\s*(GB|MB|TB)?$", clean, re.IGNORECASE)
+        if dual_match:
+            sticks = dual_match.group(1)
+            size = dual_match.group(2)
+            unit = (dual_match.group(3) or "GB").upper()
+            return f"{sticks}x {size} {unit}"
+
+        # 2. Explicit unit detection: '512mb', '16 GB', '1tb', '256 MB', '1000 GB'
+        unit_match = re.match(r"^(\d+)\s*(MB|GB|TB)$", clean, re.IGNORECASE)
+        if unit_match:
+            num = int(unit_match.group(1))
+            unit = unit_match.group(2).upper()
+            if unit == "GB" and num in (1000, 1024):
+                return "1 TB"
+            if unit == "GB" and num in (2000, 2048):
+                return "2 TB"
+            if unit == "GB" and num in (4000, 4096):
+                return "4 TB"
+            return f"{num} {unit}"
+
+        # 3. Pure integer without unit: e.g. '512', '16', '32', '1', '2'
+        if clean.isdigit():
+            val = int(clean)
+            cat_low = category_key.lower()
+            is_storage = any(k in cat_low for k in ("ssd", "sabit-disk", "harddisk", "hdd", "surucu", "storage"))
+            is_ram = any(k in cat_low for k in ("ram", "bellek"))
+
+            if is_storage:
+                # In storage: 1-8 are typically TB; 120-1000 are GB
+                if 1 <= val <= 8:
+                    return f"{val} TB"
+                if val in (1000, 1024):
+                    return "1 TB"
+                return f"{val} GB"
+            elif is_ram:
+                # In RAM: values > 64 are historically MB (128, 256, 512), <= 64 are modern GB
+                if val > 64:
+                    return f"{val} MB"
+                return f"{val} GB"
+            else:
+                # General default heuristic
+                if val in (128, 256, 512):
+                    return f"{val} MB"
+                elif 1 <= val <= 64:
+                    return f"{val} GB"
+                return f"{val} GB"
+
+        return clean
 
     def get_category(self, identifier: str | None) -> dict[str, Any] | None:
         """Resolves a category by catalog key, URL slug, or natural alias."""
@@ -109,6 +185,12 @@ class CategoryResolver:
             return str(int(clean))
         return self.cities.get(clean)
 
+    def get_city_name(self, city_code: str | None) -> str | None:
+        """Converts city code (e.g. '34') back to a formatted city name (e.g. 'İstanbul')."""
+        if not city_code:
+            return None
+        return self.code_to_city.get(str(city_code).strip())
+
     def extract_specs_from_text(self, text: str, category_key: str = "ram-bellek-masaustu") -> dict[str, str]:
         """Extracts recognized facets (like DDR type, capacity, brand, chipset, VRAM) from raw query text."""
         cat_data = self.get_category(category_key)
@@ -118,12 +200,10 @@ class CategoryResolver:
         found_facets: dict[str, str] = {}
         normalized = text.lower().replace("-", " ")
         tokens = normalized.split()
-        clean_text = normalized.replace(" ", "")
         facets = cat_data.get("facets", {})
 
-        # Tipi (e.g. DDR4, DDR5)
+        # 1. Tipi (e.g. DDR5, DDR4, DDR3L, DDR3, DDR2, DDR)
         if "tipi" in facets:
-            # Sort options by length descending so DDR3L is checked before DDR3, DDR4 before DDR
             sorted_opts = sorted(facets["tipi"]["options"].keys(), key=len, reverse=True)
             for opt_label in sorted_opts:
                 opt_low = opt_label.lower()
@@ -131,7 +211,7 @@ class CategoryResolver:
                     found_facets["tipi"] = opt_label
                     break
 
-        # Kapasite or Bellek (e.g. 2x 16 GB, 16 GB, 32 GB, 16gb)
+        # 2. Kapasite or Bellek (e.g. 2x 16 GB, 16 GB, 512 MB, 1 TB, 256 MB)
         for cap_facet_key in ("kapasite", "bellek"):
             if cap_facet_key in facets:
                 sorted_opts = sorted(facets[cap_facet_key]["options"].keys(), key=len, reverse=True)
@@ -142,7 +222,35 @@ class CategoryResolver:
                         found_facets[cap_facet_key] = opt_label
                         break
 
-        # Marka or Chipset (e.g. Corsair, Kingston, Nvidia, AMD)
+                # If not matched by exact option string, check regex for units (e.g. 512mb, 16gb, 1tb, 2x8gb)
+                if cap_facet_key not in found_facets:
+                    # Check dual-kit regex: 2x 16gb, 2x16
+                    dual_m = re.search(r"\b(\d+)\s*[xX*]\s*(\d+)\s*(?:gb|mb)?\b", normalized)
+                    if dual_m:
+                        raw_dual = f"{dual_m.group(1)}x{dual_m.group(2)}"
+                        norm_dual = self.normalize_capacity_unit(raw_dual, category_key=category_key)
+                        if norm_dual and norm_dual in facets[cap_facet_key]["options"]:
+                            found_facets[cap_facet_key] = norm_dual
+
+                    # Check single unit regex: 512mb, 16gb, 1tb
+                    if cap_facet_key not in found_facets:
+                        unit_m = re.search(r"\b(\d+)\s*(mb|gb|tb)\b", normalized)
+                        if unit_m:
+                            raw_unit = f"{unit_m.group(1)}{unit_m.group(2)}"
+                            norm_cap = self.normalize_capacity_unit(raw_unit, category_key=category_key)
+                            if norm_cap and norm_cap in facets[cap_facet_key]["options"]:
+                                found_facets[cap_facet_key] = norm_cap
+
+                    # Check token numeric inference (e.g. '512' in RAM -> '512 MB')
+                    if cap_facet_key not in found_facets:
+                        for token in tokens:
+                            if token.isdigit():
+                                norm_token = self.normalize_capacity_unit(token, category_key=category_key)
+                                if norm_token and norm_token in facets[cap_facet_key]["options"]:
+                                    found_facets[cap_facet_key] = norm_token
+                                    break
+
+        # 3. Marka or Chipset (e.g. Corsair, Kingston, Nvidia, AMD, Intel)
         for brand_facet_key in ("marka", "chipset"):
             if brand_facet_key in facets:
                 sorted_opts = sorted(facets[brand_facet_key]["options"].keys(), key=len, reverse=True)
@@ -155,15 +263,32 @@ class CategoryResolver:
         return found_facets
 
     def get_autocomplete_choices(self, current: str) -> list[tuple[str, str]]:
-        """Returns (display_label, category_key) pairs matching the user's input for Discord autocomplete."""
+        """Returns (display_label, category_key) pairs matching the user's input for Discord autocomplete.
+
+        Labels include example hints (e.g., '🧠 RAM Bellek (Masaüstü) (Örn: DDR4, DDR5, 16 GB, 512 MB)')
+        to guide users on syntax directly in the Discord UI.
+        """
         query = self.normalize_turkish(current)
         results: list[tuple[str, str]] = []
         for cat_key, cat_data in self.categories.items():
             display = cat_data.get("display_name", cat_key)
+            hint = cat_data.get("example_hint")
+            label = f"{display} ({hint})" if hint else display
+            # Discord choice name limit is 100 characters
+            if len(label) > 100:
+                label = label[:97] + "..."
+
             norm_display = self.normalize_turkish(display)
             aliases = [self.normalize_turkish(a) for a in cat_data.get("aliases", [])]
-            if not query or query in norm_display or any(query in a for a in aliases):
-                results.append((display, cat_key))
+            norm_hint = self.normalize_turkish(hint) if hint else ""
+
+            if (
+                not query
+                or query in norm_display
+                or any(query in a for a in aliases)
+                or (norm_hint and query in norm_hint)
+            ):
+                results.append((label, cat_key))
             if len(results) >= 25:
                 break
         return results

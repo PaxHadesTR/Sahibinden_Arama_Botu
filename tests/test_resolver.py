@@ -93,3 +93,106 @@ def test_resolve_all_81_cities():
     assert resolver.resolve_city_code("Düzce") == "81"
     assert resolver.resolve_city_code("34") == "34"
     assert resolver.resolve_city_code("BilinmeyenSehir") is None
+
+
+def test_normalize_capacity_unit_mb_gb_tb_and_kits():
+    """Verify multi-unit normalization across MB, GB, TB, and Dual-Kit notations."""
+    # RAM MB capacities
+    assert resolver.normalize_capacity_unit("512", category_key="ram-bellek-masaustu") == "512 MB"
+    assert resolver.normalize_capacity_unit("512mb") == "512 MB"
+    assert resolver.normalize_capacity_unit("256 MB") == "256 MB"
+    assert resolver.normalize_capacity_unit("128mb") == "128 MB"
+
+    # RAM GB capacities
+    assert resolver.normalize_capacity_unit("16", category_key="ram-bellek-masaustu") == "16 GB"
+    assert resolver.normalize_capacity_unit("16gb") == "16 GB"
+    assert resolver.normalize_capacity_unit("32 GB") == "32 GB"
+    assert resolver.normalize_capacity_unit("64gb") == "64 GB"
+
+    # Dual Kits
+    assert resolver.normalize_capacity_unit("2x8") == "2x 8 GB"
+    assert resolver.normalize_capacity_unit("2x 8gb") == "2x 8 GB"
+    assert resolver.normalize_capacity_unit("2x16") == "2x 16 GB"
+    assert resolver.normalize_capacity_unit("2x 16 GB") == "2x 16 GB"
+    assert resolver.normalize_capacity_unit("2x32") == "2x 32 GB"
+
+    # Storage TB and GB
+    assert resolver.normalize_capacity_unit("1tb") == "1 TB"
+    assert resolver.normalize_capacity_unit("2 TB") == "2 TB"
+    assert resolver.normalize_capacity_unit("1", category_key="ssd-dahili-sabit-disk") == "1 TB"
+    assert resolver.normalize_capacity_unit("2", category_key="ssd-dahili-sabit-disk") == "2 TB"
+    assert resolver.normalize_capacity_unit("500", category_key="ssd-dahili-sabit-disk") == "500 GB"
+    assert resolver.normalize_capacity_unit("256", category_key="ssd-dahili-sabit-disk") == "256 GB"
+
+
+def test_extract_specs_legacy_mb_and_storage_tb():
+    """Verify text parsing extracts legacy MB RAM and TB storage specs."""
+    # Legacy DDR2 512 MB RAM
+    ram_mb = resolver.extract_specs_from_text(
+        "Kingston 512mb DDR2 RAM",
+        category_key="ram-bellek-masaustu"
+    )
+    assert ram_mb.get("tipi") == "DDR2"
+    assert ram_mb.get("kapasite") == "512 MB"
+    assert ram_mb.get("marka") == "Kingston"
+
+    # SSD Storage 1 TB
+    ssd_tb = resolver.extract_specs_from_text(
+        "Samsung 980 Pro 1 TB NVMe",
+        category_key="ssd-dahili-sabit-disk"
+    )
+    assert ssd_tb.get("kapasite") == "1 TB"
+
+
+def test_expanded_categories_resolution():
+    """Verify all newly added major Sahibinden categories resolve from aliases."""
+    assert resolver.resolve_category("suv")["slug"] == "arazi-suv-pickup"
+    assert resolver.resolve_category("pickup")["slug"] == "arazi-suv-pickup"
+    assert resolver.resolve_category("kamyonet")["slug"] == "ticari-araclar"
+    assert resolver.resolve_category("ticari")["slug"] == "ticari-araclar"
+    assert resolver.resolve_category("satilik villa")["slug"] == "satilik-villa"
+    assert resolver.resolve_category("arsa")["slug"] == "satilik-arsa"
+    assert resolver.resolve_category("satilik isyeri")["slug"] == "satilik-isyeri"
+    assert resolver.resolve_category("akilli saat")["slug"] == "akilli-saat"
+    assert resolver.resolve_category("tablet")["slug"] == "tablet-bilgisayar"
+    assert resolver.resolve_category("gaming pc")["slug"] == "masaustu-bilgisayar"
+    assert resolver.resolve_category("anakart")["slug"] == "anakart-masaustu"
+    assert resolver.resolve_category("ssd")["slug"] == "dahili-sabit-suruculer"
+    assert resolver.resolve_category("monitor")["slug"] == "cevre-birimleri-monitor"
+    assert resolver.resolve_category("psu")["slug"] == "kasa-guc-kaynaklari"
+    assert resolver.resolve_category("oyun konsolu")["slug"] == "oyun-konsollari"
+    assert resolver.resolve_category("televizyon")["slug"] == "televizyon"
+    assert resolver.resolve_category("kol saati")["slug"] == "kol-saati"
+
+
+def test_autocomplete_includes_example_hints():
+    """Verify autocomplete choices provide contextual examples next to categories."""
+    choices = resolver.get_autocomplete_choices("ram")
+    assert len(choices) > 0
+    # The label should contain an example hint
+    labels = [choice[0] for choice in choices]
+    assert any("Örn:" in label for label in labels)
+    assert any("DDR4" in label or "16 GB" in label for label in labels)
+
+
+def test_normalize_capacity_unit_1000gb_to_1tb():
+    """Verify 1000 GB and 2000 GB normalize to 1 TB and 2 TB."""
+    assert resolver.normalize_capacity_unit("1000 GB") == "1 TB"
+    assert resolver.normalize_capacity_unit("1000gb") == "1 TB"
+    assert resolver.normalize_capacity_unit("2000 GB") == "2 TB"
+    assert resolver.normalize_capacity_unit("1000", category_key="ssd-dahili-sabit-disk") == "1 TB"
+
+
+def test_token_number_capacity_extraction():
+    """Verify isolated number tokens infer correct capacity unit."""
+    # RAM: '512' in RAM query extracts '512 MB'
+    specs_ram = resolver.extract_specs_from_text("Kingston 512 DDR2", category_key="ram-bellek-masaustu")
+    assert specs_ram.get("kapasite") == "512 MB"
+    assert specs_ram.get("tipi") == "DDR2"
+
+    # GPU: '12' in GPU query extracts '12 GB'
+    specs_gpu = resolver.extract_specs_from_text("RTX 4070 12 Nvidia", category_key="ekran-karti-masaustu")
+    assert specs_gpu.get("bellek") == "12 GB"
+    assert specs_gpu.get("chipset") == "Nvidia"
+
+
