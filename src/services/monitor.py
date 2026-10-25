@@ -98,6 +98,24 @@ class AlarmMonitor:
             if max_price is not None and int(max_price) > 0 and item.price_val > int(max_price):
                 return False
 
+        # Client-side capacity verification (e.g. 12 GB, 16 GB, 512 MB)
+        kapasite = filters.get("kapasite")
+        if kapasite and item.title:
+            import re
+            cap_clean = str(kapasite).strip().lower()
+            cap_compact = cap_clean.replace(" ", "")
+            title_low = item.title.lower()
+
+            requested_num = re.search(r"(\d+)\s*(?:gb|mb|tb)", cap_clean)
+            if requested_num:
+                req_val = requested_num.group(1)
+                title_caps = re.findall(r"\b(\d+)\s*(?:gb|mb|tb)\b", title_low)
+                title_compact_caps = re.findall(r"\b(\d+)(?:gb|mb|tb)\b", title_low.replace(" ", ""))
+                all_found = set(title_caps + title_compact_caps)
+                # If title explicitly mentions conflicting capacities, block the item
+                if all_found and req_val not in all_found and cap_compact not in title_low.replace(" ", ""):
+                    return False
+
         return True
 
     async def _resolve_channel(self, channel_id: int):

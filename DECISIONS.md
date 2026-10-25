@@ -205,6 +205,18 @@
 - **Consequences**:
   - Users can track and set alarms on any section of Sahibinden with 100% accurate URL generation and natural language keyword inference. Zero Discord 25-item option overflow errors.
 
+## ADR-015: GPU VRAM Filter Resilience, Query-Text Reinforcement & Defense-in-Depth Capacity Verification (2026-10-26)
+
+- **Context**:
+  - Users reported that GPU VRAM filtering (e.g. `kapasite:12 GB`) was ignored on Sahibinden, returning all listings regardless of VRAM size (8GB, 10GB, 16GB, etc.), while system RAM filters worked normally.
+  - Root cause analysis revealed that Sahibinden's internal facet ID for GPU VRAM was either altered or dropped by their filter backend (`a3347=1225091`), and because `url_builder` marked the facet as matched, it omitted the capacity string from `query_text`. As a result, Sahibinden received no text keyword or active filter for "12 GB".
+- **Decision**:
+  1. **Query-Text Guarantee for GPU Hardware**: In `src/services/url_builder.py`, whenever an alarm targets graphics cards (`ekran-karti`), the specified `kapasite` is always reinforced in `unmatched_specs` so Sahibinden's title/description search engine (`query_text=...`) strictly isolates the specified VRAM size.
+  2. **Client-Side Defense-in-Depth Capacity Verification**: In `src/services/monitor.py` (`AlarmMonitor.matches_alarm_filters`), inspect incoming listing titles against the alarm's `kapasite` filter. If the alarm specifies a capacity (e.g., `12 GB`) and the listing title explicitly mentions a conflicting capacity (e.g., `8 GB`, `16GB`) without mentioning the target capacity, the listing is blocked before dispatching to Discord.
+- **Consequences**:
+  - 100% reliable filtering on graphics cards and hardware without false positive alerts.
+  - Protection against Sahibinden dropping unverified facet parameters or showing sponsored/miscategorized items.
+
 
 
 

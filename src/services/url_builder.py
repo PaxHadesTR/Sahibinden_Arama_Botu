@@ -123,7 +123,10 @@ class SahibindenURLBuilder:
                             params[facets[facet_key]["param_name"]] = opt_id
                             matched = True
                             break
-                if not matched:
+                # For GPUs: always ensure capacity is reinforced in query_text so that
+                # listings are strictly filtered for the exact VRAM size even if Sahibinden
+                # ignores unverified facet IDs or users search for specific VRAM sizes.
+                if not matched or "ekran-karti" in actual_slug:
                     unmatched_specs.append(kapasite)
 
             # Marka (or Chipset for GPUs)

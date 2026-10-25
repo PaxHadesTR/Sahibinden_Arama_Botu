@@ -48,7 +48,8 @@ def test_build_url_laptop_ram_slug_and_key_facets():
 
 
 def test_build_url_gpu_and_cpu_facets():
-    """Verify GPU chipset & VRAM and CPU brand facets map to their Sahibinden parameter IDs."""
+    """Verify GPU chipset & VRAM and CPU brand facets map to their Sahibinden parameter IDs,
+    and GPU VRAM is guaranteed to be reinforced in query_text to eliminate unverified facet drops."""
     gpu_url = SahibindenURLBuilder.build_url(
         category_slug="ekran-karti-masaustu",
         marka="nvidia",
@@ -58,6 +59,16 @@ def test_build_url_gpu_and_cpu_facets():
     gpu_qs = parse_qs(urlparse(gpu_url).query)
     assert gpu_qs.get("a3345") == ["68145"]     # Nvidia chipset
     assert gpu_qs.get("a3347") == ["1225091"]   # 12 GB VRAM
+    assert gpu_qs.get("query_text") == ["12 GB"]  # GPU capacity is reinforced in search text
+
+    # Also verify existing query text is merged cleanly without duplication
+    gpu_with_query = SahibindenURLBuilder.build_url(
+        category_slug="ekran-karti-masaustu",
+        query_text="RTX 4070",
+        kapasite="12 GB"
+    )
+    qs_merged = parse_qs(urlparse(gpu_with_query).query)
+    assert qs_merged.get("query_text") == ["RTX 4070 12 GB"]
 
     cpu_url = SahibindenURLBuilder.build_url(
         category_slug="islemci-masaustu",

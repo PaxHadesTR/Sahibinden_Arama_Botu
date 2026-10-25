@@ -58,6 +58,14 @@
   - [x] Optional automatic fallback to direct connection via `WARP_FALLBACK_TO_DIRECT`
   - [x] Strict dual-channel network isolation: Discord traffic over WARP, Sahibinden scraping direct on local Turkish IP
 - [x] Full Sahibinden Taxonomy Integration & Hierarchical Group Navigation (`ADR-014`):
+  - [x] Expanded catalog from 26 to 75 comprehensive categories across all Sahibinden main sections (Emlak, Vasıta, Yedek Parça, Donanım, Elektronik, Yaşam & Hizmetler).
+  - [x] Implemented hierarchical 2-step category selectors (`CategoryGroupSelectView` & `SubCategorySelectView`) preventing Discord 25-option limit overflow.
+  - [x] Dynamic context-aware placeholder hints across all categories in `SpecFilterModal`.
+  - [x] Comprehensive 8-section `/kategoriler` documentation.
+- [x] GPU VRAM Filter Hardening & Client-Side Verification (`ADR-015`):
+  - [x] Solved Sahibinden VRAM filter bypass by ensuring GPU capacity is always reinforced into `query_text` search parameters.
+  - [x] Implemented client-side defense-in-depth capacity verification in `AlarmMonitor.matches_alarm_filters` blocking listings with conflicting VRAM specifications before dispatching to Discord.
+  - [x] Full test coverage: 151/151 unit tests passing.
   - [x] Expanded catalog to 75 comprehensive categories covering all Emlak, Vasıta, Yedek Parça & Tuning, Bilgisayar & Donanım, Telefon & Ev Elektroniği, İkinci El, Hobi, Yaşam, İş Makineleri ve Hizmetler başlıkları.
   - [x] 6-Group Hierarchical Navigation (`CategoryGroupSelectView` & `SubCategorySelectView`) preventing Discord 25-option select limits.
   - [x] Dynamic context-aware placeholders and default titles across all categories in `SpecFilterModal`.

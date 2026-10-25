@@ -182,6 +182,42 @@ def test_monitor_defense_in_depth_price_post_filter():
     assert AlarmMonitor.matches_alarm_filters(alarm, too_cheap) is False
 
 
+def test_monitor_defense_in_depth_capacity_filter():
+    """Verify AlarmMonitor.matches_alarm_filters blocks items with conflicting capacity in title."""
+    alarm = {
+        "id": 1,
+        "name": "RTX 4070 12GB Alarm",
+        "filters_json": json.dumps({"kapasite": "12 GB"})
+    }
+
+    matching_item_with_space = ListingItem(
+        classified_id="1", title="Asus RTX 4070 12 GB Kutulu", price_text="20.000 TL", price_val=20000,
+        currency="TL", date_text="Bugün", location="Antalya", url="https://www.sahibinden.com/1"
+    )
+    matching_item_no_space = ListingItem(
+        classified_id="2", title="MSI RTX 4070 12GB Temiz", price_text="21.000 TL", price_val=21000,
+        currency="TL", date_text="Bugün", location="Antalya", url="https://www.sahibinden.com/2"
+    )
+    unspecified_capacity_item = ListingItem(
+        classified_id="3", title="Nvidia RTX 4070 Ekran Kartı", price_text="22.000 TL", price_val=22000,
+        currency="TL", date_text="Bugün", location="Antalya", url="https://www.sahibinden.com/3"
+    )
+    conflicting_capacity_item = ListingItem(
+        classified_id="4", title="Gigabyte RTX 4060 8 GB OC", price_text="12.000 TL", price_val=12000,
+        currency="TL", date_text="Bugün", location="Antalya", url="https://www.sahibinden.com/4"
+    )
+    conflicting_16gb_item = ListingItem(
+        classified_id="5", title="RX 6800 XT 16GB", price_text="14.000 TL", price_val=14000,
+        currency="TL", date_text="Bugün", location="Antalya", url="https://www.sahibinden.com/5"
+    )
+
+    assert AlarmMonitor.matches_alarm_filters(alarm, matching_item_with_space) is True
+    assert AlarmMonitor.matches_alarm_filters(alarm, matching_item_no_space) is True
+    assert AlarmMonitor.matches_alarm_filters(alarm, unspecified_capacity_item) is True
+    assert AlarmMonitor.matches_alarm_filters(alarm, conflicting_capacity_item) is False
+    assert AlarmMonitor.matches_alarm_filters(alarm, conflicting_16gb_item) is False
+
+
 @pytest.mark.asyncio
 async def test_monitor_end_to_end_unprimed_and_dispatch(monkeypatch):
     """
