@@ -52,24 +52,19 @@ Sahibinden.com üzerinde **tüm kategorilerde** (Vasıta/Otomobil/Motosiklet/SUV
 
 ---
 
-## 📐 Desteklenen Kategoriler ve Birim Türleri (MB, GB, TB)
+## 📐 Desteklenen Tüm Sahibinden Başlıkları ve Birim Türleri
 
-Bot; Sahibinden web sitesindeki her ana kategoriyi ve bunlara ait farklı birim türlerini hesaplar:
+Bot; Sahibinden web sitesindeki **bütün ana kategorileri ve alt başlıkları (75+ kategori)** ve bunlara ait farklı birim türlerini hesaplar:
 
-| Ana Kategori | Desteklenen Birim / Özellik Türleri | Nasıl Yazılmalı? (Örnek Formatlar) |
-|---|---|---|
-| **RAM Bellek (Masaüstü & Laptop)** | `MB`, `GB`, `Dual Kit`, `DDR Nesli` | `512 MB`, `256 MB`, `16 GB`, `32 GB`, `2x 8 GB`, `2x 16 GB`, `DDR4`, `DDR5`, `DDR2` |
-| **SSD & Sabit Disk** | `GB`, `TB`, Form Faktörü | `120 GB`, `250 GB`, `500 GB`, `1 TB`, `2 TB`, `4 TB`, `NVMe`, `SATA` |
-| **Ekran Kartı (GPU)** | `VRAM (GB)`, Chipset Üreticisi | `6 GB`, `8 GB`, `12 GB`, `16 GB`, `24 GB`, `Nvidia`, `AMD`, `Intel` |
-| **İşlemci (CPU)** | Marka, Soket, Seri | `AMD`, `Intel`, `Ryzen 5`, `Ryzen 7`, `i5`, `i7`, `AM5`, `LGA1700` |
-| **Anakart** | Çipset, Soket | `AM4`, `AM5`, `B650`, `Z790`, `B550`, `LGA1700` |
-| **Monitör** | Boyut, Yenileme Hızı, Çözünürlük | `144hz`, `165hz`, `240hz`, `27 inç`, `2K`, `IPS` |
-| **Kasa & Güç Kaynağı** | Watt Değeri, Sertifika | `750W`, `850W`, `80+ Gold`, `ATX Kasa` |
-| **Vasıta (Otomobil, SUV, Motor, Ticari)** | Model, Motor, Yakıt, Vites | `Civic 1.6`, `Otomatik`, `Manuel`, `Benzin`, `Dizel`, `Boyasız` |
-| **Emlak (Satılık/Kiralık Daire, Arsa, Villa)** | Oda Sayısı, Durum, Özellik | `3+1`, `2+1`, `1+1`, `Kombili`, `Sıfır`, `Balkonlu`, `Havuzlu` |
-| **Mobil (Telefon, Tablet, Akıllı Saat)** | Kapasite, Boyut, Model | `128 GB`, `256 GB`, `512 GB`, `iPhone 15 Pro`, `Apple Watch 44mm` |
-| **Oyun & Eğlence (Konsol, TV, Saat)** | Model, Çözünürlük, Mekanizma | `PS5 Konsol`, `Xbox Series X`, `Switch`, `55 inç OLED`, `Otomatik Saat` |
-| **Tüm Sahibinden (Genel Arama)** | Serbest anahtar kelime | `Playstation 5`, `Deri Ceket`, `Bisiklet` |
+| Ana Kategori Grubu | Kapsanan Başlıklar | Desteklenen Birim / Özellikler | Nasıl Yazılmalı? (Örnek Formatlar) |
+|---|---|---|---|
+| **🏠 Emlak & Gayrimenkul** | `Emlak`, `Konut`, `Satılık Daire`, `Kiralık Daire`, `Villa`, `Arsa`, `İş Yeri`, `Konut Projeleri`, `Bina`, `Devre Mülk`, `Turistik Tesis` | Oda Sayısı, Durum, İmar, Isıtma, Lokasyon | `3+1`, `2+1`, `Kombili`, `Sıfır`, `İmarlı Tarla`, `Devren Dükkan`, `Villa Havuzlu` |
+| **🚗 Vasıta & Araçlar** | `Vasıta`, `Otomobil`, `Arazi/SUV`, `Elektrikli Araçlar`, `Motosiklet`, `Minivan & Panelvan`, `Ticari`, `Kiralık`, `Deniz Araçları`, `Hasarlı`, `Karavan`, `Klasik` | Yakıt, Vites, Kasa, Boya/Hata, Motor Hacmi, Menzil | `Civic 1.6 Otomatik`, `Tesla Model Y Long Range`, `Yamaha R25 ABS`, `Çekme Karavan 3.90`, `Motoryat` |
+| **🔧 Yedek Parça & Tuning** | `Yedek Parça Tümü`, `Otomotiv Ekipmanları`, `Motosiklet Ekipmanları`, `Deniz Aracı Ekipmanları` | Ebat, Parça Türü, Beden, Koruma | `205 55 R16 Kış Lastiği`, `Shoei Kask L Beden`, `15 HP Tekne Motoru`, `Coilover` |
+| **💻 Bilgisayar & Donanım** | `Bilgisayar`, `RAM Bellek (Masaüstü & Laptop)`, `Ekran Kartı (GPU)`, `İşlemci (CPU)`, `SSD & Sabit Disk`, `Anakart`, `Monitör`, `Kasa/PSU`, `Laptop`, `Masaüstü PC` | `MB`, `GB`, `TB`, `Dual Kit`, `DDR Nesli`, `VRAM`, `Watt`, `Hz` | `16 GB DDR4`, `512 MB DDR2`, `2x 16 GB DDR5`, `1 TB NVMe SSD`, `RTX 4070 12 GB`, `Ryzen 5 7600`, `144hz 2K` |
+| **📱 Telefon, Foto & Elektronik** | `Cep Telefonu & Aksesuar`, `Akıllı Saat`, `Tablet`, `Fotoğraf & Kamera`, `Ev Elektroniği`, `Televizyon`, `Elektrikli Ev Aletleri`, `Teknik Elektronik` | Kapasite (`GB`), Kasa Çapı (`mm`), Ekran (`inç`), Çözünürlük | `iPhone 15 Pro 128 GB`, `Apple Watch 44mm`, `Sony A7 IV 50mm Lens`, `55 inç OLED 4K`, `Dyson V15` |
+| **🛍️ İkinci El, Hobi, Yaşam & Diğer** | `Giyim & Aksesuar`, `Saat`, `Anne & Bebek`, `Kişisel Bakım`, `Hobi & Oyuncak`, `Oyunculara Özel`, `Kitap/Film`, `Müzik`, `Spor`, `Takı`, `Koleksiyon`, `Antika`, `Bahçe/Yapı Market`, `İş Makineleri`, `Hizmetler` | Model, Numara, Ayar, Enstrüman, Araç Türü | `Nike 42 Sneaker`, `Seiko Otomatik Saat`, `Fender Elektro Gitar`, `Lego Technic`, `JCB Kepçe`, `Trek Bisiklet` |
+| **🌐 Tüm Sahibinden (Genel Arama)** | Kategori bağımsız evrensel serbest arama (`/alarm-ara`) | Serbest anahtar kelime, marka, model | `Playstation 5`, `Deri Ceket`, `Dağ Bisikleti` |
 
 ---
 

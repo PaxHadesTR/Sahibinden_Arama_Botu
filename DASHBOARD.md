@@ -57,6 +57,20 @@
   - [x] Pre-flight TCP proxy health check with retry backoff & structured troubleshooting diagnostics (`ADR-010`)
   - [x] Optional automatic fallback to direct connection via `WARP_FALLBACK_TO_DIRECT`
   - [x] Strict dual-channel network isolation: Discord traffic over WARP, Sahibinden scraping direct on local Turkish IP
-- [x] Automated Test Suite: 61/61 tests passing green (`tests/`)
+- [x] Full Sahibinden Taxonomy Integration & Hierarchical Group Navigation (`ADR-014`):
+  - [x] Expanded catalog to 75 comprehensive categories covering all Emlak, Vasıta, Yedek Parça & Tuning, Bilgisayar & Donanım, Telefon & Ev Elektroniği, İkinci El, Hobi, Yaşam, İş Makineleri ve Hizmetler başlıkları.
+  - [x] 6-Group Hierarchical Navigation (`CategoryGroupSelectView` & `SubCategorySelectView`) preventing Discord 25-option select limits.
+  - [x] Dynamic context-aware placeholders and default titles across all categories in `SpecFilterModal`.
+  - [x] Updated `/kategoriler` documentation embed with 8 comprehensive sections.
+- [x] Automated Test Suite: 150/150 tests passing green across all suites (unit, integration, and full real-world scenarios in `tests/test_real_scenarios.py`)
+- [x] Real-World Scenario Testing Suite (`tests/test_real_scenarios.py`):
+  - [x] All 75 categories search URL construction and facet mapping verified.
+  - [x] Slash command workflows (`/alarm-ara`, `/alarm-url`, `/alarm-hizli`, `/alarmlarim`, `/alarm-durum`, `/alarm-sil`, `/alarm-test`, `/kategoriler`) verified with interaction mocking.
+  - [x] Turkish number format handling with comma and dot thousand separators (`1.500`, `3,500`) in `SpecFilterModal`.
+  - [x] Re-priming on alarm resumption (`is_primed=0`) preventing historical ad spam.
+  - [x] Hierarchical group navigation through all 6 category groups verified within Discord 25-choice limits.
+  - [x] Natural language query category inference verified across vehicles, electric cars, equipment, real estate, instruments, sports, etc.
+  - [x] Interactive UI component timeouts disabling buttons and selects cleanly.
+  - [x] Non-lossy spec fallback and capacity normalization (MB, GB, TB, dual-kits).
 - [x] Public Repository Format: MIT License, hardened `.gitignore` (ignoring all XML mesh artifacts), zero secrets tracked, Coolify Public Repo guide
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`) fully updated and synchronized

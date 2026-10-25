@@ -28,14 +28,35 @@ class SpecFilterModal(Modal):
 
         # Dynamic placeholder & default name logic tailored with syntax examples
         cat_key_low = self.category_key.lower()
-        if "otomobil" in cat_key_low or "vasita" in cat_key_low:
-            kw_hint = "Örn: Honda Civic 1.6, Otomatik, Boyasız"
-            default_name = "Otomobil Alarmı"
-        elif "daire" in cat_key_low or "emlak" in cat_key_low or "villa" in cat_key_low:
-            kw_hint = "Örn: 3+1, 2+1, Kombili, Balkonlu, Kadıköy"
+        if "elektrikli" in cat_key_low:
+            kw_hint = "Örn: Tesla Model Y, Togg T10X, Long Range, Boyasız"
+            default_name = "Elektrikli Araç Alarmı"
+        elif "motosiklet" in cat_key_low or "motor" in cat_key_low:
+            kw_hint = "Örn: Yamaha R25, Honda Forza 250, ABS, Düşük km"
+            default_name = "Motosiklet Alarmı"
+        elif "karavan" in cat_key_low:
+            kw_hint = "Örn: Çekme karavan 3.90, motokaravan, güneş paneli"
+            default_name = "Karavan Alarmı"
+        elif "deniz" in cat_key_low or "tekne" in cat_key_low:
+            kw_hint = "Örn: 7m motoryat, Yamaha motorlu, kamaralı tekne"
+            default_name = "Deniz Aracı Alarmı"
+        elif "minivan" in cat_key_low or "panelvan" in cat_key_low or "ticari" in cat_key_low:
+            kw_hint = "Örn: Caddy Maxi, Doblo, Transporter, Klimalı"
+            default_name = "Ticari Araç Alarmı"
+        elif "otomobil" in cat_key_low or "vasita" in cat_key_low or "arazi" in cat_key_low or "suv" in cat_key_low:
+            kw_hint = "Örn: Honda Civic 1.6, Otomatik, Boyasız, Tramersiz"
+            default_name = "Vasıta Alarmı"
+        elif "arsa" in cat_key_low or "tarla" in cat_key_low:
+            kw_hint = "Örn: İmarlı, Müstakil parsel, Villa arsası, Kadastro yollu"
+            default_name = "Arsa Alarmı"
+        elif "is-yeri" in cat_key_low or "isyeri" in cat_key_low:
+            kw_hint = "Örn: Devren satılık dükkan, plazada ofis, tabela değeri"
+            default_name = "İş Yeri Alarmı"
+        elif "daire" in cat_key_low or "emlak" in cat_key_low or "villa" in cat_key_low or "konut" in cat_key_low:
+            kw_hint = "Örn: 3+1, 2+1, Kombili, Balkonlu, Kadıköy, Sıfır"
             default_name = "Emlak Alarmı"
         elif "telefon" in cat_key_low:
-            kw_hint = "Örn: iPhone 15 Pro 128 GB, Kutulu Faturalı"
+            kw_hint = "Örn: iPhone 15 Pro 128 GB, Kutulu Faturalı, Pil %90"
             default_name = "Telefon Alarmı"
         elif "ram" in cat_key_low:
             kw_hint = "Örn: 16 GB, 512 MB, Corsair, 3200mhz CL16"
@@ -49,9 +70,28 @@ class SpecFilterModal(Modal):
         elif "islemci" in cat_key_low or "cpu" in cat_key_low:
             kw_hint = "Örn: Ryzen 5 7600, i7 13700K, AM5"
             default_name = "İşlemci Alarmı"
+        elif "fotograf" in cat_key_low or "kamera" in cat_key_low:
+            kw_hint = "Örn: Sony A7 IV, Canon EOS, 50mm f1.8 lens, tripod"
+            default_name = "Fotoğraf & Kamera Alarmı"
+        elif "elektrikli-ev" in cat_key_low or "ev-alet" in cat_key_low:
+            kw_hint = "Örn: Dyson V15 süpürge, Delonghi kahve makinesi, Airfryer"
+            default_name = "Elektrikli Ev Aletleri Alarmı"
+        elif "oyun" in cat_key_low or "konsol" in cat_key_low:
+            kw_hint = "Örn: PS5 Slim, Xbox Series X, Nintendo Switch OLED"
+            default_name = "Oyun & Konsol Alarmı"
+        elif "muzik" in cat_key_low or "enstruman" in cat_key_low:
+            kw_hint = "Örn: Fender elektro gitar, Yamaha piyano, ses kartı"
+            default_name = "Müzik & Enstrüman Alarmı"
+        elif "yedek-parca" in cat_key_low or "ekipman" in cat_key_low or "tuning" in cat_key_low:
+            kw_hint = "Örn: 205 55 R16 kış lastiği, kask, jant, egzoz"
+            default_name = "Yedek Parça Alarmı"
+        elif "is-makine" in cat_key_low or "sanayi" in cat_key_low:
+            kw_hint = "Örn: JCB kepçe, New Holland traktör, dizel jeneratör"
+            default_name = "İş Makineleri Alarmı"
         else:
-            kw_hint = "Örn: Model, tür (512 MB, 16 GB, 1 TB), özellik"
-            default_name = f"{cat_info.get('display_name', 'Sahibinden')} Takibi"
+            kw_hint = "Örn: Model, tür (512 MB, 16 GB, 1 TB), marka veya özellik"
+            display_title = cat_info.get("display_name", "Sahibinden")
+            default_name = f"{display_title} Takibi"
 
         self.alarm_name_input = TextInput(
             label="Alarm Adı",
@@ -254,11 +294,33 @@ class UniversalCategorySelectView(View):
         self.category_select.callback = self.on_category_selected
         self.add_item(self.category_select)
 
+        # Button to browse full category tree grouped by Sahibinden main sections
+        browse_button = discord.ui.Button(
+            label="📂 Tüm Başlıkları Gruplara Göre Gez",
+            style=discord.ButtonStyle.secondary,
+            row=1
+        )
+        browse_button.callback = self.on_browse_groups
+        self.add_item(browse_button)
+
     async def on_timeout(self):
         """Disables select options upon view timeout."""
         for item in self.children:
             if hasattr(item, "disabled"):
                 item.disabled = True
+
+    async def on_browse_groups(self, interaction: discord.Interaction):
+        """Switches view to the top-level Sahibinden category group selector."""
+        view = CategoryGroupSelectView()
+        embed = discord.Embed(
+            title="📂 Sahibinden Kategori Grupları",
+            description=(
+                "Sahibinden üzerindeki tüm başlıklar 6 ana grupta toplanmıştır.\n"
+                "İlgilendiğiniz ana grubu seçerek o grubun alt başlıklarını listeleyin:"
+            ),
+            color=0x3498DB
+        )
+        await interaction.response.edit_message(content=None, embed=embed, view=view)
 
     async def on_category_selected(self, interaction: discord.Interaction):
         allowed, reason = await database.check_alarm_limits(interaction.user.id)
@@ -268,6 +330,240 @@ class UniversalCategorySelectView(View):
 
         selected = self.category_select.values[0]
 
+        if "ram" in selected:
+            view = RamSpecSelectView(category_key=selected)
+            await interaction.response.edit_message(
+                content="Lütfen RAM neslini ve kapasiteyi seçip ardından **Kriterleri Ayarla** butonuna tıklayın:",
+                view=view,
+                embed=None
+            )
+        else:
+            modal = SpecFilterModal(category_key=selected)
+            await interaction.response.send_modal(modal)
+
+
+# =============================================================================
+# SAHIBINDEN EXPANDED CATEGORY GROUPS & BROWSER VIEWS
+# =============================================================================
+CATEGORY_GROUPS: dict[str, dict[str, Any]] = {
+    "emlak": {
+        "label": "🏠 Emlak & Gayrimenkul",
+        "description": "Konut, Daire, İş Yeri, Arsa, Projeler, Bina, Devre Mülk, Otel",
+        "items": [
+            ("emlak", "🏠 Tüm Emlak İlanları", "Tüm emlak kategorisinde serbest arama"),
+            ("emlak-konut", "🏠 Konut (Genel)", "Tüm satılık/kiralık konutlar"),
+            ("satilik-daire", "🏠 Satılık Daire", "3+1, 2+1, Sıfır, Kombili konut"),
+            ("kiralik-daire", "🔑 Kiralık Daire", "2+1, 1+1, Eşyalı, Merkezde kiralık"),
+            ("satilik-villa", "🏡 Satılık Villa & Müstakil", "Villa, havuzlu, müstakil ev"),
+            ("arsa", "🌾 Arsa (Genel)", "Tüm satılık/kiralık arsalar"),
+            ("satilik-arsa", "🌾 Satılık Arsa & Tarla", "İmarlı arsa, tarla, bağ/bahçe"),
+            ("is-yeri", "🏢 İş Yeri (Genel)", "Dükkan, ofis, büro, plaza"),
+            ("satilik-isyeri", "🏢 Satılık İş Yeri", "Satılık dükkan, ofis, mağaza"),
+            ("emlak-projeler", "🏗️ Konut Projeleri", "Yeni teslim, lansman projeler"),
+            ("bina", "🏢 Bina", "Komple bina, apartman, yatırımlık"),
+            ("devre-mulk", "🏖️ Devre Mülk", "Termal tesis, tapulu devre mülk"),
+            ("emlak-turistik-tesis", "🏨 Turistik Tesis", "Otel, pansiyon, butik otel"),
+        ],
+    },
+    "vasita": {
+        "label": "🚗 Vasıta & Araçlar",
+        "description": "Otomobil, SUV, Elektrikli, Motosiklet, Ticari, Karavan, Deniz",
+        "items": [
+            ("vasita", "🚗 Tüm Vasıta İlanları", "Tüm vasıta kategorilerinde serbest arama"),
+            ("otomobil", "🚗 Otomobil", "Civic, Megane, BMW, Otomatik/Manuel"),
+            ("arazi-suv-pickup", "🚙 Arazi, SUV & Pickup", "Qashqai, Duster, Tucson, 4x4"),
+            ("elektrikli-araclar", "⚡ Elektrikli Araçlar", "Tesla, Togg, BYD, EV modeller"),
+            ("motosiklet", "🏍️ Motosiklet", "Yamaha, Honda, Scooter, 250cc"),
+            ("minivan-panelvan", "🚐 Minivan & Panelvan", "Caddy, Doblo, Kangoo, Tourneo"),
+            ("ticari-araclar", "🚚 Ticari Araçlar", "Transporter, Kamyonet, Minibüs"),
+            ("karavan", "🚐 Karavan", "Çekme karavan, motokaravan, camper"),
+            ("deniz-araclari", "🚤 Deniz Araçları", "Tekne, motoryat, yelkenli, bot"),
+            ("kiralik-araclar", "🔑 Kiralık Araçlar", "Oto kiralama, filo, günlük araç"),
+            ("hasarli-araclar", "💥 Hasarlı Araçlar", "Çekme belgeli, kazalı oto"),
+            ("klasik-araclar", "🏎️ Klasik Araçlar", "Oldtimer, nostalji, 1970ler"),
+        ],
+    },
+    "yedek-parca": {
+        "label": "🔧 Yedek Parça & Tuning",
+        "description": "Otomotiv Ekipmanları, Motosiklet & Deniz Ekipmanları",
+        "items": [
+            ("yedek-parca-aksesuar-donanim-tuning", "🔧 Tüm Yedek Parça & Tuning", "Tüm yedek parça ve tuning"),
+            ("otomotiv-ekipmanlari", "🚗 Otomotiv Ekipmanları", "Lastik, jant, multimedya, ses"),
+            ("motosiklet-ekipmanlari", "🏍️ Motosiklet Ekipmanları", "Kask, mont, eldiven, intercom"),
+            ("deniz-araci-ekipmanlari", "⚓ Deniz Aracı Ekipmanları", "Tekne motoru, can yeleği, çapa"),
+        ],
+    },
+    "donanim": {
+        "label": "💻 Bilgisayar & Donanım",
+        "description": "RAM, GPU, CPU, SSD, Anakart, Monitör, Kasa/PSU, Laptop, PC",
+        "items": [
+            ("bilgisayar", "💻 Tüm Bilgisayar İlanları", "Tüm bilgisayar ve bileşen ilanları"),
+            ("dizustu-bilgisayar", "💻 Dizüstü Bilgisayar (Laptop)", "MacBook, Gaming laptop, i7, RTX"),
+            ("masaustu-bilgisayar", "🖥️ Masaüstü PC", "Toplama PC, gaming hazır sistem"),
+            ("ram-bellek-masaustu", "🧠 RAM Bellek (Masaüstü)", "DDR4, DDR5, 16 GB, 512 MB, Dual-Kit"),
+            ("ram-bellek-dizustu", "💻 RAM Bellek (Laptop SODIMM)", "DDR4, DDR5, DDR3 SODIMM"),
+            ("ekran-karti-masaustu", "🎮 Ekran Kartı (GPU)", "RTX 4070, RX 7800 XT, 12 GB, 16 GB"),
+            ("islemci-masaustu", "⚡ İşlemci (CPU)", "Ryzen 5 7600, Intel i7 13700K"),
+            ("anakart-masaustu", "🔌 Anakart", "AM4, AM5, B650, Z790, LGA1700"),
+            ("ssd-dahili-sabit-disk", "💾 SSD & Sabit Disk", "1 TB, 2 TB, 500 GB, NVMe, SATA"),
+            ("monitor-masaustu", "🖥️ Monitör (Masaüstü)", "144hz, 165hz, 27 inç, 2K, IPS"),
+            ("kasa-guc-kaynagi", "⚡ Kasa & Güç Kaynağı (PSU)", "750W 80+ Gold, ATX Kasa"),
+            ("oyunculara-ozel", "🕹️ Oyunculara Özel", "Mekanik klavye, mouse, oyuncu koltuğu"),
+        ],
+    },
+    "elektronik": {
+        "label": "📱 Telefon, Fotoğraf & Ev Elektroniği",
+        "description": "Cep Telefonu, Akıllı Saat, Tablet, Kamera, TV, Ev Aletleri",
+        "items": [
+            ("cep-telefonu-aksesuar", "📱 Tüm Cep Telefonu & Aksesuar", "Telefonlar, kılıflar, şarj"),
+            ("cep-telefonu", "📱 Cep Telefonu", "iPhone 15, Samsung S24, 128 GB"),
+            ("akilli-saat", "⌚ Akıllı Saat & Bileklik", "Apple Watch, Galaxy Watch, 44mm"),
+            ("tablet-bilgisayar", "📱 Tablet Bilgisayar", "iPad Pro, iPad Air, Galaxy Tab"),
+            ("fotograf-kamera", "📷 Fotoğraf & Kamera", "Sony A7, Canon EOS, DSLR, lens"),
+            ("ev-elektronigi", "📺 Ev Elektroniği", "Ses sistemleri, projeksiyon, soundbar"),
+            ("televizyon", "📺 Televizyon", "55 inç, 65 inç, OLED, 4K Smart TV"),
+            ("elektrikli-ev-aletleri", "☕ Elektrikli Ev Aletleri", "Dyson süpürge, kahve makinesi"),
+            ("teknik-elektronik", "🔬 Teknik Elektronik", "Lehim, multimetre, Raspberry Pi"),
+        ],
+    },
+    "yasam": {
+        "label": "🛍️ Yaşam, Hobi, Spor & Hizmetler",
+        "description": "Giyim, Saat, Hobi, Müzik, Spor, Antika, Bahçe, İş Makineleri",
+        "items": [
+            ("ikinci-el-ve-sifir-alisveris", "🛍️ Tüm İkinci El ve Sıfır Alışveriş", "Tüm alışveriş kategorileri"),
+            ("giyim-aksesuar", "👗 Giyim & Aksesuar", "Sneaker, mont, ayakkabı, çanta"),
+            ("saat", "⌚ Saat (Tümü)", "Otomatik kol saati, duvar saati"),
+            ("kol-saati", "⌚ Kol Saati", "Seiko, Tissot, Casio, Otomatik"),
+            ("anne-bebek", "👶 Anne & Bebek", "Bebek arabası, oto koltuğu, beşik"),
+            ("kisisel-bakim-kozmetik", "💄 Kişisel Bakım & Kozmetik", "Dyson Airwrap, tıraş makinesi"),
+            ("hobi-oyuncak", "🧸 Hobi & Oyuncak", "Lego, dron, RC araba, kutu oyunu"),
+            ("oyun-konsolu", "🎮 Oyun Konsolları", "PS5, Xbox Series X, Nintendo Switch"),
+            ("kitap-dergi-film", "📚 Kitap, Dergi & Film", "İlk baskı roman, çizgi roman, manga"),
+            ("muzik", "🎸 Müzik & Enstrüman", "Gitar, piyano, ses kartı, plak"),
+            ("spor", "⚽ Spor & Outdoor", "Dağ bisikleti, kamp çadırı, fitness"),
+            ("taki-mucevher", "💍 Takı & Mücevher", "Altın bilezik, gümüş, tektaş"),
+            ("koleksiyon", "🪙 Koleksiyon", "Madeni para, tesbih, pul, zippo"),
+            ("antika", "🏺 Antika", "Gramofon, antika halı, porselen"),
+            ("bahce-yapi-market", "🪴 Bahçe & Yapı Market", "Matkap, çim biçme, el aletleri"),
+            ("ofis-kirtasiye", "📎 Ofis & Kırtasiye", "Yazıcı, çalışma masası, dolma kalem"),
+            ("is-makineleri-sanayi", "🚜 İş Makineleri & Sanayi", "Traktör, kepçe, forklift, jeneratör"),
+            ("hayvanlar-alemi", "🐾 Hayvanlar Alemi", "Akvaryum, tırmalama tahtası, kafes"),
+            ("ustalar-ve-hizmetler", "🛠️ Ustalar ve Hizmetler", "Evden eve nakliyat, tadilat, usta"),
+            ("ozel-ders-verenler", "🎓 Özel Ders Verenler", "Matematik, İngilizce özel ders"),
+            ("is-ilanlari", "💼 İş İlanları", "Kurye, garson, satış temsilcisi"),
+            ("genel-arama", "🌐 Tüm Sahibinden (Genel Arama)", "Tüm kategorilerde serbest arama"),
+        ],
+    },
+}
+
+
+class CategoryGroupSelectView(View):
+    """View to select a main Sahibinden category group."""
+
+    def __init__(self):
+        super().__init__(timeout=180)
+        options = [
+            discord.SelectOption(
+                label=data["label"],
+                value=group_key,
+                description=data["description"][:100]
+            )
+            for group_key, data in CATEGORY_GROUPS.items()
+        ]
+        self.group_select = Select(
+            placeholder="İncelemek istediğiniz ana grubu seçin...",
+            options=options,
+            min_values=1,
+            max_values=1
+        )
+        self.group_select.callback = self.on_group_selected
+        self.add_item(self.group_select)
+
+        back_button = discord.ui.Button(
+            label="🔙 Popüler 25 Kategoriye Dön",
+            style=discord.ButtonStyle.secondary,
+            row=1
+        )
+        back_button.callback = self.on_back_clicked
+        self.add_item(back_button)
+
+    async def on_timeout(self):
+        for item in self.children:
+            if hasattr(item, "disabled"):
+                item.disabled = True
+
+    async def on_group_selected(self, interaction: discord.Interaction):
+        group_key = self.group_select.values[0]
+        group_data = CATEGORY_GROUPS.get(group_key, {})
+        view = SubCategorySelectView(group_key=group_key)
+        embed = discord.Embed(
+            title=f"{group_data.get('label', 'Kategori')} Alt Başlıkları",
+            description="Lütfen alarm kurmak istediğiniz spesifik başlığı seçin:",
+            color=0x3498DB
+        )
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    async def on_back_clicked(self, interaction: discord.Interaction):
+        view = UniversalCategorySelectView()
+        embed = discord.Embed(
+            title="🧭 Sahibinden Alarm Sihirbazı",
+            description="Lütfen takip etmek istediğiniz ana kategoriyi seçin:",
+            color=0x3498DB
+        )
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class SubCategorySelectView(View):
+    """View to select a specific subcategory within a selected category group."""
+
+    def __init__(self, group_key: str):
+        super().__init__(timeout=180)
+        self.group_key = group_key
+        group_data = CATEGORY_GROUPS.get(group_key, {})
+        items = group_data.get("items", [])
+
+        options = [
+            discord.SelectOption(label=label[:100], value=cat_key, description=desc[:100])
+            for cat_key, label, desc in items[:25]
+        ]
+        self.sub_select = Select(
+            placeholder="Alt kategoriyi seçin...",
+            options=options,
+            min_values=1,
+            max_values=1
+        )
+        self.sub_select.callback = self.on_subcategory_selected
+        self.add_item(self.sub_select)
+
+        back_button = discord.ui.Button(
+            label="🔙 Gruplara Dön",
+            style=discord.ButtonStyle.secondary,
+            row=1
+        )
+        back_button.callback = self.on_back_clicked
+        self.add_item(back_button)
+
+    async def on_timeout(self):
+        for item in self.children:
+            if hasattr(item, "disabled"):
+                item.disabled = True
+
+    async def on_back_clicked(self, interaction: discord.Interaction):
+        view = CategoryGroupSelectView()
+        embed = discord.Embed(
+            title="📂 Sahibinden Kategori Grupları",
+            description="Lütfen ilgilendiğiniz ana grubu seçin:",
+            color=0x3498DB
+        )
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    async def on_subcategory_selected(self, interaction: discord.Interaction):
+        allowed, reason = await database.check_alarm_limits(interaction.user.id)
+        if not allowed:
+            await interaction.response.send_message(reason, ephemeral=True)
+            return
+
+        selected = self.sub_select.values[0]
         if "ram" in selected:
             view = RamSpecSelectView(category_key=selected)
             await interaction.response.edit_message(

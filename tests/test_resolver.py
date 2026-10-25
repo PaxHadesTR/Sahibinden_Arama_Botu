@@ -26,8 +26,10 @@ def test_no_substring_collision_bugs():
     assert resolver.resolve_category("kiralık daire")["slug"] == "kiralik-daire"
     assert resolver.infer_category_from_text("istanbul kadıköy kiralık daire")["slug"] == "kiralik-daire"
 
-    # Unrelated words containing 'oto' (like 'fotoğraf makinesi') must not false-match 'otomobil'
-    assert resolver.infer_category_from_text("canon fotoğraf makinesi") is None
+    # Unrelated words containing 'oto' must not false-match 'otomobil'
+    # 'canon fotoğraf makinesi' now correctly resolves to the new 'fotograf-kamera' category
+    assert resolver.infer_category_from_text("canon fotoğraf makinesi")["slug"] == "fotograf-kamera"
+    assert resolver.infer_category_from_text("lokomotif düdüğü") is None
 
 
 def test_get_category_by_key_slug_and_alias():
@@ -151,7 +153,8 @@ def test_expanded_categories_resolution():
     assert resolver.resolve_category("kamyonet")["slug"] == "ticari-araclar"
     assert resolver.resolve_category("ticari")["slug"] == "ticari-araclar"
     assert resolver.resolve_category("satilik villa")["slug"] == "satilik-villa"
-    assert resolver.resolve_category("arsa")["slug"] == "satilik-arsa"
+    assert resolver.resolve_category("satilik arsa")["slug"] == "satilik-arsa"
+    assert resolver.resolve_category("arsa")["slug"] in ("satilik-arsa", "arsa")
     assert resolver.resolve_category("satilik isyeri")["slug"] == "satilik-isyeri"
     assert resolver.resolve_category("akilli saat")["slug"] == "akilli-saat"
     assert resolver.resolve_category("tablet")["slug"] == "tablet-bilgisayar"

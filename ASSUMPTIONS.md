@@ -34,10 +34,13 @@
 9. **Batch SQLite Filtering & Atomic UPSERT**:
    - `filter_new_listings` and `filter_price_drops` execute set-based batch queries with `IN (...)` to minimize SQLite round-trips.
    - `record_notified_listings` uses atomic `ON CONFLICT(alarm_id, classified_id) DO UPDATE SET` to preserve original row IDs and `first_seen_at` timestamps.
+10. **Full Site Taxonomy & Hierarchical Grouping**:
+    - The catalog spans 75+ categories covering every main section and subsection of Sahibinden (Emlak, Vasıta, Yedek Parça & Tuning, Bilgisayar & Donanım, Telefon & Ev Elektroniği, İkinci El & Hizmetler).
+    - UI views prevent Discord's 25-option Select overflow via a two-level hierarchy (`CategoryGroupSelectView` and `SubCategorySelectView`) while preserving direct 25-item curated lists for quick interaction.
 
 ## Acceptance Criteria
 - Users can define alarms via 3 universal methods: `/alarm-ara` (site-wide keyword search), `/alarm-url` (direct Sahibinden URL tracking), and `/alarm-kur` / `/alarm-hizli` (visual wizard & alias/spec resolver).
 - All 81 provinces of Turkey are supported for city filtering.
-- All 25 major categories and hardware units (MB, GB, TB, Dual-Kit) are supported with `/kategoriler` reference manual.
+- All 75+ Sahibinden categories across all sections and hardware units (MB, GB, TB, Dual-Kit) are supported with `/kategoriler` reference manual.
 - Bot polls listings at configurable intervals and notifies the target Discord channel on both brand-new listings (`🔔 Yeni İlan`) and price drops (`📉 Fiyat Düştü`).
 - Alarms can be listed (`/alarmlarim`), tested (`/alarm-test` with ownership verification), paused/resumed (`/alarm-durum`), and deleted (`/alarm-sil`).

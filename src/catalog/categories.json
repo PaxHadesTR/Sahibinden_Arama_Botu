@@ -595,6 +595,838 @@
         "omega"
       ],
       "facets": {}
+    },
+    "emlak": {
+      "id": "3510",
+      "display_name": "🏠 Emlak (Tüm Emlak İlanları)",
+      "slug": "emlak",
+      "breadcrumbs": "Emlak",
+      "example_hint": "Örn: Satılık daire, arsa, yazlık, dükkan",
+      "aliases": [
+        "emlak",
+        "gayrimenkul",
+        "mulk",
+        "tasinmaz"
+      ],
+      "facets": {}
+    },
+    "emlak-konut": {
+      "id": "3511",
+      "display_name": "🏠 Emlak > Konut",
+      "slug": "emlak-konut",
+      "breadcrumbs": "Emlak > Konut",
+      "example_hint": "Örn: 3+1, 2+1, Dubleks, Sıfır bina, Kombili",
+      "aliases": [
+        "konut",
+        "ev",
+        "mesken",
+        "daireler",
+        "evler",
+        "konutlar"
+      ],
+      "facets": {}
+    },
+    "is-yeri": {
+      "id": "3512",
+      "display_name": "🏢 Emlak > İş Yeri",
+      "slug": "is-yeri",
+      "breadcrumbs": "Emlak > İş Yeri",
+      "example_hint": "Örn: Devren dükkan, plazada satılık ofis, depo",
+      "aliases": [
+        "is yeri",
+        "isyeri",
+        "ticari emlak",
+        "dukkanlar",
+        "ofisler",
+        "magaza",
+        "plaza"
+      ],
+      "facets": {}
+    },
+    "arsa": {
+      "id": "3513",
+      "display_name": "🌾 Emlak > Arsa",
+      "slug": "arsa",
+      "breadcrumbs": "Emlak > Arsa",
+      "example_hint": "Örn: İmarlı arsa, hisseli tarla, villa arsası",
+      "aliases": [
+        "arsa",
+        "arsalar",
+        "tarla",
+        "bag bahce",
+        "zeytinlik",
+        "parsel"
+      ],
+      "facets": {}
+    },
+    "emlak-projeler": {
+      "id": "3514",
+      "display_name": "🏗️ Emlak > Konut Projeleri",
+      "slug": "emlak-projeler",
+      "breadcrumbs": "Emlak > Konut Projeleri",
+      "example_hint": "Örn: Lansman fiyatlı, teslim tarihi 2026, taksitli",
+      "aliases": [
+        "konut projeleri",
+        "projeler",
+        "markali konut",
+        "insaat projesi",
+        "yeni proje",
+        "konut projei"
+      ],
+      "facets": {}
+    },
+    "bina": {
+      "id": "3515",
+      "display_name": "🏢 Emlak > Bina",
+      "slug": "bina",
+      "breadcrumbs": "Emlak > Bina",
+      "example_hint": "Örn: 4 katlı komple bina, yatırımlık, kiracılı",
+      "aliases": [
+        "bina",
+        "komple bina",
+        "apartman",
+        "mustakil bina",
+        "binalar"
+      ],
+      "facets": {}
+    },
+    "devre-mulk": {
+      "id": "3516",
+      "display_name": "🏖️ Emlak > Devre Mülk",
+      "slug": "devre-mulk",
+      "breadcrumbs": "Emlak > Devre Mülk",
+      "example_hint": "Örn: Termal tesis, 15 günlük, tapulu, Bodrum",
+      "aliases": [
+        "devre mulk",
+        "devremulk",
+        "termal devre mulk",
+        "devre tatil"
+      ],
+      "facets": {}
+    },
+    "emlak-turistik-tesis": {
+      "id": "3517",
+      "display_name": "🏨 Emlak > Turistik Tesis",
+      "slug": "emlak-turistik-tesis",
+      "breadcrumbs": "Emlak > Turistik Tesis",
+      "example_hint": "Örn: Butik otel, 20 odalı, denize sıfır, faal",
+      "aliases": [
+        "turistik tesis",
+        "otel",
+        "pansiyon",
+        "butik otel",
+        "tatil koyu",
+        "apart otel"
+      ],
+      "facets": {}
+    },
+    "vasita": {
+      "id": "3520",
+      "display_name": "🚗 Vasıta (Tüm Vasıta İlanları)",
+      "slug": "vasita",
+      "breadcrumbs": "Vasıta",
+      "example_hint": "Örn: Otomobil, motosiklet, ticari araçlar",
+      "aliases": [
+        "vasita",
+        "araclar",
+        "tasit",
+        "tasitlar",
+        "tum araclar",
+        "arac",
+        "tum arac"
+      ],
+      "facets": {}
+    },
+    "elektrikli-araclar": {
+      "id": "3521",
+      "display_name": "⚡ Vasıta > Elektrikli Araçlar",
+      "slug": "elektrikli-araclar",
+      "breadcrumbs": "Vasıta > Elektrikli Araçlar",
+      "example_hint": "Örn: Tesla Model Y, Togg T10X, BYD Seal, Menzil",
+      "aliases": [
+        "elektrikli araclar",
+        "elektrikli araba",
+        "elektrikli otomobil",
+        "elektrikli",
+        "tesla",
+        "togg",
+        "byd",
+        "taycan",
+        "eqs",
+        "ioniq",
+        "elektrikli arac"
+      ],
+      "facets": {}
+    },
+    "minivan-panelvan": {
+      "id": "3522",
+      "display_name": "🚐 Vasıta > Minivan & Panelvan",
+      "slug": "minivan-panelvan",
+      "breadcrumbs": "Vasıta > Minivan & Panelvan",
+      "example_hint": "Örn: Kangoo, Doblo Maxi, Caddy Van, Tourneo",
+      "aliases": [
+        "minivan",
+        "panelvan",
+        "camli van",
+        "kapali kasa van",
+        "kangoo",
+        "berlingo",
+        "partner",
+        "fiorino"
+      ],
+      "facets": {}
+    },
+    "kiralik-araclar": {
+      "id": "3523",
+      "display_name": "🔑 Vasıta > Kiralık Araçlar",
+      "slug": "kiralik-araclar",
+      "breadcrumbs": "Vasıta > Kiralık Araçlar",
+      "example_hint": "Örn: Günlük, aylık, filo kiralık, dizel otomatik",
+      "aliases": [
+        "kiralik araclar",
+        "kiralik arac",
+        "oto kiralama",
+        "rent a car",
+        "gunluk kiralik arac",
+        "aylik kiralik arac"
+      ],
+      "facets": {}
+    },
+    "deniz-araclari": {
+      "id": "3524",
+      "display_name": "🚤 Vasıta > Deniz Araçları",
+      "slug": "deniz-araclari",
+      "breadcrumbs": "Vasıta > Deniz Araçları",
+      "example_hint": "Örn: 7 metre motoryat, Yamaha motorlu, kabinli",
+      "aliases": [
+        "deniz araclari",
+        "tekne",
+        "yat",
+        "surat teknesi",
+        "yelkenli",
+        "jetski",
+        "bot",
+        "motoryat",
+        "gulet",
+        "deniz araci"
+      ],
+      "facets": {}
+    },
+    "hasarli-araclar": {
+      "id": "3525",
+      "display_name": "💥 Vasıta > Hasarlı Araçlar",
+      "slug": "hasarli-araclar",
+      "breadcrumbs": "Vasıta > Hasarlı Araçlar",
+      "example_hint": "Örn: Çekme belgeli, motor arızalı, hafif hasarlı",
+      "aliases": [
+        "hasarli araclar",
+        "hasarli arac",
+        "hasarli oto",
+        "kazali araba",
+        "cekme belgeli",
+        "hurda belgeli"
+      ],
+      "facets": {}
+    },
+    "karavan": {
+      "id": "3526",
+      "display_name": "🚐 Vasıta > Karavan",
+      "slug": "karavan",
+      "breadcrumbs": "Vasıta > Karavan",
+      "example_hint": "Örn: Çekme karavan 3.90, motokaravan 2+1, güneş panelli",
+      "aliases": [
+        "karavan",
+        "cekme karavan",
+        "motokaravan",
+        "camper",
+        "campervan",
+        "alkovenli karavan"
+      ],
+      "facets": {}
+    },
+    "klasik-araclar": {
+      "id": "3527",
+      "display_name": "🏎️ Vasıta > Klasik Araçlar",
+      "slug": "klasik-araclar",
+      "breadcrumbs": "Vasıta > Klasik Araçlar",
+      "example_hint": "Örn: 1967 Mustang, Mercedes W123, Vosvos, 1974",
+      "aliases": [
+        "klasik araclar",
+        "klasik otomobil",
+        "klasik araba",
+        "oldtimer",
+        "nostalji",
+        "klasik oto",
+        "klasik arac"
+      ],
+      "facets": {}
+    },
+    "yedek-parca-aksesuar-donanim-tuning": {
+      "id": "3540",
+      "display_name": "🔧 Yedek Parça, Aksesuar, Donanım & Tuning",
+      "slug": "yedek-parca-aksesuar-donanim-tuning",
+      "breadcrumbs": "Yedek Parça, Aksesuar, Donanım & Tuning",
+      "example_hint": "Örn: Çelik jant, coilover, egzoz, bodykit",
+      "aliases": [
+        "yedek parca",
+        "oto yedek parca",
+        "tuning",
+        "aksesuar",
+        "oto aksesuar",
+        "modifiye"
+      ],
+      "facets": {}
+    },
+    "otomotiv-ekipmanlari": {
+      "id": "3541",
+      "display_name": "🚗 Yedek Parça > Otomotiv Ekipmanları",
+      "slug": "otomotiv-ekipmanlari",
+      "breadcrumbs": "Yedek Parça > Otomotiv Ekipmanları",
+      "example_hint": "Örn: 205 55 R16 kışlık lastik, Android multimedya, jant",
+      "aliases": [
+        "otomotiv ekipmanlari",
+        "oto parca",
+        "oto ses sistemi",
+        "amfi",
+        "subwoofer",
+        "lastik",
+        "jant",
+        "kis lastigi",
+        "otomotiv ekipmani"
+      ],
+      "facets": {}
+    },
+    "motosiklet-ekipmanlari": {
+      "id": "3542",
+      "display_name": "🏍️ Yedek Parça > Motosiklet Ekipmanları",
+      "slug": "motosiklet-ekipmanlari",
+      "breadcrumbs": "Yedek Parça > Motosiklet Ekipmanları",
+      "example_hint": "Örn: Shoei kask, Alpinestars mont, Dainese eldiven",
+      "aliases": [
+        "motosiklet ekipmanlari",
+        "motor ekipmani",
+        "kask",
+        "motor montu",
+        "eldiven",
+        "intercom",
+        "shoei",
+        "alpinestars",
+        "motosiklet ekipmani",
+        "motor ekipmanlari"
+      ],
+      "facets": {}
+    },
+    "deniz-araci-ekipmanlari": {
+      "id": "3543",
+      "display_name": "⚓ Yedek Parça > Deniz Aracı Ekipmanları",
+      "slug": "deniz-araci-ekipmanlari",
+      "breadcrumbs": "Yedek Parça > Deniz Aracı Ekipmanları",
+      "example_hint": "Örn: 15 HP dıştan takma motor, can yeleği, çapa",
+      "aliases": [
+        "deniz araci ekipmanlari",
+        "tekne motoru",
+        "dis sea motoru",
+        "usturmaca",
+        "can yelegi",
+        "capa",
+        "deniz araci ekipmani"
+      ],
+      "facets": {}
+    },
+    "ikinci-el-ve-sifir-alisveris": {
+      "id": "3550",
+      "display_name": "🛍️ İkinci El ve Sıfır Alışveriş (Tümü)",
+      "slug": "ikinci-el-ve-sifir-alisveris",
+      "breadcrumbs": "İkinci El ve Sıfır Alışveriş",
+      "example_hint": "Örn: Sıfır kutulu ürünler, garantili ikinci el",
+      "aliases": [
+        "ikinci el",
+        "sifir alisveris",
+        "alisveris",
+        "spot",
+        "ikinci el alisveris"
+      ],
+      "facets": {}
+    },
+    "bilgisayar": {
+      "id": "3551",
+      "display_name": "💻 İkinci El > Bilgisayar (Genel)",
+      "slug": "bilgisayar",
+      "breadcrumbs": "İkinci El ve Sıfır > Bilgisayar",
+      "example_hint": "Örn: Hazır sistem, gaming kasa, mekanik klavye, mouse",
+      "aliases": [
+        "bilgisayar",
+        "pc",
+        "bilgisayarlar",
+        "bilesen",
+        "pc bilesenleri",
+        "pc bileseni"
+      ],
+      "facets": {}
+    },
+    "cep-telefonu-aksesuar": {
+      "id": "3552",
+      "display_name": "📱 İkinci El > Cep Telefonu & Aksesuar",
+      "slug": "cep-telefonu-aksesuar",
+      "breadcrumbs": "İkinci El ve Sıfır > Cep Telefonu & Aksesuar",
+      "example_hint": "Örn: MagSafe şarj aleti, Apple 20W adaptör, kılıf",
+      "aliases": [
+        "cep telefonu aksesuar",
+        "telefon aksesuar",
+        "sarj cihazi",
+        "kilif",
+        "powerbank",
+        "magsafe"
+      ],
+      "facets": {}
+    },
+    "fotograf-kamera": {
+      "id": "3553",
+      "display_name": "📷 İkinci El > Fotoğraf & Kamera",
+      "slug": "fotograf-kamera",
+      "breadcrumbs": "İkinci El ve Sıfır > Fotoğraf & Kamera",
+      "example_hint": "Örn: Sony A7 IV, Canon EOS, 50mm f1.8 lens, tripod",
+      "aliases": [
+        "fotograf kamera",
+        "fotograf makinesi",
+        "kamera",
+        "lens",
+        "dslr",
+        "aynasiz",
+        "gopro",
+        "dji"
+      ],
+      "facets": {}
+    },
+    "ev-dekorasyon": {
+      "id": "3554",
+      "display_name": "🛋️ İkinci El > Ev Dekorasyon",
+      "slug": "ev-dekorasyon",
+      "breadcrumbs": "İkinci El ve Sıfır > Ev Dekorasyon",
+      "example_hint": "Örn: Köşe koltuk takımı, masif yemek masası, avize",
+      "aliases": [
+        "ev dekorasyon",
+        "mobilya",
+        "koltuk",
+        "yatak odasi",
+        "masa",
+        "sandalye",
+        "hali",
+        "aydinlatma"
+      ],
+      "facets": {}
+    },
+    "ev-elektronigi": {
+      "id": "3555",
+      "display_name": "📺 İkinci El > Ev Elektroniği",
+      "slug": "ev-elektronigi",
+      "breadcrumbs": "İkinci El ve Sıfır > Ev Elektroniği",
+      "example_hint": "Örn: JBL soundbar, 4K projeksiyon, Dolby Atmos ses sistemi",
+      "aliases": [
+        "ev elektronigi",
+        "ses sistemi",
+        "projeksiyon",
+        "soundbar",
+        "amfi ses"
+      ],
+      "facets": {}
+    },
+    "elektrikli-ev-aletleri": {
+      "id": "3556",
+      "display_name": "☕ İkinci El > Elektrikli Ev Aletleri",
+      "slug": "elektrikli-ev-aletleri",
+      "breadcrumbs": "İkinci El ve Sıfır > Elektrikli Ev Aletleri",
+      "example_hint": "Örn: Dyson V15 süpürge, Delonghi kahve makinesi, Airfryer",
+      "aliases": [
+        "elektrikli ev aletleri",
+        "beyaz esya",
+        "buzdolabi",
+        "camasir makinesi",
+        "supurge",
+        "dyson",
+        "kahve makinesi",
+        "airfryer",
+        "bulasik makinesi",
+        "elektrikli ev aleti"
+      ],
+      "facets": {}
+    },
+    "giyim-aksesuar": {
+      "id": "3557",
+      "display_name": "👗 İkinci El > Giyim & Aksesuar",
+      "slug": "giyim-aksesuar",
+      "breadcrumbs": "İkinci El ve Sıfır > Giyim & Aksesuar",
+      "example_hint": "Örn: Nike sneaker 42 numara, deri mont, deri çanta",
+      "aliases": [
+        "giyim aksesuar",
+        "giyim",
+        "kiyafet",
+        "ayakkabi",
+        "mont",
+        "canta",
+        "sneaker",
+        "elbise"
+      ],
+      "facets": {}
+    },
+    "saat": {
+      "id": "3558",
+      "display_name": "⌚ İkinci El > Saat (Tümü)",
+      "slug": "saat",
+      "breadcrumbs": "İkinci El ve Sıfır > Saat",
+      "example_hint": "Örn: Otomatik kol saati, ahşap sarkaçlı duvar saati",
+      "aliases": [
+        "saat",
+        "saatler",
+        "duvar saati",
+        "masa saati",
+        "antika saat"
+      ],
+      "facets": {}
+    },
+    "anne-bebek": {
+      "id": "3559",
+      "display_name": "👶 İkinci El > Anne & Bebek",
+      "slug": "anne-bebek",
+      "breadcrumbs": "İkinci El ve Sıfır > Anne & Bebek",
+      "example_hint": "Örn: Maxi-Cosi oto koltuğu, Cybex bebek arabası, beşik",
+      "aliases": [
+        "anne bebek",
+        "bebek arabasi",
+        "oto koltugu",
+        "besik",
+        "mama sandalyesi",
+        "bebek telsizi"
+      ],
+      "facets": {}
+    },
+    "kisisel-bakim-kozmetik": {
+      "id": "3560",
+      "display_name": "💄 İkinci El > Kişisel Bakım & Kozmetik",
+      "slug": "kisisel-bakim-kozmetik",
+      "breadcrumbs": "İkinci El ve Sıfır > Kişisel Bakım & Kozmetik",
+      "example_hint": "Örn: Dyson Airwrap, Braun Series 9 tıraş makinesi, parfüm",
+      "aliases": [
+        "kisisel bakim",
+        "kozmetik",
+        "parfum",
+        "tiras makinesi",
+        "sac kurutma",
+        "sac sekillendirici",
+        "airwrap"
+      ],
+      "facets": {}
+    },
+    "hobi-oyuncak": {
+      "id": "3561",
+      "display_name": "🧸 İkinci El > Hobi & Oyuncak",
+      "slug": "hobi-oyuncak",
+      "breadcrumbs": "İkinci El ve Sıfır > Hobi & Oyuncak",
+      "example_hint": "Örn: Lego Technic, DJI Mini 3 Pro dron, RC drift arabası",
+      "aliases": [
+        "hobi oyuncak",
+        "hobi",
+        "oyuncak",
+        "lego",
+        "dron",
+        "maket",
+        "rc araba",
+        "kutu oyunu"
+      ],
+      "facets": {}
+    },
+    "oyunculara-ozel": {
+      "id": "3562",
+      "display_name": "🕹️ İkinci El > Oyunculara Özel",
+      "slug": "oyunculara-ozel",
+      "breadcrumbs": "İkinci El ve Sıfır > Oyunculara Özel",
+      "example_hint": "Örn: Logitech G Pro X, SteelSeries Apex Pro, oyuncu koltuğu",
+      "aliases": [
+        "oyunculara ozel",
+        "gaming ekipman",
+        "oyuncu kulakligi",
+        "oyuncu koltugu",
+        "mekanik klavye",
+        "gaming mouse",
+        "direksiyon seti"
+      ],
+      "facets": {}
+    },
+    "kitap-dergi-film": {
+      "id": "3563",
+      "display_name": "📚 İkinci El > Kitap, Dergi & Film",
+      "slug": "kitap-dergi-film",
+      "breadcrumbs": "İkinci El ve Sıfır > Kitap, Dergi & Film",
+      "example_hint": "Örn: İlk baskı kitap, çizgi roman serisi, Harry Potter ciltli",
+      "aliases": [
+        "kitap dergi film",
+        "kitap",
+        "dergi",
+        "cizgi roman",
+        "manga",
+        "plak film",
+        "roman"
+      ],
+      "facets": {}
+    },
+    "muzik": {
+      "id": "3564",
+      "display_name": "🎸 İkinci El > Müzik & Enstrüman",
+      "slug": "muzik",
+      "breadcrumbs": "İkinci El ve Sıfır > Müzik",
+      "example_hint": "Örn: Fender Stratocaster, Yamaha elektro piyano, taş plak",
+      "aliases": [
+        "muzik",
+        "enstruman",
+        "gitar",
+        "piyano",
+        "baglama",
+        "bateri",
+        "plak",
+        "studyo ekipmani",
+        "keman"
+      ],
+      "facets": {}
+    },
+    "spor": {
+      "id": "3565",
+      "display_name": "⚽ İkinci El > Spor & Outdoor",
+      "slug": "spor",
+      "breadcrumbs": "İkinci El ve Sıfır > Spor",
+      "example_hint": "Örn: Trek dağ bisikleti, 4 kişilik kamp çadırı, ağırlık seti",
+      "aliases": [
+        "spor",
+        "outdoor",
+        "bisiklet",
+        "kamp",
+        "cadir",
+        "fitness",
+        "kosu bandi",
+        "olta",
+        "dambil"
+      ],
+      "facets": {}
+    },
+    "taki-mucevher": {
+      "id": "3566",
+      "display_name": "💍 İkinci El > Takı & Mücevher",
+      "slug": "taki-mucevher",
+      "breadcrumbs": "İkinci El ve Sıfır > Takı & Mücevher",
+      "example_hint": "Örn: 22 ayar altın bilezik, 925 ayar gümüş zincir, tektaş",
+      "aliases": [
+        "taki mucevher",
+        "taki",
+        "mucevher",
+        "altin",
+        "gumus",
+        "pirlanta",
+        "kolye",
+        "bilezik"
+      ],
+      "facets": {}
+    },
+    "koleksiyon": {
+      "id": "3567",
+      "display_name": "🪙 İkinci El > Koleksiyon",
+      "slug": "koleksiyon",
+      "breadcrumbs": "İkinci El ve Sıfır > Koleksiyon",
+      "example_hint": "Örn: Osmanlı madeni para, damla kehribar tesbih, nadir pul",
+      "aliases": [
+        "koleksiyon",
+        "pul",
+        "madeni para",
+        "banknot",
+        "efemera",
+        "tesbih",
+        "caki",
+        "zippo"
+      ],
+      "facets": {}
+    },
+    "antika": {
+      "id": "3568",
+      "display_name": "🏺 İkinci El > Antika",
+      "slug": "antika",
+      "breadcrumbs": "İkinci El ve Sıfır > Antika",
+      "example_hint": "Örn: Çalışır durumda gramofon, el dokuma antika halı",
+      "aliases": [
+        "antika",
+        "antik",
+        "gramofon",
+        "antik mobilya",
+        "porselen",
+        "pirinc"
+      ],
+      "facets": {}
+    },
+    "bahce-yapi-market": {
+      "id": "3569",
+      "display_name": "🪴 İkinci El > Bahçe & Yapı Market",
+      "slug": "bahce-yapi-market",
+      "breadcrumbs": "İkinci El ve Sıfır > Bahçe & Yapı Market",
+      "example_hint": "Örn: Bosch kırıcı delici matkap, benzinli çim biçme makinesi",
+      "aliases": [
+        "bahce yapi market",
+        "yapi market",
+        "hirdavat",
+        "matkap",
+        "el aletleri",
+        "bahce mobilyasi",
+        "cimsurme",
+        "kompresor",
+        "el aleti"
+      ],
+      "facets": {}
+    },
+    "teknik-elektronik": {
+      "id": "3570",
+      "display_name": "🔬 İkinci El > Teknik Elektronik",
+      "slug": "teknik-elektronik",
+      "breadcrumbs": "İkinci El ve Sıfır > Teknik Elektronik",
+      "example_hint": "Örn: Fluke multimetre, Weller lehim istasyonu, Raspberry Pi 5",
+      "aliases": [
+        "teknik elektronik",
+        "lehim",
+        "multimetre",
+        "osiloskop",
+        "arduino",
+        "raspberry pi",
+        "komponent",
+        "lehim istasyonu"
+      ],
+      "facets": {}
+    },
+    "ofis-kirtasiye": {
+      "id": "3571",
+      "display_name": "📎 İkinci El > Ofis & Kırtasiye",
+      "slug": "ofis-kirtasiye",
+      "breadcrumbs": "İkinci El ve Sıfır > Ofis & Kırtasiye",
+      "example_hint": "Örn: Epson tanklı yazıcı, çalışma koltuğu, Pelikan dolma kalem",
+      "aliases": [
+        "ofis kirtasiye",
+        "ofis mobilyasi",
+        "yazici",
+        "fotokopi",
+        "evrak imha",
+        "dolma kalem",
+        "calisma masasi"
+      ],
+      "facets": {}
+    },
+    "yiyecek-icecek": {
+      "id": "3572",
+      "display_name": "☕ İkinci El > Yiyecek & İçecek",
+      "slug": "yiyecek-icecek",
+      "breadcrumbs": "İkinci El ve Sıfır > Yiyecek & İçecek",
+      "example_hint": "Örn: Soğuk sıkım zeytinyağı, hakiki karakovan balı",
+      "aliases": [
+        "yiyecek icecek",
+        "organik urunler",
+        "zeytinyagi",
+        "bal",
+        "koy urunleri",
+        "koy uruni"
+      ],
+      "facets": {}
+    },
+    "diger-her-sey": {
+      "id": "3573",
+      "display_name": "📦 İkinci El > Diğer Her Şey",
+      "slug": "diger-her-sey",
+      "breadcrumbs": "İkinci El ve Sıfır > Diğer Her Şey",
+      "example_hint": "Örn: Diğer tüm ilanlar ve muhtelif ürünler",
+      "aliases": [
+        "diger her sey",
+        "diger",
+        "cesitli urunler",
+        "muhtelif"
+      ],
+      "facets": {}
+    },
+    "is-makineleri-sanayi": {
+      "id": "3580",
+      "display_name": "🚜 İş Makineleri & Sanayi",
+      "slug": "is-makineleri-sanayi",
+      "breadcrumbs": "İş Makineleri & Sanayi",
+      "example_hint": "Örn: JCB kepçe, New Holland traktör, dizel jeneratör",
+      "aliases": [
+        "is makineleri",
+        "is makinesi",
+        "sanayi",
+        "traktor",
+        "forklift",
+        "kepce",
+        "jenerator",
+        "torna",
+        "ekskavator",
+        "is makinei"
+      ],
+      "facets": {}
+    },
+    "hayvanlar-alemi": {
+      "id": "3581",
+      "display_name": "🐾 Hayvanlar Alemi",
+      "slug": "hayvanlar-alemi",
+      "breadcrumbs": "Hayvanlar Alemi",
+      "example_hint": "Örn: Akvaryum seti, kedi tırmalama ağacı, otomatik yemlik",
+      "aliases": [
+        "hayvanlar alemi",
+        "akvaryum",
+        "kedi kopek malzemeleri",
+        "kus kafesi",
+        "evcil hayvan",
+        "kedi kopek malzemei"
+      ],
+      "facets": {}
+    },
+    "ustalar-ve-hizmetler": {
+      "id": "3582",
+      "display_name": "🛠️ Ustalar ve Hizmetler",
+      "slug": "ustalar-ve-hizmetler",
+      "breadcrumbs": "Ustalar ve Hizmetler",
+      "example_hint": "Örn: Evden eve nakliyat, komple ev tadilatı, elektrik ustası",
+      "aliases": [
+        "ustalar ve hizmetler",
+        "hizmetler",
+        "tadilat",
+        "boya badana",
+        "nakliyat",
+        "tesisatci",
+        "usta"
+      ],
+      "facets": {}
+    },
+    "ozel-ders-verenler": {
+      "id": "3583",
+      "display_name": "🎓 Özel Ders Verenler",
+      "slug": "ozel-ders-verenler",
+      "breadcrumbs": "Özel Ders Verenler",
+      "example_hint": "Örn: LGS matematik özel ders, online İngilizce, direksiyon dersi",
+      "aliases": [
+        "ozel ders",
+        "ozel ders verenler",
+        "matematik ozel ders",
+        "ingilizce ozel ders",
+        "direksiyon dersi"
+      ],
+      "facets": {}
+    },
+    "is-ilanlari": {
+      "id": "3584",
+      "display_name": "💼 İş İlanları",
+      "slug": "is-ilanlari",
+      "breadcrumbs": "İş İlanları",
+      "example_hint": "Örn: Kurye aranıyor, muhasebe elemanı, garson",
+      "aliases": [
+        "is ilanlari",
+        "eleman arayanlar",
+        "is ilani",
+        "sofor",
+        "kurye",
+        "satis temsilcisi",
+        "garson"
+      ],
+      "facets": {}
     }
   },
   "cities": {

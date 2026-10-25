@@ -190,6 +190,21 @@
 - **Consequences**:
   - High performance, zero SQL churn, preserved historical timestamps, 10x faster database filtering, clean Discord component lifecycles, and hardened parsing.
 
+## ADR-014: Full Sahibinden Taxonomy Integration & Hierarchical Group Navigation (2026-10-26)
+
+- **Context**:
+  - Previously, the bot catalog focused heavily on computer hardware and primary vehicle/real-estate categories (26 categories).
+  - User explicitly requested expanding the engine to support EVERY SINGLE section and subsection from the Sahibinden website (including all real-estate types: Konut, İş Yeri, Arsa, Projeler, Bina, Devre Mülk, Turistik Tesis; all vehicle types: Elektrikli Araçlar, Minivan, Kiralık, Deniz, Hasarlı, Karavan, Klasik; all spare parts & tuning: Otomotiv, Motosiklet, Deniz Ekipmanları; all second-hand shopping: Bilgisayar, Telefon, Fotoğraf & Kamera, Ev Dekorasyon, Ev Elektroniği, Beyaz Eşya, Giyim, Saat, Anne & Bebek, Kozmetik, Hobi, Gaming, Kitap/Film, Müzik, Spor, Takı, Koleksiyon, Antika, Yapı Market; plus İş Makineleri, Hizmetler, Özel Ders, İş İlanları, Hayvanlar Alemi).
+- **Decision**:
+  - Expanded `categories.json` to 75 comprehensive categories with tailored slugs, breadcrumbs, aliases, example hints, and singular/plural normalized forms.
+  - Implemented 6-group hierarchical taxonomy in `CATEGORY_GROUPS` (`Emlak`, `Vasıta`, `Yedek Parça`, `Donanım`, `Elektronik`, `Yaşam & Hizmetler`).
+  - Added `CategoryGroupSelectView` and `SubCategorySelectView` to circumvent Discord's strict 25-option limit per Select component while keeping `UniversalCategorySelectView`'s 25 popular options intact.
+  - Enriched `SpecFilterModal` with dynamic context-aware placeholder hints and default names for all 75 categories.
+  - Expanded `/kategoriler` embed documentation into 8 comprehensive sections covering syntax, units, and real commands.
+  - Expanded real-world scenario test suite to 150/150 tests green.
+- **Consequences**:
+  - Users can track and set alarms on any section of Sahibinden with 100% accurate URL generation and natural language keyword inference. Zero Discord 25-item option overflow errors.
+
 
 
 

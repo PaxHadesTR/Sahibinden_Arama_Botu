@@ -409,18 +409,52 @@ class AlarmCog(commands.Cog):
     # =========================================================================
     @app_commands.command(
         name="kategoriler",
-        description="Desteklenen tüm kategoriler, birim türleri (MB, GB, TB) ve komut örnekleri rehberi."
+        description="Desteklenen tüm Sahibinden başlıkları, birim türleri (MB, GB, TB) ve sözdizimi rehberi."
     )
     async def kategoriler(self, interaction: discord.Interaction):
         """Displays a rich reference manual explaining all categories, spec units, and syntax examples."""
         embed = discord.Embed(
             title="📚 Sahibinden Alarm Botu: Kategori & Birim Rehberi",
             description=(
-                "Bot; Vasıta, Emlak, Bilgisayar Donanımı, Cep Telefonu ve Oyun Konsolu dahil "
-                "Sahibinden'in tüm ana kategorilerini ve bunlara ait farklı birim türlerini hesaplar.\n"
-                "Aşağıdaki örnek sözdizimlerini inceleyerek hızlıca alarm oluşturabilirsiniz:"
+                "Bot; Vasıta, Emlak, Yedek Parça, Bilgisayar Donanımı, Telefon, Elektronik ve İkinci El dahil "
+                "Sahibinden'in **tüm 75+ başlığını** ve bunlara ait farklı birim türlerini hesaplar.\n"
+                "Aşağıdaki başlıkları `/alarm-hizli`, `/alarm-kur` veya `/alarm-ara` ile kullanabilirsiniz:"
             ),
             color=0x3498DB
+        )
+
+        embed.add_field(
+            name="🏠 Emlak Başlıkları",
+            value=(
+                "• **Kategoriler**: `emlak`, `emlak-konut`, `satilik-daire`, `kiralik-daire`, `satilik-villa`, `arsa`, `satilik-arsa`, `is-yeri`, `satilik-isyeri`, `emlak-projeler`, `bina`, `devre-mulk`, `emlak-turistik-tesis`\n"
+                "• *Örnek Konut*: `/alarm-ara kelime:Kadıköy 3+1 satılık daire min_fiyat:4000000 max_fiyat:7500000`\n"
+                "• *Örnek Arsa*: `/alarm-hizli kategori:arsa kelime:İmarlı tarla sehir:İzmir max_fiyat:1500000`\n"
+                "• *Örnek İş Yeri*: `/alarm-hizli kategori:isyeri kelime:Devren dükkan sehir:Bursa max_fiyat:800000`"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="🚗 Vasıta Başlıkları",
+            value=(
+                "• **Kategoriler**: `vasita`, `otomobil`, `arazi-suv-pickup`, `elektrikli-araclar`, `motosiklet`, `minivan-panelvan`, `ticari-araclar`, `kiralik-araclar`, `deniz-araclari`, `hasarli-araclar`, `karavan`, `klasik-araclar`\n"
+                "• *Örnek Otomobil*: `/alarm-hizli kategori:otomobil kelime:Civic 1.6 Otomatik sehir:Ankara max_fiyat:950000`\n"
+                "• *Örnek Elektrikli*: `/alarm-hizli kategori:elektrikli kelime:Tesla Model Y Long Range max_fiyat:2400000`\n"
+                "• *Örnek Motosiklet*: `/alarm-hizli kategori:motor kelime:Yamaha R25 ABS max_fiyat:200000`\n"
+                "• *Örnek Karavan*: `/alarm-hizli kategori:karavan kelime:Çekme karavan 3.90 max_fiyat:350000`\n"
+                "• *Örnek Deniz*: `/alarm-hizli kategori:tekne kelime:Motoryat kamaralı max_fiyat:1200000`"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="🔧 Yedek Parça, Aksesuar & Tuning",
+            value=(
+                "• **Kategoriler**: `yedek-parca-aksesuar-donanim-tuning`, `otomotiv-ekipmanlari`, `motosiklet-ekipmanlari`, `deniz-araci-ekipmanlari`\n"
+                "• *Örnek Oto Parça*: `/alarm-ara kelime:205 55 R16 kış lastiği min_fiyat:4000 max_fiyat:10000`\n"
+                "• *Örnek Motor Ekipmanı*: `/alarm-ara kelime:Shoei kask L beden min_fiyat:12000 max_fiyat:25000`"
+            ),
+            inline=False
         )
 
         embed.add_field(
@@ -429,8 +463,8 @@ class AlarmCog(commands.Cog):
                 "• **Kapasite Birimleri**: `512 MB`, `256 MB`, `128 MB`, `1 GB`, `2 GB`, `4 GB`, `8 GB`, `16 GB`, `32 GB`, `64 GB`\n"
                 "• **Dual Kit Birimleri**: `2x 8 GB` (16GB), `2x 16 GB` (32GB), `2x 32 GB` (64GB)\n"
                 "• **Bellek Nesilleri**: `DDR5`, `DDR4`, `DDR3L`, `DDR3`, `DDR2`, `DDR`\n"
-                "• *Örnek Komut*: `/alarm-hizli kategori:ram ddr:DDR4 kapasite:16 GB marka:Corsair max_fiyat:2500`\n"
-                "• *Eski Nesil Örnek*: `/alarm-hizli kategori:ram ddr:DDR2 kapasite:512 MB max_fiyat:300`"
+                "• *Örnek Modern*: `/alarm-hizli kategori:ram ddr:DDR4 kapasite:16 GB marka:Corsair max_fiyat:2500`\n"
+                "• *Örnek Retro*: `/alarm-hizli kategori:ram ddr:DDR2 kapasite:512 MB max_fiyat:300`"
             ),
             inline=False
         )
@@ -439,7 +473,7 @@ class AlarmCog(commands.Cog):
             name="💾 SSD & Sabit Disk Birimleri",
             value=(
                 "• **GB Birimleri**: `120 GB`, `240 GB`, `250 GB`, `256 GB`, `480 GB`, `500 GB`, `512 GB`\n"
-                "• **TB Birimleri**: `1 TB`, `2 TB`, `4 TB`, `8 TB`\n"
+                "• **TB Birimleri**: `1 TB` (1000 GB otomatik normalizasyon), `2 TB`, `4 TB`, `8 TB`\n"
                 "• *Örnek Komut*: `/alarm-hizli kategori:ssd kapasite:1 TB kelime:NVMe max_fiyat:3500`"
             ),
             inline=False
@@ -457,17 +491,28 @@ class AlarmCog(commands.Cog):
         )
 
         embed.add_field(
-            name="🚗 Vasıta & 🏠 Emlak Kategorileri",
+            name="📱 Telefon, Fotoğraf & Ev Elektroniği",
             value=(
-                "• **Vasıta**: `otomobil` (Civic, Clio, BMW), `suv` (Qashqai, Duster), `motosiklet` (Yamaha, Honda)\n"
-                "• **Emlak**: `satilik-daire`, `kiralik-daire`, `satilik-arsa`, `satilik-villa`, `satilik-isyeri`\n"
-                "• *Örnek Vasıta*: `/alarm-hizli kategori:araba kelime:Civic 1.6 Otomatik sehir:Ankara max_fiyat:950000`\n"
-                "• *Örnek Emlak*: `/alarm-ara kelime:Kadıköy 3+1 satılık daire min_fiyat:4000000 max_fiyat:7500000`"
+                "• **Kategoriler**: `cep-telefonu`, `akilli-saat`, `tablet-bilgisayar`, `fotograf-kamera`, `ev-elektronigi`, `televizyon`, `elektrikli-ev-aletleri`, `teknik-elektronik`\n"
+                "• *Örnek Telefon*: `/alarm-hizli kategori:telefon kelime:iPhone 15 Pro kapasite:128 GB max_fiyat:60000`\n"
+                "• *Örnek Kamera*: `/alarm-ara kelime:Sony A7 IV gövde min_fiyat:50000 max_fiyat:80000`\n"
+                "• *Örnek Ev Aleti*: `/alarm-ara kelime:Dyson V15 süpürge kutulu min_fiyat:15000 max_fiyat:25000`"
             ),
             inline=False
         )
 
-        embed.set_footer(text="İpucu: /alarm-ara ile kategori gözetmeksizin tüm Sahibinden'de serbest arama yapabilirsiniz.")
+        embed.add_field(
+            name="🛍️ İkinci El, Hobi, Yaşam & Diğer Başlıklar",
+            value=(
+                "• **Kategoriler**: `giyim-aksesuar`, `saat`, `anne-bebek`, `kisisel-bakim-kozmetik`, `hobi-oyuncak`, `oyun-konsolu`, `oyunculara-ozel`, `kitap-dergi-film`, `muzik`, `spor`, `taki-mucevher`, `koleksiyon`, `antika`, `bahce-yapi-market`, `is-makineleri-sanayi`, `hayvanlar-alemi`, `ustalar-ve-hizmetler`, `ozel-ders-verenler`, `is-ilanlari`\n"
+                "• *Örnek Konsol*: `/alarm-hizli kategori:konsol kelime:PS5 Slim CDli max_fiyat:20000`\n"
+                "• *Örnek Müzik*: `/alarm-ara kelime:Fender Stratocaster elektro gitar max_fiyat:35000`\n"
+                "• *Örnek Spor*: `/alarm-ara kelime:Trek dağ bisikleti 29 jant max_fiyat:18000`"
+            ),
+            inline=False
+        )
+
+        embed.set_footer(text="İpucu: /alarm-ara veya /alarm-hizli ile dilediğiniz başlıkta anında filtreli alarm oluşturabilirsiniz.")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     # =========================================================================
