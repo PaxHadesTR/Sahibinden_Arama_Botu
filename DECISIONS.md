@@ -342,3 +342,34 @@
   - Ultra-clean, uncluttered Discord UI with zero `+10 more` parameter confusion.
   - Consistent category tree across all 91 Sahibinden categories.
   - 157/157 tests passing green.
+
+## ADR-023: Full 11-Branch Sahibinden Taxonomy Integration, Dynamic Category-Aware Spec Autocomplete & Zero Over-Filtering Architecture (2026-10-26)
+
+- **Context**:
+  1. The user provided the complete Sahibinden Category Tree and Search Filter schema (`sahibinden_tam_sema_v3.json`) spanning 660 nodes, 11 root departments, and 24 search profiles.
+  2. While the 4 primary departments were supported, key Sahibinden roots were missing or underspecified: `Yepyeni / Yenilenmiş Teknolojik Cihazlar`, `Yardımcı Arayanlar`, and deeper branches in `Özel Ders`, `İş İlanları`, `Hayvanlar Alemi`, `Ustalar ve Hizmetler`, and `İş Makineleri & Sanayi`.
+  3. Users required category-specific facet mapping for:
+     - CPU Socket (AM4, AM5, LGA1700, LGA1200, LGA1151) and Cache (16 MB, 32 MB, 64 MB, 96 MB, 128 MB).
+     - Vehicle Transmission (Otomatik, Manuel) and Fuel (Benzin, Dizel, LPG, Hibrit, Elektrik).
+     - Real Estate Room Count (1+1, 2+1, 3+1, 4+1, Stüdyo, Dubleks) and Land facets (İmarlı, Tarla, Zeytinlik, Müstakil Parsel).
+     - Tractor 4x4 (4x4, 4x2, Çift Çeker, Tek Çeker).
+     - GPU VRAM (8 GB, 12 GB, 16 GB, 24 GB) and RAM DDR / Capacity.
+  4. The Discord slash command UX must remain elegant, strictly avoiding `+10 more` confusing parameter chips while providing 100% working autocomplete with clean tree display names.
+- **Decision**:
+  1. **Incorporate All 11 Authentic Branches into Catalog**:
+     - Formally defined `root_departments` mapping: Emlak (🏠), Vasıta (🚗), Yedek Parça (🔧), İkinci El ve Sıfır Alışveriş (🛍️), Yenilenmiş Teknolojik Cihazlar (📱), İş Makineleri & Sanayi (🚜), Ustalar ve Hizmetler (🛠️), Özel Ders Verenler (🎓), İş İlanları (💼), Hayvanlar Alemi (🐾), Yardımcı Arayanlar (🤝).
+     - Expanded catalog to 111 comprehensive categories with standard tree labels (`Emoji Branch / Subcategory`, <= 100 characters, zero `(Örn: ...)` pollution).
+  2. **Dynamic Context-Aware Spec Autocomplete (`ozellik_autocomplete`)**:
+     - Implemented dynamic autocomplete on `ozellik` that detects the selected `kategori` via `interaction.namespace.kategori` and offers tailored dropdown suggestions (e.g. Otomobil -> Otomatik, Manuel, Benzin; Emlak -> 3+1, 2+1, 1+1; CPU -> AM5, AM4, LGA1700, 32 MB; GPU -> 12 GB, 16 GB, 8 GB; Traktör -> 4x4, 4x2; Yenilenmiş Telefon -> 128 GB, 256 GB, A Kalite; etc.).
+     - Allows arbitrary freeform text entry if the user wants custom terms.
+  3. **Universal 7-Parameter Clean Footprint**:
+     - Maintained exactly 7 parameters (`kategori`, `arama`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`) ensuring zero `+10 more` chip clutter in Discord.
+  4. **Multi-Facet Spec Extraction & Over-Filtering Defense**:
+     - Enhanced `CategoryResolver.extract_specs_from_text` to extract `socket`, `cache`, `vites`, `yakit`, `oda_sayisi`, `ceker`, `hafiza`, `jant`, `tipi`, `kapasite`, `marka`, `chipset`.
+     - Exact hardware facet parameters (`a3329`, `a3332`, `a3350`) are stripped from `query_text` to prevent over-filtering, while GPU VRAM is reinforced and all freeform specs ("Otomatik", "Benzin", "3+1", "4x4", "AM5", "32 MB") are preserved in search text.
+  5. **Exhaustive Testing**: Added `tests/test_eleven_branches.py`, expanding test suite to 167/167 passing tests.
+- **Consequences**:
+  - Complete, flawless support for all 11 Sahibinden branches.
+  - Frictionless, intuitive Discord slash command UX.
+  - 167/167 tests passing green.
+

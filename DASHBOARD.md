@@ -93,15 +93,23 @@
   - [x] Streamlined `/alarm-hizli` to 6 intuitive visible parameters (`kategori`, `arama`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`) eliminating `+10 more` parameter noise.
   - [x] Intelligent spec & hardware facet pipeline: auto-resolves DDR, VRAM, and storage capacity to Sahibinden URL facet parameters and strips them from freeform query text.
   - [x] Full test coverage with 13-case cross-department verification (157/157 tests green).
-- [x] Automated Test Suite: 157/157 tests passing green across all suites (unit, integration, and full real-world scenarios in `tests/test_real_scenarios.py`)
-- [x] Real-World Scenario Testing Suite (`tests/test_real_scenarios.py`):
-  - [x] All 75 categories search URL construction and facet mapping verified.
+- [x] Full 11-Branch Sahibinden Taxonomy & Dynamic Spec Autocomplete (`ADR-023`):
+  - [x] Expanded catalog from 91 to 111 comprehensive categories across all 11 authentic Sahibinden branches (`Emlak`, `Vasıta`, `Yedek Parça`, `İkinci El Alışveriş`, `Yenilenmiş Cihazlar`, `İş Makineleri & Sanayi`, `Ustalar ve Hizmetler`, `Özel Ders`, `İş İlanları`, `Hayvanlar Alemi`, `Yardımcı Arayanlar`).
+  - [x] Formally registered `root_departments` mapping with emoji indicators and schema profile bindings.
+  - [x] Implemented dynamic context-aware `ozellik_autocomplete` providing tailored suggestions based on the chosen category (cars -> transmission & fuel; flats -> room count; CPU -> socket & cache; GPU -> VRAM; tractors -> 4x4; phones -> storage).
+  - [x] Maintained clean 7-parameter command footprint in `/alarm-hizli` with zero `+10 more` confusing parameter chips in Discord.
+  - [x] Full over-filtering defense: hardware facets stripped from freeform query text while GPU VRAM is reinforced and all custom specs are preserved in query text.
+  - [x] Expanded automated test suite with `tests/test_eleven_branches.py` (167/167 green tests).
+- [x] Automated Test Suite: 167/167 tests passing green across all suites (unit, integration, 11-branch validation, and full real-world scenarios in `tests/test_real_scenarios.py` and `tests/test_eleven_branches.py`)
+- [x] Real-World Scenario Testing Suite (`tests/test_real_scenarios.py` & `tests/test_eleven_branches.py`):
+  - [x] All 111 categories search URL construction and facet mapping verified.
   - [x] Slash command workflows (`/alarm-ara`, `/alarm-url`, `/alarm-hizli`, `/alarmlarim`, `/alarm-durum`, `/alarm-sil`, `/alarm-test`, `/kategoriler`) verified with interaction mocking.
   - [x] Turkish number format handling with comma and dot thousand separators (`1.500`, `3,500`) in `SpecFilterModal`.
   - [x] Re-priming on alarm resumption (`is_primed=0`) preventing historical ad spam.
-  - [x] Hierarchical group navigation through all 6 category groups verified within Discord 25-choice limits.
+  - [x] Hierarchical group navigation through category groups verified within Discord 25-choice limits.
   - [x] Natural language query category inference verified across vehicles, electric cars, equipment, real estate, instruments, sports, etc.
   - [x] Interactive UI component timeouts disabling buttons and selects cleanly.
   - [x] Non-lossy spec fallback and capacity normalization (MB, GB, TB, dual-kits).
 - [x] Public Repository Format: MIT License, hardened `.gitignore` (ignoring all XML mesh artifacts), zero secrets tracked, Coolify Public Repo guide
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`) fully updated and synchronized
+

@@ -260,6 +260,53 @@ class CategoryResolver:
                         found_facets[brand_facet_key] = opt_label
                         break
 
+        # 4. Dynamic extraction for all other facets defined in category metadata
+        for facet_name, facet_info in facets.items():
+            if facet_name in found_facets:
+                continue
+            opts = facet_info.get("options", {})
+            sorted_opts = sorted(opts.keys(), key=len, reverse=True)
+            for opt_label in sorted_opts:
+                opt_parts = [re.escape(p) for p in opt_label.lower().split()]
+                pattern = rf"(?:^|\b){r'\s*'.join(opt_parts)}(?:\b|$)"
+                if re.search(pattern, normalized):
+                    found_facets[facet_name] = opt_label
+                    break
+
+        # 5. Regex heuristics for room count, 4x4, CPU socket & cache across all categories
+        if "oda_sayisi" not in found_facets:
+            oda_m = re.search(r"\b(\d\+\d)\b", normalized)
+            if oda_m:
+                found_facets["oda_sayisi"] = oda_m.group(1)
+
+        if "ceker" not in found_facets:
+            if re.search(r"\b4x4\b", normalized):
+                found_facets["ceker"] = "4x4"
+            elif re.search(r"\b4x2\b", normalized):
+                found_facets["ceker"] = "4x2"
+
+        if "socket" not in found_facets:
+            socket_m = re.search(r"\b(am5|am4|lga\s*1700|1700\s*intel|lga\s*1200|1200\s*intel|lga\s*1151|1151\s*intel|tr4|strx4)\b", normalized)
+            if socket_m:
+                raw_s = socket_m.group(1).upper()
+                found_facets["socket"] = raw_s.replace("LGA ", "LGA").replace(" ", "")
+
+        if "vites" not in found_facets:
+            if re.search(r"\botomatik\b", normalized):
+                found_facets["vites"] = "Otomatik"
+            elif re.search(r"\bmanuel\b", normalized):
+                found_facets["vites"] = "Manuel"
+
+        if "yakit" not in found_facets:
+            if re.search(r"\bbenzin\b", normalized):
+                found_facets["yakit"] = "Benzin"
+            elif re.search(r"\bdizel\b", normalized):
+                found_facets["yakit"] = "Dizel"
+            elif re.search(r"\bhibrit\b", normalized):
+                found_facets["yakit"] = "Hibrit"
+            elif re.search(r"\belektrik\b", normalized):
+                found_facets["yakit"] = "Elektrik"
+
         return found_facets
 
     FLAGSHIP_CATEGORIES = [
@@ -271,11 +318,13 @@ class CategoryResolver:
         "arazi-suv-pickup",
         "motosiklet",
         "cep-telefonu",
+        "yenilenmis-cep-telefonu",
         "dizustu-bilgisayar",
         "masaustu-bilgisayar",
         "ekran-karti-masaustu",
         "ram-bellek-masaustu",
         "ssd-dahili-sabit-disk",
+        "islemci-masaustu",
         "oyun-konsolu",
         "televizyon",
         "bisiklet",
@@ -283,12 +332,241 @@ class CategoryResolver:
         "traktor",
         "beyaz-esya",
         "isitma-sogutma-havalandirma",
-        "minivan-panelvan",
-        "elektrikli-araclar",
-        "karavan",
-        "satilik-isyeri",
+        "ustalar-ve-hizmetler",
+        "ozel-ders-verenler",
         "genel-arama",
     ]
+
+    def get_spec_suggestions(self, category_key: str | None, current: str = "") -> list[str]:
+        """Provides category-aware spec suggestions for Discord autocomplete on /alarm-hizli ozellik."""
+        cat_key = (category_key or "").lower()
+        norm_cur = self.normalize_turkish(current) if current else ""
+
+        suggestions = []
+        if any(k in cat_key for k in ("oto", "vasita", "arazi", "suv", "minivan")):
+            suggestions = [
+                "Otomatik",
+                "Manuel",
+                "Otomatik Benzin",
+                "Otomatik Dizel",
+                "Benzin",
+                "Dizel",
+                "Hibrit",
+                "Elektrik",
+                "Yarı Otomatik",
+                "Boyasız",
+                "Hatasız",
+            ]
+        elif any(k in cat_key for k in ("daire", "konut", "villa", "emlak", "isyeri")):
+            suggestions = [
+                "1+1",
+                "2+1",
+                "3+1",
+                "4+1",
+                "5+1",
+                "1+0 (Stüdyo)",
+                "Dubleks",
+                "Kombili",
+                "Sıfır Bina",
+                "Eşyalı",
+                "Site İçi",
+            ]
+        elif any(k in cat_key for k in ("arsa", "tarla")):
+            suggestions = [
+                "İmarlı",
+                "Tarla",
+                "Zeytinlik",
+                "Müstakil Parsel",
+                "Hisseli",
+                "Kat Karşılığı",
+                "Bağ & Bahçe",
+                "Yatırımlık",
+            ]
+        elif any(k in cat_key for k in ("ekran-karti", "gpu")):
+            suggestions = [
+                "8 GB",
+                "12 GB",
+                "16 GB",
+                "24 GB",
+                "6 GB",
+                "Nvidia",
+                "AMD",
+                "GDDR6",
+                "GDDR6X",
+            ]
+        elif any(k in cat_key for k in ("ram", "bellek")):
+            suggestions = [
+                "16 GB DDR4",
+                "32 GB DDR5",
+                "16 GB DDR5",
+                "8 GB DDR4",
+                "32 GB DDR4",
+                "2x 16 GB",
+                "2x 8 GB",
+                "DDR4",
+                "DDR5",
+                "512 MB DDR2",
+                "SODIMM",
+            ]
+        elif any(k in cat_key for k in ("islemci", "cpu")):
+            suggestions = [
+                "AM5",
+                "AM4",
+                "LGA1700",
+                "LGA1200",
+                "LGA1151",
+                "32 MB",
+                "64 MB",
+                "96 MB",
+                "AMD",
+                "Intel",
+                "Tray",
+                "Kutulu",
+            ]
+        elif any(k in cat_key for k in ("ssd", "sabit-disk", "harddisk", "surucu")):
+            suggestions = [
+                "500 GB",
+                "1 TB",
+                "2 TB",
+                "4 TB",
+                "250 GB",
+                "120 GB",
+                "NVMe M.2",
+                "SATA SSD",
+                "Gen4 NVMe",
+            ]
+        elif any(k in cat_key for k in ("traktor", "tarim")):
+            suggestions = [
+                "4x4",
+                "4x2",
+                "Çift Çeker",
+                "Tek Çeker",
+                "Klimalı",
+                "Kabinsiz",
+                "Levyeli",
+            ]
+        elif any(k in cat_key for k in ("telefon", "cep", "yenilenmis")):
+            suggestions = [
+                "128 GB",
+                "256 GB",
+                "512 GB",
+                "1 TB",
+                "64 GB",
+                "A Kalite",
+                "Kozmetik Mükemmel",
+                "Pil 100",
+                "Yurt Dışı",
+                "TR Garantili",
+            ]
+        elif any(k in cat_key for k in ("bisiklet",)):
+            suggestions = [
+                "29 Jant",
+                "28 Jant",
+                "27.5 Jant",
+                "26 Jant",
+                "Dağ Bisikleti",
+                "Yol / Yarış",
+                "Elektrikli",
+                "Katlanır",
+                "Hidrolik Disk",
+            ]
+        elif any(k in cat_key for k in ("konsol",)):
+            suggestions = [
+                "PlayStation 5",
+                "Slim",
+                "Digital Edition",
+                "Diskli",
+                "Xbox Series X",
+                "Xbox Series S",
+                "Nintendo Switch OLED",
+                "Çift Kol",
+            ]
+        elif any(k in cat_key for k in ("jant", "lastik")):
+            suggestions = [
+                "Kış Lastiği",
+                "Yaz Lastiği",
+                "Dört Mevsim",
+                "Çelik Jant",
+                "205/55 R16",
+                "225/45 R17",
+                "Run Flat",
+            ]
+        elif any(k in cat_key for k in ("hizmet", "usta", "tadilat", "servis")):
+            suggestions = [
+                "Ev Tadilat",
+                "Evden Eve Nakliyat",
+                "Teknik Servis",
+                "Çilingir",
+                "Boya Badana",
+                "Asansörlü Nakliyat",
+                "Acil",
+            ]
+        elif any(k in cat_key for k in ("ders", "ogretmen")):
+            suggestions = [
+                "İlkokul",
+                "Ortaokul",
+                "Lise",
+                "Üniversite",
+                "Online / Çevrimiçi",
+                "Yüz Yüze",
+                "LGS Hazırlık",
+                "YKS Hazırlık",
+            ]
+        elif any(k in cat_key for k in ("is-ilan", "is-alani")):
+            suggestions = [
+                "Tam Zamanlı",
+                "Yarı Zamanlı",
+                "Freelance",
+                "Dönemsel",
+                "Stajyer",
+                "Home Office",
+                "Deneyimli",
+                "Deneyimsiz",
+            ]
+        elif any(k in cat_key for k in ("yardimci", "bakici")):
+            suggestions = [
+                "Yatılı",
+                "Tam Zamanlı (Gündüzlü)",
+                "Yarı Zamanlı",
+                "Saatli",
+                "Bebek Bakıcısı",
+                "Hasta Bakımı",
+                "Ev Temizliği",
+            ]
+        elif any(k in cat_key for k in ("hayvan", "pet")):
+            suggestions = [
+                "Yavru",
+                "Aşılı",
+                "Çipli",
+                "Safkan",
+                "Akvaryum Seti",
+                "Kafes Dahil",
+            ]
+        else:
+            suggestions = [
+                "Otomatik",
+                "Manuel",
+                "3+1",
+                "2+1",
+                "16 GB DDR4",
+                "32 GB DDR5",
+                "12 GB",
+                "1 TB",
+                "500 GB",
+                "4x4",
+                "AM5",
+                "Dizel",
+                "Benzin",
+                "128 GB",
+            ]
+
+        if not norm_cur:
+            return suggestions[:25]
+
+        filtered = [s for s in suggestions if norm_cur in self.normalize_turkish(s)]
+        if not filtered:
+            return [current[:100]]
+        return filtered[:25]
 
     def _format_choice_label(self, cat_key: str, cat_data: dict[str, Any]) -> str:
         display = cat_data.get("display_name", cat_key)

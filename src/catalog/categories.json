@@ -68,7 +68,30 @@
         "passat",
         "golf"
       ],
-      "facets": {}
+      "facets": {
+        "vites": {
+          "param_name": "vites",
+          "label": "Vites",
+          "options": {
+            "Otomatik": "Otomatik",
+            "Manuel": "Manuel",
+            "Yarı Otomatik": "Yarı Otomatik"
+          }
+        },
+        "yakit": {
+          "param_name": "yakit",
+          "label": "Yakıt",
+          "options": {
+            "Benzin": "Benzin",
+            "Dizel": "Dizel",
+            "LPG": "LPG",
+            "Benzin & LPG": "Benzin & LPG",
+            "Hibrit": "Hibrit",
+            "Elektrik": "Elektrik"
+          }
+        }
+      },
+      "profile": "vehicle_car"
     },
     "arazi-suv-pickup": {
       "id": "3531",
@@ -88,7 +111,30 @@
         "tiguan",
         "rav4"
       ],
-      "facets": {}
+      "facets": {
+        "vites": {
+          "param_name": "vites",
+          "label": "Vites",
+          "options": {
+            "Otomatik": "Otomatik",
+            "Manuel": "Manuel",
+            "Yarı Otomatik": "Yarı Otomatik"
+          }
+        },
+        "yakit": {
+          "param_name": "yakit",
+          "label": "Yakıt",
+          "options": {
+            "Benzin": "Benzin",
+            "Dizel": "Dizel",
+            "LPG": "LPG",
+            "Benzin & LPG": "Benzin & LPG",
+            "Hibrit": "Hibrit",
+            "Elektrik": "Elektrik"
+          }
+        }
+      },
+      "profile": "vehicle_car"
     },
     "motosiklet": {
       "id": "3532",
@@ -142,7 +188,22 @@
         "konut",
         "daire"
       ],
-      "facets": {}
+      "facets": {
+        "oda_sayisi": {
+          "param_name": "oda_sayisi",
+          "label": "Oda Sayısı",
+          "options": {
+            "1+0 (Stüdyo)": "1+0",
+            "1+1": "1+1",
+            "2+1": "2+1",
+            "3+1": "3+1",
+            "4+1": "4+1",
+            "5+1": "5+1",
+            "Dubleks": "Dubleks"
+          }
+        }
+      },
+      "profile": "property_home"
     },
     "kiralik-daire": {
       "id": "8389",
@@ -157,7 +218,22 @@
         "kiralik",
         "kira"
       ],
-      "facets": {}
+      "facets": {
+        "oda_sayisi": {
+          "param_name": "oda_sayisi",
+          "label": "Oda Sayısı",
+          "options": {
+            "1+0 (Stüdyo)": "1+0",
+            "1+1": "1+1",
+            "2+1": "2+1",
+            "3+1": "3+1",
+            "4+1": "4+1",
+            "5+1": "5+1",
+            "Dubleks": "Dubleks"
+          }
+        }
+      },
+      "profile": "property_home"
     },
     "satilik-villa": {
       "id": "8394",
@@ -475,8 +551,46 @@
             "AMD": "67524",
             "Intel": "67525"
           }
+        },
+        "socket": {
+          "param_name": "socket",
+          "label": "Pin / Soket",
+          "options": {
+            "AM4": "AM4",
+            "AM5": "AM5",
+            "LGA1700": "1700 Intel",
+            "1700 Intel": "1700 Intel",
+            "LGA1200": "1200 Intel",
+            "1200 Intel": "1200 Intel",
+            "LGA1151": "1151 Intel",
+            "1151 Intel": "1151 Intel",
+            "LGA1155": "1155 Intel",
+            "1155 Intel": "1155 Intel",
+            "LGA1150": "1150 Intel",
+            "1150 Intel": "1150 Intel",
+            "2066 Intel": "2066 Intel",
+            "2011 Intel": "2011 Intel",
+            "AM3+": "AM3+",
+            "AM3": "AM3",
+            "FM2": "FM2",
+            "TR4": "SP3r2 (TR4)",
+            "sTRX4": "SP3r3 (sTRX4)"
+          }
+        },
+        "cache": {
+          "param_name": "cache",
+          "label": "Ön Bellek",
+          "options": {
+            "16 MB": "16 MB",
+            "32 MB": "32 MB",
+            "36 MB": "36 MB",
+            "64 MB": "64 MB",
+            "96 MB": "96 MB",
+            "128 MB": "128 MB"
+          }
         }
-      }
+      },
+      "profile": "desktop_cpu"
     },
     "anakart-masaustu": {
       "id": "111924",
@@ -1372,7 +1486,7 @@
     },
     "is-makineleri-sanayi": {
       "id": "3580",
-      "display_name": "🚜 İş Makineleri & Sanayi",
+      "display_name": "🚜 İş Makineleri / Tüm İş Makineleri & Sanayi",
       "slug": "is-makineleri-sanayi",
       "breadcrumbs": "İş Makineleri & Sanayi",
       "example_hint": "Örn: JCB kepçe, New Holland traktör, dizel jeneratör",
@@ -1385,7 +1499,7 @@
     },
     "hayvanlar-alemi": {
       "id": "3581",
-      "display_name": "🐾 Hayvanlar Alemi",
+      "display_name": "🐾 Hayvanlar / Tüm Hayvanlar Alemi",
       "slug": "hayvanlar-alemi",
       "breadcrumbs": "Hayvanlar Alemi",
       "example_hint": "Örn: Akvaryum seti, kedi tırmalama ağacı, otomatik yemlik",
@@ -1401,7 +1515,7 @@
     },
     "ustalar-ve-hizmetler": {
       "id": "3582",
-      "display_name": "🛠️ Ustalar ve Hizmetler",
+      "display_name": "🛠️ Hizmetler / Tüm Ustalar & Hizmetler",
       "slug": "ustalar-ve-hizmetler",
       "breadcrumbs": "Ustalar ve Hizmetler",
       "example_hint": "Örn: Evden eve nakliyat, komple ev tadilatı, elektrik ustası",
@@ -1418,7 +1532,7 @@
     },
     "ozel-ders-verenler": {
       "id": "3583",
-      "display_name": "🎓 Özel Ders Verenler",
+      "display_name": "🎓 Özel Ders / Tüm Özel Ders Verenler",
       "slug": "ozel-ders-verenler",
       "breadcrumbs": "Özel Ders Verenler",
       "example_hint": "Örn: LGS matematik özel ders, online İngilizce, direksiyon dersi",
@@ -1433,7 +1547,7 @@
     },
     "is-ilanlari": {
       "id": "3584",
-      "display_name": "💼 İş İlanları",
+      "display_name": "💼 İş İlanları / Tüm İş İlanları",
       "slug": "is-ilanlari",
       "breadcrumbs": "İş İlanları",
       "example_hint": "Örn: Kurye aranıyor, muhasebe elemanı, garson",
@@ -1495,7 +1609,19 @@
         "bicerdover"
       ],
       "category_group": "İş Makineleri",
-      "facets": {}
+      "facets": {
+        "ceker": {
+          "param_name": "ceker",
+          "label": "Çeker",
+          "options": {
+            "4x4": "4x4",
+            "4x2": "4x2",
+            "Çift Çeker": "4x4",
+            "Tek Çeker": "4x2"
+          }
+        }
+      },
+      "profile": "agri_machine"
     },
     "beyaz-esya": {
       "id": "3574",
@@ -1779,6 +1905,324 @@
       ],
       "category_group": "İş Makineleri",
       "facets": {}
+    },
+    "yenilenmis-teknolojik-cihazlar": {
+      "id": "c0278",
+      "display_name": "📱 Yenilenmiş Cihazlar / Yepyeni & Yenilenmiş Cihazlar",
+      "slug": "yenilenmis-teknolojik-cihazlar",
+      "breadcrumbs": "Yepyeni / Yenilenmiş Teknolojik Cihazlar",
+      "example_hint": "Örn: Yenilenmiş iPhone, Samsung, iPad, garantili",
+      "profile": "phone",
+      "aliases": [
+        "yenilenmis",
+        "yenilenmis cihaz",
+        "yepyeni",
+        "refurbished",
+        "yenilenmis urun"
+      ],
+      "facets": {}
+    },
+    "yenilenmis-cep-telefonu": {
+      "id": "c0279_phone",
+      "display_name": "📱 Yenilenmiş Cihazlar / Yenilenmiş Cep Telefonu",
+      "slug": "yenilenmis-cep-telefonu",
+      "breadcrumbs": "Yepyeni / Yenilenmiş Teknolojik Cihazlar > Cep Telefonu",
+      "example_hint": "Örn: iPhone 13 128GB, iPhone 12, Samsung Galaxy, A Kalite",
+      "profile": "phone",
+      "aliases": [
+        "yenilenmis telefon",
+        "yenilenmis iphone",
+        "yenilenmis samsung",
+        "refurbished iphone"
+      ],
+      "facets": {
+        "hafiza": {
+          "param_name": "hafiza",
+          "label": "Dahili Hafıza",
+          "options": {
+            "64 GB": "64",
+            "128 GB": "128",
+            "256 GB": "256",
+            "512 GB": "512",
+            "1 TB": "1024"
+          }
+        }
+      }
+    },
+    "yardimci-arayanlar": {
+      "id": "c0624",
+      "display_name": "🤝 Yardımcı / Tüm Yardımcı Arayanlar",
+      "slug": "yardimci-arayanlar",
+      "breadcrumbs": "Yardımcı Arayanlar",
+      "example_hint": "Örn: Bebek bakıcısı, hasta bakıcısı, ev işlerine yardımcı",
+      "profile": "helper",
+      "aliases": [
+        "yardimci",
+        "yardimci arayanlar",
+        "bakici",
+        "ev yardimcisi"
+      ],
+      "facets": {}
+    },
+    "bebek-cocuk-bakicisi": {
+      "id": "c0614",
+      "display_name": "🤝 Yardımcı / Bebek & Çocuk Bakıcısı",
+      "slug": "bebek-cocuk-bakicisi",
+      "breadcrumbs": "Yardımcı Arayanlar > Bebek & Çocuk Bakıcısı",
+      "example_hint": "Örn: Yatılı bebek bakıcısı, gündüzlü çocuk bakıcısı, dadı",
+      "profile": "helper",
+      "aliases": [
+        "bebek bakicisi",
+        "cocuk bakicisi",
+        "dadi",
+        "bebek bakici"
+      ],
+      "facets": {}
+    },
+    "yasli-hasta-bakicisi": {
+      "id": "c0618",
+      "display_name": "🤝 Yardımcı / Yaşlı & Hasta Bakıcısı",
+      "slug": "yasli-hasta-bakicisi",
+      "breadcrumbs": "Yardımcı Arayanlar > Yaşlı & Hasta Bakıcısı",
+      "example_hint": "Örn: Yatılı hasta bakıcısı, yaşlı refakatçi, hemşire",
+      "profile": "helper",
+      "aliases": [
+        "hasta bakicisi",
+        "yasli bakicisi",
+        "refakatci",
+        "hasta bakici"
+      ],
+      "facets": {}
+    },
+    "temizlikci-ev-isleri": {
+      "id": "c0623",
+      "display_name": "🤝 Yardımcı / Temizlikçi & Ev İşleri",
+      "slug": "temizlikci-ev-islerine-yardimci",
+      "breadcrumbs": "Yardımcı Arayanlar > Temizlikçi & Ev İşlerine Yardımcı",
+      "example_hint": "Örn: Gündelikçi, ev temizliği, haftalık yardımcı",
+      "profile": "helper",
+      "aliases": [
+        "temizlikci",
+        "ev temizligi",
+        "gundelikci",
+        "ev isleri"
+      ],
+      "facets": {}
+    },
+    "tarim-makineleri": {
+      "id": "c0301",
+      "display_name": "🚜 İş Makineleri / Tarım Makineleri",
+      "slug": "tarim-makineleri",
+      "breadcrumbs": "İş Makineleri & Sanayi > Tarım Makineleri",
+      "example_hint": "Örn: Balya makinesi, pulluk, mibzer, römork, ilaçlama",
+      "profile": "agri_machine",
+      "aliases": [
+        "tarim makinesi",
+        "tarim ekipmanlari",
+        "balya makinesi",
+        "pulluk",
+        "mibzer"
+      ],
+      "facets": {}
+    },
+    "elektrik-enerji": {
+      "id": "c0314",
+      "display_name": "🏭 Sanayi / Elektrik & Enerji",
+      "slug": "elektrik-enerji",
+      "breadcrumbs": "İş Makineleri & Sanayi > Elektrik & Enerji",
+      "example_hint": "Örn: Güneş paneli, jeneratör, trafo, invertör, enerji depolama",
+      "profile": "industrial_generic",
+      "aliases": [
+        "elektrik enerji",
+        "gunes paneli",
+        "jenerator",
+        "solar",
+        "trafo"
+      ],
+      "facets": {}
+    },
+    "ev-tadilat-dekorasyon": {
+      "id": "c0337",
+      "display_name": "🛠️ Hizmetler / Ev Tadilat & Dekorasyon",
+      "slug": "ev-tadilat-dekorasyon",
+      "breadcrumbs": "Ustalar ve Hizmetler > Ev Tadilat & Dekorasyon",
+      "example_hint": "Örn: Boya badana, alçıpan, banyo tadilat, mutfak dekorasyon",
+      "profile": "service",
+      "aliases": [
+        "ev tadilat",
+        "boyaci",
+        "alcipan",
+        "banyo tadilat",
+        "dekorasyon"
+      ],
+      "facets": {}
+    },
+    "nakliye-tasimacilik": {
+      "id": "c0346",
+      "display_name": "🛠️ Hizmetler / Nakliye & Taşımacılık",
+      "slug": "nakliye-tasimacilik",
+      "breadcrumbs": "Ustalar ve Hizmetler > Nakliye",
+      "example_hint": "Örn: Evden eve nakliyat, asansörlü taşımacılık, şehirler arası",
+      "profile": "service",
+      "aliases": [
+        "nakliye tasimacilik",
+        "asansorlu nakliye",
+        "kamyonet nakliye"
+      ],
+      "facets": {}
+    },
+    "arac-servis-bakim": {
+      "id": "c0360",
+      "display_name": "🛠️ Hizmetler / Araç Servis & Bakım",
+      "slug": "arac-servis-bakim",
+      "breadcrumbs": "Ustalar ve Hizmetler > Araç Servis & Bakım",
+      "example_hint": "Örn: Oto ekspertiz, çekici yol yardım, oto döşeme, mekanik servis",
+      "profile": "service",
+      "aliases": [
+        "oto servis",
+        "oto ekspertiz",
+        "cekici",
+        "yol yardim",
+        "oto tamir"
+      ],
+      "facets": {}
+    },
+    "tamirat-teknik-servis": {
+      "id": "c0391",
+      "display_name": "🛠️ Hizmetler / Tamirat & Teknik Servis",
+      "slug": "tamirat-teknik-servis",
+      "breadcrumbs": "Ustalar ve Hizmetler > Tamirat & Teknik Servis",
+      "example_hint": "Örn: Kombi servisi, beyaz eşya tamiri, bilgisayar servisi, çilingir",
+      "profile": "service",
+      "aliases": [
+        "teknik servis",
+        "tamirat",
+        "kombi servisi",
+        "beyaz esya tamiri",
+        "cilingir"
+      ],
+      "facets": {}
+    },
+    "matematik-ozel-ders": {
+      "id": "c0438_math",
+      "display_name": "🎓 Özel Ders / Matematik & Fen",
+      "slug": "matematik-ozel-ders",
+      "breadcrumbs": "Özel Ders Verenler > Lise & Üniversite > Matematik",
+      "example_hint": "Örn: YKS matematik, LGS hazırlık, geometri, fizik, online",
+      "profile": "lesson",
+      "aliases": [
+        "matematik geometri dersi",
+        "yks matematik ozel",
+        "lise matematik dersi"
+      ],
+      "facets": {}
+    },
+    "yabanci-dil-ozel-ders": {
+      "id": "c0449",
+      "display_name": "🎓 Özel Ders / Yabancı Dil",
+      "slug": "yabanci-dil-ozel-ders",
+      "breadcrumbs": "Özel Ders Verenler > Yabancı Dil",
+      "example_hint": "Örn: İngilizce özel ders, Almanca, TOEFL, IELTS, konuşma kulübü",
+      "profile": "lesson",
+      "aliases": [
+        "ingilizce dersi",
+        "ingilizce ozel ders",
+        "almanca dersi",
+        "dil dersi",
+        "toefl"
+      ],
+      "facets": {}
+    },
+    "it-yazilim-is-ilanlari": {
+      "id": "c0505",
+      "display_name": "💼 İş İlanları / IT & Yazılım Geliştirme",
+      "slug": "it-yazilim-is-ilanlari",
+      "breadcrumbs": "İş İlanları > IT & Yazılım Geliştirme",
+      "example_hint": "Örn: Python developer, frontend, react, backend, fullstack",
+      "profile": "job",
+      "aliases": [
+        "yazilimci",
+        "yazilim is ilani",
+        "it is ilani",
+        "developer is ilani"
+      ],
+      "facets": {}
+    },
+    "satis-pazarlama-is-ilanlari": {
+      "id": "c0556",
+      "display_name": "💼 İş İlanları / Satış & Pazarlama",
+      "slug": "satis-pazarlama-is-ilanlari",
+      "breadcrumbs": "İş İlanları > Satış",
+      "example_hint": "Örn: Satış temsilcisi, pazarlama uzmanı, müşteri temsilcisi",
+      "profile": "job",
+      "aliases": [
+        "satis elemani",
+        "satis temsilcisi",
+        "pazarlama is ilani"
+      ],
+      "facets": {}
+    },
+    "lojistik-tasima-is-ilanlari": {
+      "id": "c0520",
+      "display_name": "💼 İş İlanları / Lojistik & Kurye",
+      "slug": "lojistik-tasima-is-ilanlari",
+      "breadcrumbs": "İş İlanları > Lojistik & Taşıma",
+      "example_hint": "Örn: Motorlu kurye, sevkiyat şoförü, depo sorumlusu",
+      "profile": "job",
+      "aliases": [
+        "kurye is ilani",
+        "sofor is ilani",
+        "moto kurye",
+        "depo is ilani"
+      ],
+      "facets": {}
+    },
+    "evcil-hayvanlar": {
+      "id": "c0586",
+      "display_name": "🐾 Hayvanlar / Evcil Hayvanlar",
+      "slug": "evcil-hayvanlar",
+      "breadcrumbs": "Hayvanlar Alemi > Evcil Hayvanlar",
+      "example_hint": "Örn: Kedi, köpek, yavru sahiplendirme, muhabbet kuşu",
+      "profile": "animal",
+      "aliases": [
+        "kedi",
+        "kopek",
+        "yavru kedi",
+        "yavru kopek",
+        "kus",
+        "muhabbet kusu"
+      ],
+      "facets": {}
+    },
+    "akvaryum-baliklari": {
+      "id": "c0590",
+      "display_name": "🐾 Hayvanlar / Akvaryum Balıkları",
+      "slug": "akvaryum-baliklari",
+      "breadcrumbs": "Hayvanlar Alemi > Akvaryum Balıkları",
+      "example_hint": "Örn: Lepistes, ciklet, japon balığı, beta, canlı doğuran",
+      "profile": "animal",
+      "aliases": [
+        "akvaryum baligi",
+        "lepistes",
+        "ciklet",
+        "japon baligi",
+        "beta baligi"
+      ],
+      "facets": {}
+    },
+    "islemci-dizustu": {
+      "id": "c0650",
+      "display_name": "🛍️ Alışveriş / Dizüstü İşlemci",
+      "slug": "islemci-dizustu",
+      "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Dizüstü (Notebook) > Donanım > İşlemci",
+      "example_hint": "Örn: Intel i7, i5 mobile, AMD Ryzen mobile işlemciler",
+      "profile": "laptop_cpu",
+      "aliases": [
+        "laptop islemci",
+        "notebook cpu",
+        "dizustu islemci"
+      ],
+      "facets": {}
     }
   },
   "cities": {
@@ -1870,5 +2314,62 @@
     "kilis": "79",
     "osmaniye": "80",
     "duzce": "81"
+  },
+  "root_departments": {
+    "emlak": {
+      "name": "Emlak",
+      "emoji": "🏠",
+      "profile": "property_home"
+    },
+    "vasita": {
+      "name": "Vasıta",
+      "emoji": "🚗",
+      "profile": "vehicle_generic"
+    },
+    "yedek-parca": {
+      "name": "Yedek Parça, Aksesuar, Donanım & Tuning",
+      "emoji": "🔧",
+      "profile": "parts"
+    },
+    "alisveris": {
+      "name": "İkinci El ve Sıfır Alışveriş",
+      "emoji": "🛍️",
+      "profile": "commerce"
+    },
+    "yenilenmis": {
+      "name": "Yepyeni / Yenilenmiş Teknolojik Cihazlar",
+      "emoji": "📱",
+      "profile": "phone"
+    },
+    "is-makineleri-sanayi": {
+      "name": "İş Makineleri & Sanayi",
+      "emoji": "🚜",
+      "profile": "industrial_generic"
+    },
+    "ustalar-hizmetler": {
+      "name": "Ustalar ve Hizmetler",
+      "emoji": "🛠️",
+      "profile": "service"
+    },
+    "ozel-ders": {
+      "name": "Özel Ders Verenler",
+      "emoji": "🎓",
+      "profile": "lesson"
+    },
+    "is-ilanlari": {
+      "name": "İş İlanları",
+      "emoji": "💼",
+      "profile": "job"
+    },
+    "hayvanlar-alemi": {
+      "name": "Hayvanlar Alemi",
+      "emoji": "🐾",
+      "profile": "animal"
+    },
+    "yardimci-arayanlar": {
+      "name": "Yardımcı Arayanlar",
+      "emoji": "🤝",
+      "profile": "helper"
+    }
   }
 }

@@ -54,6 +54,23 @@ class AlarmCog(commands.Cog):
             logger.error(f"Error in category_autocomplete: {e}", exc_info=True)
             return []
 
+    async def ozellik_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str
+    ) -> list[app_commands.Choice[str]]:
+        """Provides dynamic autocomplete choices for category-specific specs (VRAM, DDR, transmission, room count, etc.)."""
+        try:
+            selected_cat = getattr(interaction.namespace, "kategori", None) or ""
+            suggestions = resolver.get_spec_suggestions(selected_cat, current)
+            return [
+                app_commands.Choice(name=s[:100], value=s[:100])
+                for s in suggestions[:25]
+            ]
+        except Exception as e:
+            logger.error(f"Error in ozellik_autocomplete: {e}", exc_info=True)
+            return []
+
     # =========================================================================
     # YÖNTEM 1: EVRENSEL SERBEST ARAMA (/alarm-ara)
     # =========================================================================
@@ -357,18 +374,18 @@ class AlarmCog(commands.Cog):
     # =========================================================================
     @app_commands.command(
         name="alarm-hizli",
-        description="Kategori seçin, aradığınız ürünü/özelliği ve bütçenizi girerek hızlı alarm kurun."
+        description="Sahibinden'in 11 ana kategorisinde (Vasıta, Emlak, Donanım, vb.) tek komutla hızlı alarm kurun."
     )
     @app_commands.describe(
-        kategori="Kategori seçin veya arayın (örn: 'Otomobil', 'Satılık Daire', 'Ekran Kartı', 'RAM', 'Telefon')",
+        kategori="Kategori seçin veya arayın (11 ana dal: Emlak, Vasıta, Donanım, Telefon, Traktör vb.)",
         arama="Arama kelimesi, marka veya model (örn: 'Civic 1.6', 'Kadıköy', 'RTX 4070', 'iPhone 15 Pro')",
-        ozellik="Özellik, tip, kapasite veya birim (örn: 'Otomatik', '3+1', '12 GB', '16 GB DDR4', '1 TB', '4x4')",
+        ozellik="Özellik, kapasite, vites, oda, soket veya birim (örn: 'Otomatik', '3+1', '12 GB', '16 GB DDR4', 'AM5', '4x4')",
         min_fiyat="Minimum Fiyat TL (opsiyonel)",
         max_fiyat="Maksimum Fiyat TL (opsiyonel)",
         sehir="Şehir filtresi (örn: 'İstanbul', 'Ankara', 'İzmir')",
         alarm_adi="Alarm için hatırlatıcı isim (opsiyonel)"
     )
-    @app_commands.autocomplete(kategori=category_autocomplete)
+    @app_commands.autocomplete(kategori=category_autocomplete, ozellik=ozellik_autocomplete)
     async def alarm_hizli(
         self,
         interaction: discord.Interaction,
@@ -473,42 +490,49 @@ class AlarmCog(commands.Cog):
         embed = discord.Embed(
             title="📚 Sahibinden Alarm Botu: Kategori & Birim Rehberi",
             description=(
-                "Bot; Vasıta, Emlak, Yedek Parça, Bilgisayar Donanımı, Telefon, Elektronik, İş Makineleri, Tarım ve İkinci El dahil "
-                "Sahibinden'in **tüm 90+ başlığını** ve bunlara ait farklı birim türlerini hesaplar.\n"
+                "Bot; Emlak, Vasıta, Yedek Parça, İkinci El Alışveriş, Yenilenmiş Cihazlar, İş Makineleri & Sanayi, "
+                "Ustalar ve Hizmetler, Özel Ders, İş İlanları, Hayvanlar Alemi ve Yardımcı Arayanlar olmak üzere "
+                "Sahibinden'in **11 ana dalını (110+ kategori)** ve tüm teknik birimlerini eksiksiz destekler.\n"
                 "Aşağıdaki başlıkları `/alarm-hizli`, `/alarm-ara` veya `/alarm-url` ile kullanabilirsiniz:"
             ),
             color=0x3498DB
         )
 
         embed.add_field(
-            name="🏠 1. Emlak Başlıkları",
+            name="🏠 1. Emlak",
             value=(
                 "• **Kategoriler**: `satilik-daire`, `kiralik-daire`, `satilik-arsa`, `satilik-tarla`, `satilik-villa`, `satilik-isyeri`, `bina`\n"
                 "• *Örnek Konut*: `/alarm-hizli kategori:satilik-daire arama:Kadıköy ozellik:3+1 max_fiyat:7500000`\n"
-                "• *Örnek Arsa*: `/alarm-hizli kategori:satilik-arsa arama:İmarlı arsa sehir:İzmir max_fiyat:1500000`\n"
-                "• *Örnek İş Yeri*: `/alarm-hizli kategori:satilik-isyeri arama:Devren dükkan sehir:Bursa max_fiyat:800000`"
+                "• *Örnek Tarla*: `/alarm-hizli kategori:satilik-tarla arama:Zeytinlik ozellik:Müstakil Parsel sehir:Balıkesir`"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🚗 2. Vasıta Başlıkları",
+            name="🚗 2. Vasıta",
             value=(
-                "• **Kategoriler**: `otomobil`, `arazi-suv-pickup`, `elektrikli-araclar`, `motosiklet`, `minivan-panelvan`, `ticari-araclar`, `deniz-araclari`, `karavan`\n"
-                "• *Örnek Otomobil*: `/alarm-hizli kategori:otomobil arama:Civic ozellik:Otomatik sehir:Ankara max_fiyat:950000`\n"
-                "• *Örnek Elektrikli*: `/alarm-hizli kategori:elektrikli-araclar arama:Tesla Model Y ozellik:Long Range max_fiyat:2400000`\n"
-                "• *Örnek Motosiklet*: `/alarm-hizli kategori:motosiklet arama:Yamaha R25 ozellik:ABS max_fiyat:200000`\n"
-                "• *Örnek Karavan*: `/alarm-hizli kategori:karavan arama:Çekme karavan 3.90 max_fiyat:350000`"
+                "• **Kategoriler**: `otomobil`, `arazi-suv-pickup`, `elektrikli-araclar`, `motosiklet`, `scooter`, `minivan-panelvan`, `karavan`\n"
+                "• *Örnek Otomobil*: `/alarm-hizli kategori:otomobil arama:Civic ozellik:Otomatik Benzin sehir:Ankara`\n"
+                "• *Örnek Elektrikli*: `/alarm-hizli kategori:elektrikli-araclar arama:Tesla Model Y ozellik:Long Range`"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🔧 3. Yedek Parça, Aksesuar & Tuning",
+            name="🔧 3. Yedek Parça & Aksesuar",
             value=(
-                "• **Kategoriler**: `otomotiv-ekipmanlari`, `motosiklet-ekipmanlari`, `deniz-araci-ekipmanlari`, `jant-lastik`\n"
-                "• *Örnek Jant/Lastik*: `/alarm-hizli kategori:jant-lastik arama:205 55 R16 kış lastiği max_fiyat:10000`\n"
-                "• *Örnek Kask*: `/alarm-hizli kategori:motosiklet-ekipmanlari arama:Shoei kask L beden max_fiyat:25000`"
+                "• **Kategoriler**: `jant-lastik`, `otomotiv-ekipmanlari`, `motosiklet-ekipmanlari`, `deniz-araci-ekipmanlari`\n"
+                "• *Örnek Jant/Lastik*: `/alarm-hizli kategori:jant-lastik arama:205 55 R16 ozellik:Kış Lastiği`"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="🛍️ 4. İkinci El ve Sıfır Alışveriş (Donanım & Elektronik)",
+            value=(
+                "• **GPU**: `/alarm-hizli kategori:ekran-karti-masaustu arama:RTX 4070 ozellik:12 GB`\n"
+                "• **CPU**: `/alarm-hizli kategori:islemci-masaustu arama:Ryzen 5 7600 ozellik:AM5 32 MB`\n"
+                "• **Telefon / Konsol / Bisiklet**: `cep-telefonu`, `oyun-konsolu`, `bisiklet`, `beyaz-esya`"
             ),
             inline=False
         )
@@ -527,29 +551,45 @@ class AlarmCog(commands.Cog):
         embed.add_field(
             name="💾 SSD & Sabit Disk Birimleri",
             value=(
-                "• **Birimler**: `120 GB`, `256 GB`, `512 GB`, `1 TB` (1000 GB normalizasyonu), `2 TB`\n"
+                "• **Birimler**: `120 GB`, `256 GB`, `512 GB`, `1 TB` (1000 GB normalizasyonu), `2 TB`, `4 TB`\n"
                 "• *Örnek*: `/alarm-hizli kategori:ssd-dahili-sabit-disk arama:NVMe ozellik:1 TB max_fiyat:3500`"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🛍️ 4. İkinci El ve Sıfır Alışveriş (Telefon, Konsol, Bisiklet vb.)",
+            name="📱 5. Yenilenmiş Teknolojik Cihazlar",
             value=(
-                "• **GPU**: `/alarm-hizli kategori:ekran-karti-masaustu arama:RTX 4070 ozellik:12 GB max_fiyat:22000`\n"
-                "• **Telefon**: `/alarm-hizli kategori:cep-telefonu arama:iPhone 15 Pro ozellik:128 GB max_fiyat:60000`\n"
-                "• **Konsol**: `/alarm-hizli kategori:oyun-konsolu arama:PlayStation 5 ozellik:Slim Digital max_fiyat:20000`\n"
-                "• **Bisiklet**: `/alarm-hizli kategori:bisiklet arama:Carraro ozellik:29 Jant max_fiyat:15000`"
+                "• **Kategoriler**: `yenilenmis-cep-telefonu`, `yenilenmis-teknolojik-cihazlar`\n"
+                "• *Örnek*: `/alarm-hizli kategori:yenilenmis-cep-telefonu arama:iPhone 13 ozellik:128 GB A Kalite`"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🚜 İş Makineleri, Tarım & Diğer",
+            name="🚜 6. İş Makineleri & Sanayi",
             value=(
-                "• **Kategoriler**: `traktor`, `is-makineleri`, `sanayi`, `hayvanlar-alemi`, `ustalar-ve-hizmetler`\n"
-                "• *Örnek Traktör*: `/alarm-hizli kategori:traktor arama:New Holland ozellik:4x4 max_fiyat:1200000`\n"
-                "• *Örnek Genel*: `/alarm-ara kelime:Dyson V15 süpürge kutulu min_fiyat:15000 max_fiyat:25000`"
+                "• **Kategoriler**: `traktor`, `tarim-makineleri`, `is-makineleri`, `sanayi`, `elektrik-enerji`\n"
+                "• *Örnek*: `/alarm-hizli kategori:traktor arama:New Holland ozellik:4x4`"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="🛠️ 7. Ustalar ve Hizmetler & 🎓 8. Özel Ders",
+            value=(
+                "• **Hizmetler**: `ustalar-ve-hizmetler`, `ev-tadilat-dekorasyon`, `nakliye-tasimacilik`, `arac-servis-bakim`\n"
+                "• **Özel Ders**: `ozel-ders-verenler`, `matematik-ozel-ders`, `yabanci-dil-ozel-ders`"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="💼 9. İş İlanları, 🐾 10. Hayvanlar Alemi & 🤝 11. Yardımcı Arayanlar",
+            value=(
+                "• **İş İlanları**: `is-ilanlari`, `it-yazilim-is-ilanlari`, `satis-pazarlama-is-ilanlari`\n"
+                "• **Hayvanlar**: `hayvanlar-alemi`, `evcil-hayvanlar`, `akvaryum-baliklari`\n"
+                "• **Yardımcı Arayanlar**: `yardimci-arayanlar`, `bebek-cocuk-bakicisi`, `yasli-hasta-bakicisi`"
             ),
             inline=False
         )
