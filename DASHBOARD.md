@@ -108,16 +108,23 @@
   - [x] Preserved freeform custom category keywords when `kategori` does not match the catalog.
   - [x] Aligned `sanayi` and `elektrik-enerji` display names to `🚜 İş Makineleri / ...`.
   - [x] Expanded test suite to 177/177 passing green tests.
-- [x] Automated Test Suite: 177/177 tests passing green across all suites (unit, integration, 11-branch validation, and full real-world scenarios in `tests/test_real_scenarios.py` and `tests/test_eleven_branches.py`)
-- [x] Real-World Scenario Testing Suite (`tests/test_real_scenarios.py` & `tests/test_eleven_branches.py`):
-  - [x] All 111 categories search URL construction and facet mapping verified.
-  - [x] Slash command workflows (`/alarm-ara`, `/alarm-url`, `/alarm-hizli`, `/alarmlarim`, `/alarm-durum`, `/alarm-sil`, `/alarm-test`, `/kategoriler`) verified with interaction mocking.
-  - [x] Turkish number format handling with comma and dot thousand separators (`1.500`, `3,500`) in `SpecFilterModal`.
-  - [x] Re-priming on alarm resumption (`is_primed=0`) preventing historical ad spam.
-  - [x] Hierarchical group navigation through category groups verified within Discord 25-choice limits.
-  - [x] Natural language query category inference verified across vehicles, electric cars, equipment, real estate, instruments, sports, etc.
-  - [x] Interactive UI component timeouts disabling buttons and selects cleanly.
-  - [x] Non-lossy spec fallback and capacity normalization (MB, GB, TB, dual-kits).
-- [x] Public Repository Format: MIT License, hardened `.gitignore` (ignoring all XML mesh artifacts), zero secrets tracked, Coolify Public Repo guide
+- [x] Complete 24-Profile Schema Integration, Profile-Driven Spec Intelligence & Full /alarm-hizli Rewrite (`ADR-025`):
+  - [x] Embedded all 24 authentic Sahibinden search filter profiles from schema into `src/catalog/categories.json` under `"profiles"`.
+  - [x] Mapped 100% of all 111 categories to their verified schema profile (`property_home`, `property_land`, `vehicle_car`, `vehicle_motorcycle`, `desktop_cpu`, `laptop_cpu`, etc.).
+  - [x] Completely rewrote `CategoryResolver.get_spec_suggestions` with strict profile prioritization, eliminating cross-category autocomplete bleeding (land alarms receiving room counts, motorcycles receiving car transmissions).
+  - [x] Hardened Turkish diacritic normalization (`self.normalize_turkish`) in `extract_specs_from_text`, ensuring flawless extraction for terms like `Yatılı`, `Tam Zamanlı`, `İmarlı`, `Çift Çeker`.
+  - [x] Fully integrated `/alarm-hizli` with profile and extra facet metadata persistence in SQLite `filters_json`.
+  - [x] Added `tests/test_twenty_four_profiles.py` expanding test suite to 193/193 passing green tests.
+- [x] Apex /alarm-hizli Hardening: Root Department Resolution, Zero Autocomplete Leakage & Conflicting Facet Priority (`ADR-026`):
+  - [x] Fixed root department hijacking: `CategoryResolver.resolve_category` prioritizes normalized catalog keys and slugs before aliases; eliminated alias collisions (`vasita` in `otomobil`, `emlak` in `satilik-daire`).
+  - [x] 100% Autocomplete Isolation: eliminated suggestion leakage across 30 previously defaulting categories (laptops, smartwatches, watches, motherboards, monitors, cases/PSUs, home appliances, HVAC, cameras, drones, music, sports, commerce). Non-vehicle and non-home categories never suggest car transmissions or room counts.
+  - [x] Facet Priority Hierarchy in `/alarm-hizli`: dedicated `ozellik` parameter specs take absolute precedence over `arama` text specs. Removed `cat_key` string concatenation which caused false facet triggers.
+  - [x] Contradictory Query Token Cleaning: automatically removes conflicting obsolete tokens from `clean_q` (e.g. `arama="BMW otomatik" ozellik="Manuel"` cleanly strips `otomatik`), preventing zero-hit queries.
+  - [x] Schema Facets in URL Builder: `SahibindenURLBuilder.build_url` accepts `extra_facets` and maps `hafiza`, `vites`, `yakit`, `oda_sayisi`, `socket`, `cache`, and `ceker` into query parameters with non-lossy fallback.
+  - [x] Immediate Deferral & Safety: added immediate `_safe_defer` at entry in `/alarm-hizli` (guaranteeing Discord 3s SLA) and guarded against double-deferral crashes.
+  - [x] Multi-word and breadcrumb autocomplete search matching natural inputs (`teknolojik cihaz`, `sanayi ve is makinesi`).
+  - [x] Expanded test suite with Suite 5 in `tests/test_twenty_four_profiles.py` bringing total to 200/200 passing green tests.
+- [x] Automated Test Suite: 200/200 tests passing green across all suites (unit, integration, 11-branch validation, 24-profile validation, and full real-world scenarios in `tests/test_real_scenarios.py`, `tests/test_eleven_branches.py`, and `tests/test_twenty_four_profiles.py`)
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`) fully updated and synchronized
+
 

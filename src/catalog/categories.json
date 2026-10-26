@@ -13,7 +13,8 @@
         "her-sey",
         "arama"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "classified"
     },
     "otomobil": {
       "id": "3530",
@@ -37,7 +38,6 @@
         "mercedes",
         "vw",
         "corolla",
-        "vasita",
         "togg",
         "oto",
         "corsa",
@@ -151,7 +151,8 @@
         "kawasaki",
         "ducati"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "vehicle_motorcycle"
     },
     "ticari-araclar": {
       "id": "3533",
@@ -171,7 +172,8 @@
         "courier",
         "transit"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "vehicle_generic"
     },
     "satilik-daire": {
       "id": "8388",
@@ -184,7 +186,6 @@
         "satilik ev",
         "satilik konut",
         "satilik",
-        "emlak",
         "konut",
         "daire"
       ],
@@ -248,7 +249,8 @@
         "mustakil",
         "yazlik"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "property_home"
     },
     "satilik-arsa": {
       "id": "8391",
@@ -259,12 +261,12 @@
       "aliases": [
         "arsa",
         "satilik arsa",
-        "tarla",
         "bag",
         "bahce",
         "imarli arsa"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "property_land"
     },
     "satilik-isyeri": {
       "id": "8392",
@@ -281,7 +283,8 @@
         "ofis",
         "buro"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "property_commercial"
     },
     "cep-telefonu": {
       "id": "111929",
@@ -327,7 +330,8 @@
         "akilli bileklik",
         "mi band"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "tablet-bilgisayar": {
       "id": "111931",
@@ -335,7 +339,7 @@
       "slug": "tablet-bilgisayar",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Tablet",
       "example_hint": "Örn: iPad Pro, iPad Air, Galaxy Tab",
-      "profile": "tablet",
+      "profile": "phone",
       "aliases": [
         "tablet",
         "ipad",
@@ -371,7 +375,8 @@
         "dizustu",
         "macbook"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "masaustu-bilgisayar": {
       "id": "22855",
@@ -387,7 +392,8 @@
         "kasa pc",
         "toplama pc"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "desktop_pc"
     },
     "ram-bellek-dizustu": {
       "id": "22857",
@@ -448,7 +454,8 @@
             "XPG": "1248061"
           }
         }
-      }
+      },
+      "profile": "commerce"
     },
     "ram-bellek-masaustu": {
       "id": "22858",
@@ -514,7 +521,8 @@
             "XPG": "1248061"
           }
         }
-      }
+      },
+      "profile": "commerce"
     },
     "ekran-karti-masaustu": {
       "id": "111925",
@@ -555,7 +563,8 @@
             "24 GB": "1225093"
           }
         }
-      }
+      },
+      "profile": "commerce"
     },
     "islemci-masaustu": {
       "id": "111923",
@@ -637,7 +646,8 @@
         "x670",
         "lga1700"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "ssd-dahili-sabit-disk": {
       "id": "111926",
@@ -674,7 +684,8 @@
             "8 TB": "1248070"
           }
         }
-      }
+      },
+      "profile": "commerce"
     },
     "monitor-masaustu": {
       "id": "111927",
@@ -693,7 +704,8 @@
         "4k monitor",
         "ips monitor"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "kasa-guc-kaynagi": {
       "id": "111928",
@@ -709,7 +721,8 @@
         "bilgisayar kasasi",
         "gaming kasa"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "oyun-konsolu": {
       "id": "111932",
@@ -728,7 +741,8 @@
         "nintendo switch",
         "steam deck"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "televizyon": {
       "id": "111933",
@@ -745,7 +759,8 @@
         "4k tv",
         "led tv"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "kol-saati": {
       "id": "111935",
@@ -762,7 +777,8 @@
         "rolex",
         "omega"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "emlak": {
       "id": "3510",
@@ -776,7 +792,8 @@
         "mulk",
         "tasinmaz"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "property_home"
     },
     "emlak-konut": {
       "id": "3511",
@@ -792,7 +809,8 @@
         "evler",
         "konutlar"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "property_home"
     },
     "is-yeri": {
       "id": "3512",
@@ -809,7 +827,8 @@
         "magaza",
         "plaza"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "property_commercial"
     },
     "arsa": {
       "id": "3513",
@@ -825,7 +844,8 @@
         "zeytinlik",
         "parsel"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "property_land"
     },
     "emlak-projeler": {
       "id": "3514",
@@ -841,7 +861,8 @@
         "yeni proje",
         "konut projei"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "property_misc"
     },
     "bina": {
       "id": "3515",
@@ -856,7 +877,8 @@
         "mustakil bina",
         "binalar"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "property_misc"
     },
     "devre-mulk": {
       "id": "3516",
@@ -870,7 +892,8 @@
         "termal devre mulk",
         "devre tatil"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "property_misc"
     },
     "emlak-turistik-tesis": {
       "id": "3517",
@@ -886,7 +909,8 @@
         "tatil koyu",
         "apart otel"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "property_misc"
     },
     "vasita": {
       "id": "3520",
@@ -903,7 +927,8 @@
         "arac",
         "tum arac"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "vehicle_generic"
     },
     "elektrikli-araclar": {
       "id": "3521",
@@ -924,7 +949,8 @@
         "ioniq",
         "elektrikli arac"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "vehicle_car"
     },
     "minivan-panelvan": {
       "id": "3522",
@@ -942,7 +968,8 @@
         "partner",
         "fiorino"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "vehicle_generic"
     },
     "kiralik-araclar": {
       "id": "3523",
@@ -958,7 +985,8 @@
         "gunluk kiralik arac",
         "aylik kiralik arac"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "vehicle_generic"
     },
     "deniz-araclari": {
       "id": "3524",
@@ -978,7 +1006,8 @@
         "gulet",
         "deniz araci"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "vehicle_marine"
     },
     "hasarli-araclar": {
       "id": "3525",
@@ -994,7 +1023,8 @@
         "cekme belgeli",
         "hurda belgeli"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "vehicle_generic"
     },
     "karavan": {
       "id": "3526",
@@ -1010,7 +1040,8 @@
         "campervan",
         "alkovenli karavan"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "vehicle_generic"
     },
     "klasik-araclar": {
       "id": "3527",
@@ -1027,7 +1058,8 @@
         "klasik oto",
         "klasik arac"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "vehicle_generic"
     },
     "yedek-parca-aksesuar-donanim-tuning": {
       "id": "3540",
@@ -1043,7 +1075,8 @@
         "oto aksesuar",
         "modifiye"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "parts"
     },
     "otomotiv-ekipmanlari": {
       "id": "3541",
@@ -1062,7 +1095,8 @@
         "kis lastigi",
         "otomotiv ekipmani"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "parts"
     },
     "motosiklet-ekipmanlari": {
       "id": "3542",
@@ -1082,7 +1116,8 @@
         "motosiklet ekipmani",
         "motor ekipmanlari"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "parts"
     },
     "deniz-araci-ekipmanlari": {
       "id": "3543",
@@ -1099,7 +1134,8 @@
         "capa",
         "deniz araci ekipmani"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "parts"
     },
     "ikinci-el-ve-sifir-alisveris": {
       "id": "3550",
@@ -1114,7 +1150,8 @@
         "spot",
         "ikinci el alisveris"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "bilgisayar": {
       "id": "3551",
@@ -1130,7 +1167,8 @@
         "pc bilesenleri",
         "pc bileseni"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "cep-telefonu-aksesuar": {
       "id": "3552",
@@ -1146,7 +1184,8 @@
         "powerbank",
         "magsafe"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "phone"
     },
     "fotograf-kamera": {
       "id": "3553",
@@ -1164,7 +1203,8 @@
         "gopro",
         "dji"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "ev-dekorasyon": {
       "id": "3554",
@@ -1182,7 +1222,8 @@
         "hali",
         "aydinlatma"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "ev-elektronigi": {
       "id": "3555",
@@ -1197,7 +1238,8 @@
         "soundbar",
         "amfi ses"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "elektrikli-ev-aletleri": {
       "id": "3556",
@@ -1217,7 +1259,8 @@
         "tost makinesi",
         "dyson"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "giyim-aksesuar": {
       "id": "3557",
@@ -1235,7 +1278,8 @@
         "sneaker",
         "elbise"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "saat": {
       "id": "3558",
@@ -1250,7 +1294,8 @@
         "masa saati",
         "antika saat"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "anne-bebek": {
       "id": "3559",
@@ -1266,7 +1311,8 @@
         "mama sandalyesi",
         "bebek telsizi"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "kisisel-bakim-kozmetik": {
       "id": "3560",
@@ -1283,7 +1329,8 @@
         "sac sekillendirici",
         "airwrap"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "hobi-oyuncak": {
       "id": "3561",
@@ -1301,7 +1348,8 @@
         "rc araba",
         "kutu oyunu"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "oyunculara-ozel": {
       "id": "3562",
@@ -1318,7 +1366,8 @@
         "gaming mouse",
         "direksiyon seti"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "kitap-dergi-film": {
       "id": "3563",
@@ -1335,7 +1384,8 @@
         "plak film",
         "roman"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "muzik": {
       "id": "3564",
@@ -1354,7 +1404,8 @@
         "studyo ekipmani",
         "keman"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "spor": {
       "id": "3565",
@@ -1373,7 +1424,8 @@
         "pilates",
         "antrenman"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "taki-mucevher": {
       "id": "3566",
@@ -1391,7 +1443,8 @@
         "kolye",
         "bilezik"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "koleksiyon": {
       "id": "3567",
@@ -1409,7 +1462,8 @@
         "caki",
         "zippo"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "antika": {
       "id": "3568",
@@ -1425,7 +1479,8 @@
         "porselen",
         "pirinc"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "bahce-yapi-market": {
       "id": "3569",
@@ -1444,7 +1499,8 @@
         "kompresor",
         "el aleti"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "teknik-elektronik": {
       "id": "3570",
@@ -1462,7 +1518,8 @@
         "komponent",
         "lehim istasyonu"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "ofis-kirtasiye": {
       "id": "3571",
@@ -1479,7 +1536,8 @@
         "dolma kalem",
         "calisma masasi"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "yiyecek-icecek": {
       "id": "3572",
@@ -1495,7 +1553,8 @@
         "koy urunleri",
         "koy uruni"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "diger-her-sey": {
       "id": "3573",
@@ -1509,7 +1568,8 @@
         "cesitli urunler",
         "muhtelif"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "is-makineleri-sanayi": {
       "id": "3580",
@@ -1520,9 +1580,12 @@
       "aliases": [
         "is makineleri sanayi",
         "is makineleri ve sanayi",
-        "sanayi ve is makineleri"
+        "sanayi ve is makineleri",
+        "sanayi ve is makinesi",
+        "is makinesi ve sanayi"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "industrial_generic"
     },
     "hayvanlar-alemi": {
       "id": "3581",
@@ -1538,7 +1601,8 @@
         "evcil hayvan",
         "kedi kopek malzemei"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "animal"
     },
     "ustalar-ve-hizmetler": {
       "id": "3582",
@@ -1555,7 +1619,8 @@
         "tesisatci",
         "usta"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "service"
     },
     "ozel-ders-verenler": {
       "id": "3583",
@@ -1570,7 +1635,8 @@
         "ingilizce ozel ders",
         "direksiyon dersi"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "lesson"
     },
     "is-ilanlari": {
       "id": "3584",
@@ -1587,7 +1653,8 @@
         "satis temsilcisi",
         "garson"
       ],
-      "facets": {}
+      "facets": {},
+      "profile": "job"
     },
     "bisiklet": {
       "id": "4001",
@@ -1612,7 +1679,8 @@
         "sehir bisikleti"
       ],
       "category_group": "İkinci El & Ev",
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "traktor": {
       "id": "4002",
@@ -1673,7 +1741,8 @@
         "ankastre"
       ],
       "category_group": "İkinci El & Ev",
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "isitma-sogutma-havalandirma": {
       "id": "3575",
@@ -1699,7 +1768,8 @@
         "vantilator"
       ],
       "category_group": "İkinci El & Ev",
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "satilik-tarla": {
       "id": "3576",
@@ -1717,7 +1787,8 @@
         "mustakil tarla"
       ],
       "category_group": "Emlak",
-      "facets": {}
+      "facets": {},
+      "profile": "property_land"
     },
     "kiralik-villa": {
       "id": "4003",
@@ -1733,7 +1804,8 @@
         "tatil villasi"
       ],
       "category_group": "Emlak",
-      "facets": {}
+      "facets": {},
+      "profile": "property_home"
     },
     "gunluk-kiralik-daire": {
       "id": "3590",
@@ -1749,7 +1821,8 @@
         "gunluk rezidans"
       ],
       "category_group": "Emlak",
-      "facets": {}
+      "facets": {},
+      "profile": "property_home"
     },
     "jant-lastik": {
       "id": "3600",
@@ -1772,7 +1845,8 @@
         "lassa"
       ],
       "category_group": "Yedek Parça",
-      "facets": {}
+      "facets": {},
+      "profile": "parts"
     },
     "cevre-birimleri": {
       "id": "3610",
@@ -1794,7 +1868,8 @@
         "steelseries"
       ],
       "category_group": "Donanım",
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "dronlar-multikopter": {
       "id": "3620",
@@ -1812,7 +1887,8 @@
         "fpv dron"
       ],
       "category_group": "Elektronik",
-      "facets": {}
+      "facets": {},
+      "profile": "commerce"
     },
     "kamp-doga-sporlari": {
       "id": "3630",
@@ -1831,7 +1907,8 @@
         "dagcilik"
       ],
       "category_group": "İkinci El & Ev",
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "avcilik-balikcilik": {
       "id": "3640",
@@ -1851,7 +1928,8 @@
         "daiwa"
       ],
       "category_group": "İkinci El & Ev",
-      "facets": {}
+      "facets": {},
+      "profile": "commerce_generic"
     },
     "motosiklet-scooter": {
       "id": "3650",
@@ -1872,7 +1950,8 @@
         "kymco"
       ],
       "category_group": "Vasıta",
-      "facets": {}
+      "facets": {},
+      "profile": "vehicle_motorcycle"
     },
     "atv-utv": {
       "id": "3660",
@@ -1890,7 +1969,8 @@
         "dort teker"
       ],
       "category_group": "Vasıta",
-      "facets": {}
+      "facets": {},
+      "profile": "vehicle_generic"
     },
     "is-makineleri": {
       "id": "3670",
@@ -1911,7 +1991,8 @@
         "komatsu"
       ],
       "category_group": "İş Makineleri",
-      "facets": {}
+      "facets": {},
+      "profile": "industrial_machine"
     },
     "sanayi": {
       "id": "3680",
@@ -1931,7 +2012,8 @@
         "tezgah"
       ],
       "category_group": "İş Makineleri",
-      "facets": {}
+      "facets": {},
+      "profile": "industrial_generic"
     },
     "yenilenmis-teknolojik-cihazlar": {
       "id": "c0278",
@@ -1945,7 +2027,11 @@
         "yenilenmis cihaz",
         "yepyeni",
         "refurbished",
-        "yenilenmis urun"
+        "yenilenmis urun",
+        "teknolojik cihaz",
+        "teknolojik",
+        "teknoloji",
+        "yepyeni teknolojik cihazlar"
       ],
       "facets": {}
     },
@@ -2397,6 +2483,1685 @@
       "name": "Yardımcı Arayanlar",
       "emoji": "🤝",
       "profile": "helper"
+    }
+  },
+  "profiles": {
+    "classified": {
+      "title": "Genel ilan araması",
+      "confidence": "Ortak alanlar",
+      "description": "İlan listeleme sayfalarında sık görülen ortak arama kontrolleri. Kategoriye/oturuma göre bazı alanlar değişebilir.",
+      "fields": [
+        {
+          "label": "Kelime / ilan no / mağaza adı",
+          "type": "text",
+          "options_or_note": "Başlık, ilan numarası veya mağaza adı"
+        },
+        {
+          "label": "İl",
+          "type": "select",
+          "options_or_note": "Konuma göre"
+        },
+        {
+          "label": "İlçe",
+          "type": "select",
+          "options_or_note": "İl seçimine bağlı"
+        },
+        {
+          "label": "Semt / mahalle",
+          "type": "select",
+          "options_or_note": "Konuma göre"
+        },
+        {
+          "label": "Fiyat",
+          "type": "range",
+          "options_or_note": "Alt–üst; para birimi ayrı seçilir"
+        },
+        {
+          "label": "Para birimi",
+          "type": "multi",
+          "options_or_note": "TL, USD, EUR, GBP"
+        },
+        {
+          "label": "İlan tarihi",
+          "type": "multi",
+          "options_or_note": "Son 24 saat, 3 gün, 7 gün, 15 gün, 30 gün"
+        },
+        {
+          "label": "Fotoğraflı ilanlar",
+          "type": "boolean",
+          "options_or_note": "Varsa"
+        },
+        {
+          "label": "Videolu ilanlar",
+          "type": "boolean",
+          "options_or_note": "Varsa"
+        },
+        {
+          "label": "İlan açıklamalarını dahil et",
+          "type": "boolean",
+          "options_or_note": "Kelime aramasına açıklamayı kat"
+        },
+        {
+          "label": "Sıralama",
+          "type": "select",
+          "options_or_note": "Fiyat, tarih, adres vb."
+        },
+        {
+          "label": "Haritalı ilanlar",
+          "type": "boolean",
+          "options_or_note": "Kategori/konum destekliyorsa"
+        }
+      ]
+    },
+    "commerce": {
+      "title": "İkinci el / alışveriş",
+      "confidence": "Kategori sayfasından doğrulanan ortak alanlar",
+      "description": "Bilgisayar ve Ev Dekorasyon gibi alışveriş kategorilerinde görülen ortak filtreler.",
+      "fields": [
+        {
+          "label": "Durumu",
+          "type": "multi",
+          "options_or_note": "İkinci El, Sıfır, Tümü"
+        },
+        {
+          "label": "Alışveriş seçeneği",
+          "type": "multi",
+          "options_or_note": "Yüz yüze görüşerek, Param Güvende ile, Tümü"
+        },
+        {
+          "label": "Kartla ödeme / kargo",
+          "type": "boolean",
+          "options_or_note": "Kategoriye göre"
+        },
+        {
+          "label": "Ücretsiz kargo",
+          "type": "boolean",
+          "options_or_note": "Desteklenen kategorilerde"
+        },
+        {
+          "label": "Kimden",
+          "type": "multi",
+          "options_or_note": "Sahibinden / mağaza veya kurumsal seçenekler; kategoriye göre"
+        },
+        {
+          "label": "Takas",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır; kategoriye göre"
+        },
+        {
+          "label": "Teklif verilebilir ilanlar",
+          "type": "boolean",
+          "options_or_note": "Uygun alışveriş ilanlarında"
+        },
+        {
+          "label": "Konum ve fiyat",
+          "type": "group",
+          "options_or_note": "İl, ilçe, fiyat aralığı, para birimi"
+        },
+        {
+          "label": "İlan tarihi ve medya",
+          "type": "group",
+          "options_or_note": "Tarih, fotoğraf, video, MegaFotolu ilanlar"
+        },
+        {
+          "label": "Kelime filtresi",
+          "type": "text",
+          "options_or_note": "Başlık; seçeneğe bağlı açıklama"
+        }
+      ]
+    },
+    "property_home": {
+      "title": "Konut filtresi",
+      "confidence": "Konut arama sayfalarından doğrulanan örnek alanlar",
+      "description": "Satılık daire sayfalarında görülen alanlar örnek alınmıştır. Satış/kiralama ve konut türüne göre bazı alanlar değişebilir.",
+      "fields": [
+        {
+          "label": "İşlem türü",
+          "type": "multi",
+          "options_or_note": "Satılık / Kiralık / Günlük kiralık (uygun dallarda)"
+        },
+        {
+          "label": "m² (brüt/net)",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Oda sayısı",
+          "type": "multi",
+          "options_or_note": "Stüdyo, 1+1, 2+1 vb."
+        },
+        {
+          "label": "Bina yaşı",
+          "type": "multi",
+          "options_or_note": "Kademeli aralıklar"
+        },
+        {
+          "label": "Bulunduğu kat",
+          "type": "multi",
+          "options_or_note": "Bodrum, giriş, ara kat, çatı vb."
+        },
+        {
+          "label": "Kat sayısı",
+          "type": "multi",
+          "options_or_note": "1…30 ve üzeri"
+        },
+        {
+          "label": "Isıtma",
+          "type": "multi",
+          "options_or_note": "Soba, merkezi, kombi, yerden ısıtma, klima vb."
+        },
+        {
+          "label": "Banyo sayısı",
+          "type": "multi",
+          "options_or_note": "Yok, 1…6 ve üzeri"
+        },
+        {
+          "label": "Mutfak",
+          "type": "multi",
+          "options_or_note": "Açık (Amerikan) / Kapalı"
+        },
+        {
+          "label": "Balkon",
+          "type": "multi",
+          "options_or_note": "Var / Yok"
+        },
+        {
+          "label": "Asansör",
+          "type": "multi",
+          "options_or_note": "Var / Yok"
+        },
+        {
+          "label": "Otopark",
+          "type": "multi",
+          "options_or_note": "Açık / Kapalı / Her ikisi / Yok"
+        },
+        {
+          "label": "Eşyalı",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır"
+        },
+        {
+          "label": "Kullanım durumu",
+          "type": "multi",
+          "options_or_note": "Boş / Kiracılı / Mülk sahibi"
+        },
+        {
+          "label": "Site içerisinde",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır"
+        },
+        {
+          "label": "Krediye uygun",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır"
+        },
+        {
+          "label": "Tapu durumu",
+          "type": "multi",
+          "options_or_note": "Kat mülkiyeti, kat irtifakı, hisseli vb."
+        },
+        {
+          "label": "Kimden",
+          "type": "multi",
+          "options_or_note": "Sahibinden, emlak ofisi, inşaat firması, banka vb."
+        },
+        {
+          "label": "Takaslı",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır"
+        },
+        {
+          "label": "Fotoğraf / video / sanal tur",
+          "type": "multi",
+          "options_or_note": "Kategoriye göre seçenekler"
+        }
+      ]
+    },
+    "property_land": {
+      "title": "Arsa filtresi",
+      "confidence": "Satılık arsa arama sayfasından doğrulanan alanlar",
+      "description": "Arsa türü ve lokasyona göre seçim değerleri değişebilir.",
+      "fields": [
+        {
+          "label": "İmar durumu",
+          "type": "multi",
+          "options_or_note": "Konut, ticari, sanayi, tarla, bağ-bahçe, turizm vb."
+        },
+        {
+          "label": "m²",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "m² fiyatı",
+          "type": "range",
+          "options_or_note": "Para birimine göre alt–üst"
+        },
+        {
+          "label": "Ada no",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Parsel no",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "KAKS (emsal)",
+          "type": "multi",
+          "options_or_note": "0.05 ve üzeri, Belirtilmemiş"
+        },
+        {
+          "label": "Gabari",
+          "type": "multi",
+          "options_or_note": "Yükseklik değeri / Serbest / Belirtilmemiş"
+        },
+        {
+          "label": "Krediye uygunluk",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır / Bilinmiyor"
+        },
+        {
+          "label": "Tapu durumu",
+          "type": "multi",
+          "options_or_note": "Hisseli, müstakil, tahsis, zilliyet, kooperatif vb."
+        },
+        {
+          "label": "Kimden",
+          "type": "multi",
+          "options_or_note": "Sahibinden, emlak ofisi, inşaat firması, banka"
+        },
+        {
+          "label": "Takaslı",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır"
+        },
+        {
+          "label": "Haritalı ilanlar",
+          "type": "boolean",
+          "options_or_note": "Varsa"
+        }
+      ]
+    },
+    "property_commercial": {
+      "title": "İş yeri / ticari emlak filtresi",
+      "confidence": "Emlak arama mantığına göre uyarlanmış profil",
+      "description": "İş yeri türü ve işlem türüne göre alanlar farklılaşır; alt uç kategoride site üzerinden kontrol edilmelidir.",
+      "fields": [
+        {
+          "label": "İş yeri türü",
+          "type": "multi",
+          "options_or_note": "Ofis, dükkan, depo, fabrika, atölye, plaza vb."
+        },
+        {
+          "label": "İşlem türü",
+          "type": "multi",
+          "options_or_note": "Satılık / Kiralık / Devren"
+        },
+        {
+          "label": "m²",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Bina yaşı",
+          "type": "multi",
+          "options_or_note": "Kademeli"
+        },
+        {
+          "label": "Bulunduğu kat / kat sayısı",
+          "type": "multi",
+          "options_or_note": "Bina özellikleri"
+        },
+        {
+          "label": "Isıtma",
+          "type": "multi",
+          "options_or_note": "Kategoriye göre"
+        },
+        {
+          "label": "Kullanım durumu",
+          "type": "multi",
+          "options_or_note": "Boş / kiracılı vb."
+        },
+        {
+          "label": "Krediye uygun / tapu",
+          "type": "multi",
+          "options_or_note": "Kategoriye göre"
+        },
+        {
+          "label": "Kimden / takas",
+          "type": "multi",
+          "options_or_note": "İlan sahibine göre"
+        }
+      ]
+    },
+    "property_misc": {
+      "title": "Diğer emlak",
+      "confidence": "Genel emlak alanları; alt kategoriye göre uyarlanmalı",
+      "description": "Bina, devre mülk, konut projesi ve turistik tesislerde özel alanlar değişir.",
+      "fields": [
+        {
+          "label": "İşlem türü",
+          "type": "multi",
+          "options_or_note": "Satılık / Kiralık / devren; desteklenen türlerde"
+        },
+        {
+          "label": "Alan / kapasite",
+          "type": "range",
+          "options_or_note": "m², oda veya yatak kapasitesi gibi tipe bağlı alan"
+        },
+        {
+          "label": "Fiyat",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Bina / tesis özellikleri",
+          "type": "group",
+          "options_or_note": "Yapı yaşı, kat, oda, kullanım türüne göre"
+        },
+        {
+          "label": "Tapu / kredi uygunluğu",
+          "type": "multi",
+          "options_or_note": "Kategori destekliyorsa"
+        },
+        {
+          "label": "Kimden",
+          "type": "multi",
+          "options_or_note": "Sahibinden / ofis / firma / banka"
+        },
+        {
+          "label": "Konum / ilan tarihi / medya",
+          "type": "group",
+          "options_or_note": "Ortak arama alanları"
+        }
+      ]
+    },
+    "vehicle_car": {
+      "title": "Otomobil filtresi",
+      "confidence": "Otomobil arama sayfası ve ilan detaylarında görülen alanlara dayalı",
+      "description": "Marka-seri-model seçimleri birbirine bağlıdır; tüm marka/model değerleri canlı katalogdur.",
+      "fields": [
+        {
+          "label": "Araç durumu",
+          "type": "multi",
+          "options_or_note": "İkinci el / sıfır"
+        },
+        {
+          "label": "Marka",
+          "type": "select",
+          "options_or_note": "Dinamik marka listesi"
+        },
+        {
+          "label": "Seri",
+          "type": "select",
+          "options_or_note": "Markaya göre"
+        },
+        {
+          "label": "Model",
+          "type": "select",
+          "options_or_note": "Seriye göre"
+        },
+        {
+          "label": "Yıl",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Kilometre",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Yakıt",
+          "type": "multi",
+          "options_or_note": "Benzin, dizel, LPG, hibrit vb."
+        },
+        {
+          "label": "Vites",
+          "type": "multi",
+          "options_or_note": "Manuel / otomatik / yarı otomatik"
+        },
+        {
+          "label": "Motor hacmi",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Motor gücü",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Çekiş",
+          "type": "multi",
+          "options_or_note": "Önden / arkadan / dört çeker"
+        },
+        {
+          "label": "Kasa tipi",
+          "type": "multi",
+          "options_or_note": "Sedan, hatchback, SUV vb."
+        },
+        {
+          "label": "Renk",
+          "type": "multi",
+          "options_or_note": "Renk listesi"
+        },
+        {
+          "label": "Hasar / boya / değişen",
+          "type": "multi",
+          "options_or_note": "Varsa kategori filtresi"
+        },
+        {
+          "label": "Garanti",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır; destekliyorsa"
+        },
+        {
+          "label": "Kimden",
+          "type": "multi",
+          "options_or_note": "Sahibinden / galeri vb."
+        },
+        {
+          "label": "Takas",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır"
+        },
+        {
+          "label": "Plaka / menşei",
+          "type": "multi",
+          "options_or_note": "Kategori destekliyorsa"
+        }
+      ]
+    },
+    "vehicle_generic": {
+      "title": "Vasıta filtresi",
+      "confidence": "Vasıta kategorisine göre uyarlanan alanlar",
+      "description": "Araç türüne göre teknik alanlar değişir; otomobildeki bütün alanlar motosiklet, tekne veya karavana uygulanmamalıdır.",
+      "fields": [
+        {
+          "label": "Araç tipi / kategori",
+          "type": "select",
+          "options_or_note": "Üst kategorinin altında"
+        },
+        {
+          "label": "Marka",
+          "type": "select",
+          "options_or_note": "Dinamik liste"
+        },
+        {
+          "label": "Model / seri",
+          "type": "select",
+          "options_or_note": "Markaya göre"
+        },
+        {
+          "label": "Model yılı",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Kullanım / çalışma bilgisi",
+          "type": "range",
+          "options_or_note": "KM, saat, uzunluk vb. taşıt tipine göre"
+        },
+        {
+          "label": "Yakıt / motor / güç",
+          "type": "group",
+          "options_or_note": "Uygun araç tiplerinde"
+        },
+        {
+          "label": "Vites / çekiş",
+          "type": "multi",
+          "options_or_note": "Destekleyen araç tiplerinde"
+        },
+        {
+          "label": "Durum",
+          "type": "multi",
+          "options_or_note": "Sıfır / ikinci el / hasarlı vb."
+        },
+        {
+          "label": "Kimden",
+          "type": "multi",
+          "options_or_note": "Sahibinden / işletme"
+        },
+        {
+          "label": "Takas",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır"
+        },
+        {
+          "label": "Fiyat / konum / tarih",
+          "type": "group",
+          "options_or_note": "Ortak alanlar"
+        }
+      ]
+    },
+    "vehicle_motorcycle": {
+      "title": "Motosiklet filtresi",
+      "confidence": "Motosiklet sayfalarında görülen alan örnekleri",
+      "description": "Marka/model listesi değişkendir; filtre seçenekleri seçime göre daralabilir.",
+      "fields": [
+        {
+          "label": "Marka",
+          "type": "select",
+          "options_or_note": "Dinamik liste"
+        },
+        {
+          "label": "Seri / model",
+          "type": "select",
+          "options_or_note": "Markaya göre"
+        },
+        {
+          "label": "Yıl",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Kilometre",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Motor hacmi",
+          "type": "range",
+          "options_or_note": "cc aralığı"
+        },
+        {
+          "label": "Vites",
+          "type": "multi",
+          "options_or_note": "Manuel / otomatik; kategoriye göre"
+        },
+        {
+          "label": "Araç durumu",
+          "type": "multi",
+          "options_or_note": "İkinci el / sıfır"
+        },
+        {
+          "label": "Kimden",
+          "type": "multi",
+          "options_or_note": "Sahibinden / mağaza"
+        },
+        {
+          "label": "Takas",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır"
+        },
+        {
+          "label": "Fiyat / konum / ilan tarihi",
+          "type": "group",
+          "options_or_note": "Ortak alanlar"
+        }
+      ]
+    },
+    "vehicle_marine": {
+      "title": "Deniz aracı filtresi",
+      "confidence": "Araç tipine özel şablon; alt sayfada doğrulanmalı",
+      "description": "Tekne, yat ve deniz motorlarında teknik alanlar farklılaşır.",
+      "fields": [
+        {
+          "label": "Araç tipi",
+          "type": "select",
+          "options_or_note": "Tekne / yat / bot / deniz motoru vb."
+        },
+        {
+          "label": "Marka / model",
+          "type": "select",
+          "options_or_note": "Dinamik"
+        },
+        {
+          "label": "Model yılı",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Uzunluk",
+          "type": "range",
+          "options_or_note": "Metre aralığı"
+        },
+        {
+          "label": "Motor / güç",
+          "type": "group",
+          "options_or_note": "Motor sayısı ve güç gibi uygun alanlar"
+        },
+        {
+          "label": "Gövde malzemesi",
+          "type": "multi",
+          "options_or_note": "Kategori destekliyorsa"
+        },
+        {
+          "label": "Durum / kimden / takas",
+          "type": "group",
+          "options_or_note": "İlan türüne göre"
+        },
+        {
+          "label": "Fiyat / konum / tarih",
+          "type": "group",
+          "options_or_note": "Ortak alanlar"
+        }
+      ]
+    },
+    "parts": {
+      "title": "Yedek parça / ekipman",
+      "confidence": "Ana kategoriler resmî liste, alanlar kategoriye göre tasarım profili",
+      "description": "Araç uyumluluğu ve parça türü ana filtrelerdir; bazı alanlar her alt kategoride yer almayabilir.",
+      "fields": [
+        {
+          "label": "Parça / ekipman türü",
+          "type": "select",
+          "options_or_note": "Alt kategori"
+        },
+        {
+          "label": "Uyumlu araç tipi",
+          "type": "multi",
+          "options_or_note": "Otomobil / motosiklet / deniz aracı vb."
+        },
+        {
+          "label": "Marka",
+          "type": "select",
+          "options_or_note": "Üretici / uyumlu araç markası"
+        },
+        {
+          "label": "Model / yıl aralığı",
+          "type": "group",
+          "options_or_note": "Uygun üründe"
+        },
+        {
+          "label": "Ürün durumu",
+          "type": "multi",
+          "options_or_note": "Sıfır / ikinci el"
+        },
+        {
+          "label": "Orijinal / yan sanayi",
+          "type": "multi",
+          "options_or_note": "Kategori destekliyorsa"
+        },
+        {
+          "label": "Fiyat / konum / teslimat",
+          "type": "group",
+          "options_or_note": "Alışveriş ortak alanları"
+        },
+        {
+          "label": "Kimden / takas",
+          "type": "group",
+          "options_or_note": "Kategoriye göre"
+        }
+      ]
+    },
+    "desktop_pc": {
+      "title": "Masaüstü bilgisayar filtresi",
+      "confidence": "Kategori sayfası ve ilan detaylarında doğrudan görülen alanlar",
+      "description": "Sahibinden masaüstü bilgisayar ilanlarında aşağıdaki teknik alanlar doğrudan listeleniyor.",
+      "fields": [
+        {
+          "label": "Marka",
+          "type": "select",
+          "options_or_note": "Toplama ve marka seçenekleri"
+        },
+        {
+          "label": "Ekran boyutu",
+          "type": "multi",
+          "options_or_note": "Ekransız / inç seçenekleri"
+        },
+        {
+          "label": "Ekran kartı",
+          "type": "multi",
+          "options_or_note": "Paylaşımlı / GB değeri"
+        },
+        {
+          "label": "Kasa",
+          "type": "multi",
+          "options_or_note": "Dikey (Tower), All-in-One vb."
+        },
+        {
+          "label": "RAM bellek",
+          "type": "multi",
+          "options_or_note": "GB seçenekleri"
+        },
+        {
+          "label": "İşlemci",
+          "type": "select",
+          "options_or_note": "Intel / AMD model ailesi"
+        },
+        {
+          "label": "Harddisk kapasitesi",
+          "type": "multi",
+          "options_or_note": "GB/TB; yok seçeneği olabilir"
+        },
+        {
+          "label": "SSD kapasitesi",
+          "type": "multi",
+          "options_or_note": "GB/TB; yok seçeneği olabilir"
+        },
+        {
+          "label": "Durumu",
+          "type": "multi",
+          "options_or_note": "İkinci El / Sıfır"
+        },
+        {
+          "label": "Kimden",
+          "type": "multi",
+          "options_or_note": "Sahibinden / mağaza"
+        },
+        {
+          "label": "Takas",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır"
+        }
+      ]
+    },
+    "phone": {
+      "title": "Cep telefonu filtresi",
+      "confidence": "Kategori ağacı + ilan sonuçlarında görülen marka/model bilgileri",
+      "description": "Marka ve model ilişkisi dinamik. Aşağıdaki teknik özellikler tasarım alanlarıdır; her birinin canlı filtre olarak açık olması alt sayfada kontrol edilmelidir.",
+      "fields": [
+        {
+          "label": "Ürün grubu",
+          "type": "select",
+          "options_or_note": "Cep telefonu / yenilenmiş / giyilebilir / aksesuar / yedek parça / numara"
+        },
+        {
+          "label": "Marka",
+          "type": "select",
+          "options_or_note": "Apple, Samsung vb. dinamik liste"
+        },
+        {
+          "label": "Model",
+          "type": "select",
+          "options_or_note": "Markaya bağlı"
+        },
+        {
+          "label": "Dahili hafıza",
+          "type": "multi",
+          "options_or_note": "GB seçenekleri"
+        },
+        {
+          "label": "RAM",
+          "type": "multi",
+          "options_or_note": "Cihaz modeline göre"
+        },
+        {
+          "label": "Renk",
+          "type": "multi",
+          "options_or_note": "Renk listesi"
+        },
+        {
+          "label": "Durum",
+          "type": "multi",
+          "options_or_note": "Sıfır / ikinci el / yenilenmiş"
+        },
+        {
+          "label": "Garanti",
+          "type": "multi",
+          "options_or_note": "Varsa"
+        },
+        {
+          "label": "Satıcı / alışveriş",
+          "type": "group",
+          "options_or_note": "Sahibinden/mağaza, kargo ve ödeme alanları"
+        },
+        {
+          "label": "Fiyat / lokasyon / tarih",
+          "type": "group",
+          "options_or_note": "Ortak alanlar"
+        }
+      ]
+    },
+    "commerce_generic": {
+      "title": "Ürün arama filtresi",
+      "confidence": "Alışveriş kategori sayfasından doğrulanan ortak alanlar",
+      "description": "Ürün tipine özel teknik/beden/renk alanları dinamik olarak bu profile eklenir.",
+      "fields": [
+        {
+          "label": "Ürün tipi",
+          "type": "select",
+          "options_or_note": "Alt kategori"
+        },
+        {
+          "label": "Marka / model",
+          "type": "group",
+          "options_or_note": "Ürüne göre"
+        },
+        {
+          "label": "Durumu",
+          "type": "multi",
+          "options_or_note": "İkinci El / Sıfır / Tümü"
+        },
+        {
+          "label": "Renk / beden / ölçü",
+          "type": "group",
+          "options_or_note": "Uygun ürün türlerinde"
+        },
+        {
+          "label": "Kimden",
+          "type": "multi",
+          "options_or_note": "Sahibinden / mağaza vb."
+        },
+        {
+          "label": "Alışveriş seçenekleri",
+          "type": "multi",
+          "options_or_note": "Yüz yüze, Param Güvende, kart/kargo seçenekleri"
+        },
+        {
+          "label": "Fiyat / konum / tarih",
+          "type": "group",
+          "options_or_note": "Ortak alanlar"
+        },
+        {
+          "label": "Fotoğraf / video / açıklama araması",
+          "type": "group",
+          "options_or_note": "Ortak alanlar"
+        },
+        {
+          "label": "Teklif verilebilir",
+          "type": "boolean",
+          "options_or_note": "Desteklenen alışveriş ilanlarında"
+        }
+      ]
+    },
+    "industrial_machine": {
+      "title": "İş makinesi filtresi",
+      "confidence": "İş makinesi ilan detaylarında görülen alan örnekleri",
+      "description": "Makine cinsine göre ilave teknik filtreler gerekir.",
+      "fields": [
+        {
+          "label": "Makine türü",
+          "type": "select",
+          "options_or_note": "Kazıcı-yükleyici, forklift, ekskavatör vb."
+        },
+        {
+          "label": "Marka",
+          "type": "select",
+          "options_or_note": "Dinamik"
+        },
+        {
+          "label": "Model yılı",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Çalışma saati",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Lastik durumu (%)",
+          "type": "range",
+          "options_or_note": "Uygun araçlarda"
+        },
+        {
+          "label": "Yengeç yürüyüşü",
+          "type": "multi",
+          "options_or_note": "Var / Yok; uygun makinelerde"
+        },
+        {
+          "label": "Durumu",
+          "type": "multi",
+          "options_or_note": "İkinci El / Sıfır"
+        },
+        {
+          "label": "Kimden",
+          "type": "multi",
+          "options_or_note": "Sahibinden / işletme"
+        },
+        {
+          "label": "Fiyat / konum / tarih",
+          "type": "group",
+          "options_or_note": "Ortak alanlar"
+        }
+      ]
+    },
+    "agri_machine": {
+      "title": "Tarım makinesi filtresi",
+      "confidence": "Tarım Makineleri ve alt sayfalarında görülen kategori düzeyi",
+      "description": "Traktör ve ekipmanda marka/model ile ekipman türü ayrıştırılmalıdır.",
+      "fields": [
+        {
+          "label": "Makine grubu",
+          "type": "select",
+          "options_or_note": "Traktör, toprak işleme, hasat, ekim-dikim vb."
+        },
+        {
+          "label": "Marka / model",
+          "type": "select",
+          "options_or_note": "Dinamik"
+        },
+        {
+          "label": "Model yılı",
+          "type": "range",
+          "options_or_note": "Alt–üst"
+        },
+        {
+          "label": "Çalışma saati",
+          "type": "range",
+          "options_or_note": "Uygun makinelerde"
+        },
+        {
+          "label": "Durumu",
+          "type": "multi",
+          "options_or_note": "İkinci El / Sıfır"
+        },
+        {
+          "label": "Kimden",
+          "type": "multi",
+          "options_or_note": "Sahibinden / işletme"
+        },
+        {
+          "label": "Fiyat / konum / tarih",
+          "type": "group",
+          "options_or_note": "Ortak alanlar"
+        }
+      ]
+    },
+    "industrial_generic": {
+      "title": "Sanayi / elektrik-enerji filtresi",
+      "confidence": "Genel kategori alanları ve ürün şablonu",
+      "description": "Ürün tipine göre güç, kapasite, faz, basınç veya üretim değerleri gibi teknik alanlar eklenebilir.",
+      "fields": [
+        {
+          "label": "Ürün / makine türü",
+          "type": "select",
+          "options_or_note": "Alt kategori"
+        },
+        {
+          "label": "Marka / model",
+          "type": "select",
+          "options_or_note": "Ürüne göre"
+        },
+        {
+          "label": "Kapasite / güç / ölçü",
+          "type": "group",
+          "options_or_note": "Teknik alan; tipe göre"
+        },
+        {
+          "label": "Durumu",
+          "type": "multi",
+          "options_or_note": "İkinci El / Sıfır"
+        },
+        {
+          "label": "Fiyat / konum / tarih",
+          "type": "group",
+          "options_or_note": "Ortak alanlar"
+        },
+        {
+          "label": "Kimden",
+          "type": "multi",
+          "options_or_note": "Satıcı türü"
+        },
+        {
+          "label": "Fotoğraf / video",
+          "type": "group",
+          "options_or_note": "Ortak alanlar"
+        }
+      ]
+    },
+    "service": {
+      "title": "Ustalar ve hizmetler filtresi",
+      "confidence": "Hizmetler ana sayfası ve yardım sayfalarıyla doğrulanan alanlar",
+      "description": "Hizmet kategorisi, hizmet adı ve il/ilçe ile arama destekleniyor. Hizmet ücreti profil fiyat listesinde ayrıca verilebilir; ilan fiyatı zorunlu değildir.",
+      "fields": [
+        {
+          "label": "Hizmet ana kategorisi",
+          "type": "select",
+          "options_or_note": "Ev Tadilat, Nakliye, Araç Servis, Teknik Servis, Düğün, Diğer, ACİL"
+        },
+        {
+          "label": "Hizmet alt kategorisi",
+          "type": "select",
+          "options_or_note": "Seçilen ana kategoriye bağlı"
+        },
+        {
+          "label": "Hizmet adı / kelime",
+          "type": "text",
+          "options_or_note": "Örn. çilingir, nakliye"
+        },
+        {
+          "label": "İl",
+          "type": "select",
+          "options_or_note": "Hizmet lokasyonu"
+        },
+        {
+          "label": "İlçe",
+          "type": "select",
+          "options_or_note": "İl seçimine bağlı"
+        },
+        {
+          "label": "İşletme / profil",
+          "type": "select",
+          "options_or_note": "Hizmet sağlayıcı profili"
+        },
+        {
+          "label": "Yorum / değerlendirme",
+          "type": "group",
+          "options_or_note": "Mevcutsa karşılaştırma için"
+        },
+        {
+          "label": "Fiyat listesi",
+          "type": "group",
+          "options_or_note": "Profil fiyat listesinde olabilir; zorunlu değil"
+        }
+      ]
+    },
+    "lesson": {
+      "title": "Özel ders filtresi",
+      "confidence": "Kategori dalı doğrulanmış; bazı alanlar uygulama tasarımında beklenen filtreler",
+      "description": "Ders alanı ve öğrenci seviyesi ana ayrımdır. Ücret/yer/yöntem gibi alanlar son kategori üzerinde doğrulanmalıdır.",
+      "fields": [
+        {
+          "label": "Ders kategorisi",
+          "type": "select",
+          "options_or_note": "16 ana ders kategorisi"
+        },
+        {
+          "label": "Ders / konu",
+          "type": "select",
+          "options_or_note": "Matematik, İngilizce vb. dalına göre"
+        },
+        {
+          "label": "Seviye",
+          "type": "multi",
+          "options_or_note": "İlkokul, ortaokul, lise, üniversite vb."
+        },
+        {
+          "label": "Dersi veren",
+          "type": "multi",
+          "options_or_note": "Öğretmen / uzman profil türü; doğrulanmalı"
+        },
+        {
+          "label": "Ders yeri",
+          "type": "multi",
+          "options_or_note": "Öğretmenin yeri / öğrencinin yeri / çevrim içi; doğrulanmalı"
+        },
+        {
+          "label": "Ücret",
+          "type": "range",
+          "options_or_note": "Saatlik ücret; kategori ekranında doğrulanmalı"
+        },
+        {
+          "label": "İl / ilçe",
+          "type": "group",
+          "options_or_note": "Ortak konum alanları"
+        },
+        {
+          "label": "İlan tarihi / kelime",
+          "type": "group",
+          "options_or_note": "Ortak alanlar"
+        }
+      ]
+    },
+    "job": {
+      "title": "İş ilanı filtresi",
+      "confidence": "İş ilanı kategori sayfalarında doğrudan görülen alanlar",
+      "description": "İş alanı ve pozisyon kategori kırılımıdır; formdaki filtreler ilan sayfasına göre değişebilir.",
+      "fields": [
+        {
+          "label": "İş alanı",
+          "type": "select",
+          "options_or_note": "26 ana iş kategorisi"
+        },
+        {
+          "label": "Pozisyon",
+          "type": "select",
+          "options_or_note": "İş alanına bağlı"
+        },
+        {
+          "label": "Çalışma şekli",
+          "type": "multi",
+          "options_or_note": "Dönemsel, staj, freelance, yarı zamanlı, tam zamanlı"
+        },
+        {
+          "label": "Eğitim durumu",
+          "type": "multi",
+          "options_or_note": "En az ilköğretim, lise, üniversite"
+        },
+        {
+          "label": "Deneyim",
+          "type": "multi",
+          "options_or_note": "Aranmıyor; en az 1–10 yıl"
+        },
+        {
+          "label": "Engelliye uygun",
+          "type": "multi",
+          "options_or_note": "Evet / Hayır; uygun sayfalarda"
+        },
+        {
+          "label": "İl / ilçe",
+          "type": "group",
+          "options_or_note": "Konum"
+        },
+        {
+          "label": "İlan tarihi",
+          "type": "multi",
+          "options_or_note": "Son 24 saat, 3/7/15/30 gün"
+        },
+        {
+          "label": "Kelime filtresi",
+          "type": "text",
+          "options_or_note": "İlan başlığı; açıklamaları dahil et seçeneği"
+        }
+      ]
+    },
+    "animal": {
+      "title": "Hayvanlar âlemi filtresi",
+      "confidence": "Ana hayvan kategorileri doğrulanmış; tür/ırk alanları kategoriye göre",
+      "description": "Hayvan ve ekipman ilanlarında alanlar birbirinden ayrılmalı. Evcil hayvanlarda ilan politikası ve sahiplendirme kuralları ayrıca uygulanmalıdır.",
+      "fields": [
+        {
+          "label": "İlan alt kategorisi",
+          "type": "select",
+          "options_or_note": "Evcil hayvan, balık, kümes hayvanı, büyükbaş vb."
+        },
+        {
+          "label": "Tür / ırk",
+          "type": "select",
+          "options_or_note": "Kategoriye göre dinamik değer"
+        },
+        {
+          "label": "Yaş",
+          "type": "range",
+          "options_or_note": "Uygun canlı kategorilerinde"
+        },
+        {
+          "label": "Cinsiyet",
+          "type": "multi",
+          "options_or_note": "Uygun canlı kategorilerinde"
+        },
+        {
+          "label": "Aşı / sağlık bilgisi",
+          "type": "multi",
+          "options_or_note": "İlan alanı olarak varsa; arama filtresi olduğuna dair doğrulama gerekir"
+        },
+        {
+          "label": "Ürün durumu",
+          "type": "multi",
+          "options_or_note": "Yem/aksesuar gibi ürün dallarında"
+        },
+        {
+          "label": "Fiyat / konum / tarih",
+          "type": "group",
+          "options_or_note": "Ortak alanlar"
+        },
+        {
+          "label": "Fotoğraf / video",
+          "type": "group",
+          "options_or_note": "Evcil hayvan ilanlarında fotoğraf/video kuralları bulunur"
+        }
+      ]
+    },
+    "helper": {
+      "title": "Yardımcı arayanlar filtresi",
+      "confidence": "Bakıcılık ve temizlik ilan sayfalarından doğrulanan alanlar",
+      "description": "İlan sahibinin aradığı hizmeti, çalışma biçimini ve lokasyonu tanımladığı yapı.",
+      "fields": [
+        {
+          "label": "Yardım alanı",
+          "type": "select",
+          "options_or_note": "Bebek & çocuk, yaşlı & hasta, temizlik & ev işleri"
+        },
+        {
+          "label": "Çalışma şekli",
+          "type": "multi",
+          "options_or_note": "Yatılı, tam zamanlı gündüzlü, yarı zamanlı, saatli"
+        },
+        {
+          "label": "Eğitim durumu",
+          "type": "multi",
+          "options_or_note": "İlköğretim, lise, üniversite"
+        },
+        {
+          "label": "Deneyim",
+          "type": "multi",
+          "options_or_note": "Aranmıyor / en az yıl"
+        },
+        {
+          "label": "İl / ilçe",
+          "type": "group",
+          "options_or_note": "Konum"
+        },
+        {
+          "label": "Ücret",
+          "type": "range",
+          "options_or_note": "Alt–üst; ilan kategorisine göre"
+        },
+        {
+          "label": "İlan tarihi",
+          "type": "multi",
+          "options_or_note": "Son 24 saat / 3, 7, 15, 30 gün"
+        },
+        {
+          "label": "Kelime",
+          "type": "text",
+          "options_or_note": "İlan içeriği"
+        }
+      ]
+    },
+    "desktop_cpu": {
+      "title": "Masaüstü işlemci — canlı filtre profili",
+      "confidence": "Canlı resmî kategori sayfasında kontrol edildi (26 Ekim 2026)",
+      "description": "Masaüstü > Donanım > İşlemci yolunda sayfa metninde görülen arama seçenekleri ve seçenek değerleri. İlan sayıları ve katalog değerleri zamanla değişebilir.",
+      "source_urls": [
+        "https://www.sahibinden.com/islemci-masaustu",
+        "https://www.sahibinden.com/masaustu-donanim"
+      ],
+      "fields": [
+        {
+          "label": "Durumu",
+          "type": "multi_select",
+          "options_or_note": "İkinci el / sıfır ilan durumu.",
+          "verified_on_live_site": true,
+          "options": [
+            "İkinci El",
+            "Sıfır",
+            "Tümü"
+          ],
+          "key": "condition"
+        },
+        {
+          "label": "Alışveriş seçeneği",
+          "type": "multi_select",
+          "options_or_note": "Yüz yüze veya Param Güvende.",
+          "verified_on_live_site": true,
+          "options": [
+            "Yüz Yüze Görüşerek",
+            "Param Güvende ile",
+            "Tümü"
+          ],
+          "key": "shopping_mode"
+        },
+        {
+          "label": "İl / ilçe",
+          "type": "dependent_select",
+          "options_or_note": "İl seçimine bağlı ilçe; Türkiye geneli seçeneği.",
+          "verified_on_live_site": true,
+          "options": [
+            "İl",
+            "İlçe",
+            "Türkiye"
+          ],
+          "key": "location"
+        },
+        {
+          "label": "Fiyat",
+          "type": "range",
+          "options_or_note": "Minimum ve maksimum; para birimi seçimi ayrıca yapılır.",
+          "verified_on_live_site": true,
+          "key": "price"
+        },
+        {
+          "label": "Para birimi",
+          "type": "single_select",
+          "options_or_note": "Sayfada görünen para birimi seçenekleri.",
+          "verified_on_live_site": true,
+          "options": [
+            "TL",
+            "USD",
+            "EUR",
+            "GBP"
+          ],
+          "key": "currency"
+        },
+        {
+          "label": "Marka",
+          "type": "multi_select",
+          "options_or_note": "İşlemci üreticisi.",
+          "verified_on_live_site": true,
+          "options": [
+            "AMD",
+            "Intel"
+          ],
+          "key": "brand"
+        },
+        {
+          "label": "Pin / Soket",
+          "type": "multi_select",
+          "options_or_note": "Canlı sayfa seçenekleri; etiketler sayfadaki yazımla tutuldu.",
+          "verified_on_live_site": true,
+          "options": [
+            "462 AMD",
+            "486 AMD",
+            "563 AMD",
+            "638 AMD",
+            "754 AMD",
+            "938 AMD",
+            "939 AMD",
+            "940 AMD",
+            "941 AMD",
+            "FM2",
+            "1207 AMD",
+            "1700 AMD",
+            "1974 AMD",
+            "AM2",
+            "AM2+",
+            "AM3",
+            "AM3+",
+            "AM4",
+            "AM5",
+            "SP3",
+            "SP3r2 (TR4)",
+            "SP3r3 (sTRX4)",
+            "SP3r4 (sWRX8)",
+            "296 Intel",
+            "370 Intel",
+            "423 Intel",
+            "468 Intel",
+            "478 Intel",
+            "771 Intel",
+            "775 Intel",
+            "1150 Intel",
+            "1151 Intel",
+            "1155 Intel",
+            "1156 Intel",
+            "1166 Intel",
+            "1200 Intel",
+            "1366 Intel",
+            "1700 Intel",
+            "1851 Intel",
+            "2011 Intel",
+            "2066 Intel",
+            "Slot"
+          ],
+          "key": "socket"
+        },
+        {
+          "label": "Ön Bellek",
+          "type": "multi_select",
+          "options_or_note": "Önbellek kapasitesi seçenekleri; sayfada görülen değerler.",
+          "verified_on_live_site": true,
+          "options": [
+            "128 KB",
+            "256 KB",
+            "512 KB",
+            "1 MB",
+            "2 MB",
+            "3 MB",
+            "4 MB",
+            "6 MB",
+            "8 MB",
+            "9 MB",
+            "10 MB",
+            "12 MB",
+            "14 MB",
+            "15 MB",
+            "16 MB",
+            "20 MB",
+            "32 MB",
+            "36 MB",
+            "64 MB",
+            "96 MB",
+            "128 MB"
+          ],
+          "key": "cache_size"
+        },
+        {
+          "label": "Takaslı",
+          "type": "multi_select",
+          "options_or_note": "Takas kabul eden / etmeyen ilanlar.",
+          "verified_on_live_site": true,
+          "options": [
+            "Evet",
+            "Hayır"
+          ],
+          "key": "trade"
+        },
+        {
+          "label": "Kelime ile filtrele",
+          "type": "text",
+          "options_or_note": "Kelime kutusu; ilan başlığı ve istenirse açıklamalar.",
+          "verified_on_live_site": true,
+          "key": "keyword"
+        },
+        {
+          "label": "İlan açıklamalarını dahil et",
+          "type": "boolean",
+          "options_or_note": "Kelime aramasını açıklamalar içine de uygular.",
+          "verified_on_live_site": true,
+          "options": [
+            "Açık",
+            "Kapalı"
+          ],
+          "key": "include_description"
+        },
+        {
+          "label": "Kimden",
+          "type": "multi_select",
+          "options_or_note": "İlan sahibi türü.",
+          "verified_on_live_site": true,
+          "options": [
+            "Sahibinden",
+            "Mağazadan"
+          ],
+          "key": "seller_type"
+        },
+        {
+          "label": "İlan tarihi",
+          "type": "multi_select",
+          "options_or_note": "İlanın yayın tarihi aralığı.",
+          "verified_on_live_site": true,
+          "options": [
+            "Son 24 saat",
+            "Son 3 gün içinde",
+            "Son 7 gün içinde",
+            "Son 15 gün içinde",
+            "Son 30 gün içinde"
+          ],
+          "key": "published_range"
+        },
+        {
+          "label": "Videolu ilanlar",
+          "type": "boolean",
+          "options_or_note": "Video içeren ilanlar.",
+          "verified_on_live_site": true,
+          "options": [
+            "Evet",
+            "Hayır"
+          ],
+          "key": "has_video"
+        },
+        {
+          "label": "Fotoğraflı ilanlar",
+          "type": "boolean",
+          "options_or_note": "Fotoğraf içeren ilanlar.",
+          "verified_on_live_site": true,
+          "options": [
+            "Evet",
+            "Hayır"
+          ],
+          "key": "has_photo"
+        },
+        {
+          "label": "MegaFotolu ilanlar",
+          "type": "boolean",
+          "options_or_note": "MegaFoto işaretli ilanlar.",
+          "verified_on_live_site": true,
+          "options": [
+            "Evet",
+            "Hayır"
+          ],
+          "key": "has_mega_photo"
+        },
+        {
+          "label": "Teklif verilebilir ilanlar",
+          "type": "boolean",
+          "options_or_note": "Teklife açık ilanları daraltır.",
+          "verified_on_live_site": true,
+          "options": [
+            "Evet",
+            "Hayır"
+          ],
+          "key": "offer_enabled"
+        },
+        {
+          "label": "Sıralama",
+          "type": "single_select",
+          "options_or_note": "İlan listesi sıralaması.",
+          "verified_on_live_site": true,
+          "options": [
+            "Gelişmiş sıralama",
+            "Fiyata göre (Önce en yüksek)",
+            "Fiyata göre (Önce en düşük)",
+            "Tarihe göre (Önce en yeni ilan)",
+            "Tarihe göre (Önce en eski ilan)",
+            "Adrese göre (A-Z)",
+            "Adrese göre (Z-A)"
+          ],
+          "key": "sort_order"
+        }
+      ]
+    },
+    "laptop_cpu": {
+      "title": "Dizüstü işlemci — canlı filtre profili",
+      "confidence": "Canlı resmî kategori sayfası kontrol edildi; Seri listesi katalog olarak değişkendir (26 Ekim 2026)",
+      "description": "Dizüstü (Notebook) > Donanım > İşlemci sayfasında ortak filtreler ve Seri alanı görülür. Bu sayfa masaüstü işlemci profilinden farklıdır; Pin/Soket ve Ön Bellek alanları aynı sayfa metninde görünmediği için masaüstünden kopyalanmamıştır.",
+      "source_urls": [
+        "https://www.sahibinden.com/islemci"
+      ],
+      "fields": [
+        {
+          "label": "Durumu",
+          "type": "multi_select",
+          "options_or_note": "İkinci el / sıfır.",
+          "verified_on_live_site": true,
+          "options": [
+            "İkinci El",
+            "Sıfır",
+            "Tümü"
+          ],
+          "key": "condition"
+        },
+        {
+          "label": "Alışveriş seçeneği",
+          "type": "multi_select",
+          "options_or_note": "Yüz yüze / Param Güvende.",
+          "verified_on_live_site": true,
+          "options": [
+            "Yüz Yüze Görüşerek",
+            "Param Güvende ile",
+            "Tümü"
+          ],
+          "key": "shopping_mode"
+        },
+        {
+          "label": "İl / ilçe",
+          "type": "dependent_select",
+          "options_or_note": "Konum filtresi.",
+          "verified_on_live_site": true,
+          "options": [
+            "İl",
+            "İlçe",
+            "Türkiye"
+          ],
+          "key": "location"
+        },
+        {
+          "label": "Fiyat",
+          "type": "range",
+          "options_or_note": "Minimum / maksimum fiyat.",
+          "verified_on_live_site": true,
+          "key": "price"
+        },
+        {
+          "label": "Para birimi",
+          "type": "single_select",
+          "options_or_note": "Sayfada TL, USD, EUR, GBP seçenekleri.",
+          "verified_on_live_site": true,
+          "options": [
+            "TL",
+            "USD",
+            "EUR",
+            "GBP"
+          ],
+          "key": "currency"
+        },
+        {
+          "label": "Seri",
+          "type": "multi_select",
+          "options_or_note": "AMD ve Intel işlemci serileri; uzun ve yaşayan katalog listesi. Tam seçenek listesi bu dosyada sabitlenmemiştir.",
+          "verified_on_live_site": true,
+          "key": "series"
+        },
+        {
+          "label": "Takaslı",
+          "type": "multi_select",
+          "options_or_note": "Evet / Hayır.",
+          "verified_on_live_site": true,
+          "options": [
+            "Evet",
+            "Hayır"
+          ],
+          "key": "trade"
+        },
+        {
+          "label": "Kimden",
+          "type": "multi_select",
+          "options_or_note": "Sahibinden / mağazadan.",
+          "verified_on_live_site": true,
+          "options": [
+            "Sahibinden",
+            "Mağazadan"
+          ],
+          "key": "seller_type"
+        },
+        {
+          "label": "Kelime filtresi",
+          "type": "text",
+          "options_or_note": "Başlıkta veya açıklama dahilinde arama.",
+          "verified_on_live_site": true,
+          "key": "keyword"
+        },
+        {
+          "label": "İlan tarihi",
+          "type": "multi_select",
+          "options_or_note": "Son 24 saat, 3, 7, 15 veya 30 gün.",
+          "verified_on_live_site": true,
+          "options": [
+            "Son 24 saat",
+            "Son 3 gün içinde",
+            "Son 7 gün içinde",
+            "Son 15 gün içinde",
+            "Son 30 gün içinde"
+          ],
+          "key": "published_range"
+        },
+        {
+          "label": "Fotoğraf / video / MegaFoto",
+          "type": "multi_select",
+          "options_or_note": "Mevcut medya filtreleri.",
+          "verified_on_live_site": true,
+          "options": [
+            "Videolu ilanlar",
+            "Fotoğraflı ilanlar",
+            "MegaFotolu ilanlar"
+          ],
+          "key": "media"
+        },
+        {
+          "label": "Teklif verilebilir",
+          "type": "boolean",
+          "options_or_note": "Teklife açık ilanlar.",
+          "verified_on_live_site": true,
+          "options": [
+            "Evet",
+            "Hayır"
+          ],
+          "key": "offer_enabled"
+        },
+        {
+          "label": "Sıralama",
+          "type": "single_select",
+          "options_or_note": "Fiyat, tarih ve adres sıralamaları.",
+          "verified_on_live_site": true,
+          "options": [
+            "Gelişmiş sıralama",
+            "Fiyata göre (Önce en yüksek)",
+            "Fiyata göre (Önce en düşük)",
+            "Tarihe göre (Önce en yeni ilan)",
+            "Tarihe göre (Önce en eski ilan)",
+            "Adrese göre (A-Z)",
+            "Adrese göre (Z-A)"
+          ],
+          "key": "sort_order"
+        }
+      ]
     }
   }
 }

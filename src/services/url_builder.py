@@ -57,6 +57,7 @@ class SahibindenURLBuilder:
         tipi: str | None = None,
         kapasite: str | None = None,
         marka: str | None = None,
+        extra_facets: dict[str, Any] | None = None,
         extra_params: dict[str, Any] | None = None,
     ) -> str:
         """Builds a canonical search query URL with date_desc sorting and multi-unit non-lossy fallback."""
@@ -113,10 +114,10 @@ class SahibindenURLBuilder:
                 if not matched:
                     unmatched_specs.append(tipi)
 
-            # Kapasite (or Bellek for GPUs)
+            # Kapasite (or Bellek / Hafıza for GPUs / phones)
             if kapasite:
                 matched = False
-                for facet_key in ("kapasite", "bellek"):
+                for facet_key in ("kapasite", "bellek", "hafiza"):
                     if facet_key in facets:
                         opt_id = cls._match_facet_option(facets[facet_key]["options"], kapasite)
                         if opt_id:
@@ -141,10 +142,28 @@ class SahibindenURLBuilder:
                             break
                 if not matched:
                     unmatched_specs.append(marka)
+
+            # Dynamically match all other category facets (vites, yakit, oda_sayisi, socket, cache, ceker, etc.)
+            if extra_facets:
+                for f_name, f_val in extra_facets.items():
+                    if not f_val or f_name in ("tipi", "kapasite", "marka", "bellek", "hafiza", "chipset"):
+                        continue
+                    if f_name in facets:
+                        opt_id = cls._match_facet_option(facets[f_name]["options"], str(f_val))
+                        if opt_id:
+                            params[facets[f_name]["param_name"]] = opt_id
+                        else:
+                            unmatched_specs.append(str(f_val))
+                    else:
+                        unmatched_specs.append(str(f_val))
         else:
             for s in (tipi, kapasite, marka):
                 if s:
                     unmatched_specs.append(s)
+            if extra_facets:
+                for s in extra_facets.values():
+                    if s:
+                        unmatched_specs.append(str(s))
 
         # Non-lossy fallback: append any unmatched specs into query_text so Sahibinden filters for them
         if unmatched_specs:

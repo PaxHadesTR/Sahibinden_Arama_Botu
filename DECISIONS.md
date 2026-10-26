@@ -401,4 +401,72 @@
   - Zero duplicate fields in Discord confirmation embeds.
   - Test suite expanded to 177/177 passing green tests.
 
+## ADR-025: Complete 24-Profile Schema Integration, Profile-Driven Spec Intelligence & Full /alarm-hizli Rewrite (2026-10-27)
+
+- **Context**:
+  1. The user provided the complete Sahibinden Category Tree and Search Filter Schema JSON containing 11 root departments, 660 category nodes, and 24 search filter profiles (`classified`, `commerce`, `property_home`, `property_land`, `property_commercial`, `property_misc`, `vehicle_car`, `vehicle_generic`, `vehicle_motorcycle`, `vehicle_marine`, `parts`, `desktop_pc`, `phone`, `commerce_generic`, `industrial_machine`, `agri_machine`, `industrial_generic`, `service`, `lesson`, `job`, `animal`, `helper`, `desktop_cpu`, `laptop_cpu`).
+  2. While the 11 departments existed in catalog titles, 83 out of 111 categories lacked explicit profile associations in `categories.json`, and the complete 24 profile definitions were missing from the active catalog runtime.
+  3. Spec autocomplete in `get_spec_suggestions` relied on broad substring matching against category display strings. Because all real estate categories had "Emlak" and all vehicle categories had "Vasıta" in their display names, land categories (`satilik-tarla`, `satilik-arsa`) mistakenly received housing room counts (`1+1`, `2+1`), and motorcycles received automobile transmission/fuel suggestions.
+  4. In `extract_specs_from_text`, Turkish diacritics (`ı`, `İ`, `ş`, `ğ`, `ç`, `ö`, `ü`) were not normalized to ASCII lowercase, causing regex patterns like `\byatili\b`, `\btam\s*zamanli\b`, `\bimarli\b`, and `cift ceker` to miss user inputs written with standard Turkish letters.
+- **Decision**:
+  1. **Full 24-Profile Embedding in Catalog**:
+     - Embedded all 24 authentic profile definitions directly into `src/catalog/categories.json` under `"profiles"`.
+     - Explicitly mapped all 111 categories to their verified schema profile, ensuring 100% profile coverage.
+  2. **Profile-Driven Spec Autocomplete (`CategoryResolver.get_spec_suggestions`)**:
+     - Rewrote `get_spec_suggestions` to resolve category profiles before evaluating generic keywords, preventing broad department title bleed.
+     - Fully tailored suggestions across all 24 schema profiles:
+       - `property_land`: İmarlı, Tarla, Zeytinlik, Müstakil Parsel, Hisseli, Kat Karşılığı, etc.
+       - `property_commercial`: Devren, Kiralık Dükkan, Satılık Ofis, Plaza, Fabrika, Depo, etc.
+       - `vehicle_motorcycle`: Otomatik, Manuel, Vitesli, Scooter, 125 cc, 250 cc, 500 cc, ABS, etc.
+       - `vehicle_marine`: Tekne, Motoryat, Dıştan Takma Motor, Sürat Teknesi, 15 HP, 50 HP, etc.
+       - `desktop_cpu` & `laptop_cpu`: AM5, AM4, LGA1700, 32 MB, 64 MB, Mobile CPU series, etc.
+       - `industrial_machine`, `industrial_generic`, `helper`, `service`, `lesson`, `job`, `animal`, `parts`.
+  3. **Robust Turkish Diacritic Spec Normalization**:
+     - Upgraded `CategoryResolver.extract_specs_from_text` to apply `self.normalize_turkish` across both input text and catalog facet labels, ensuring seamless extraction for terms like `Yatılı`, `Tam Zamanlı`, `İmarlı`, `Çift Çeker`.
+     - Added extraction for `cache`, `imar_durumu`, `durum`, `calisma_sekli`.
+  4. **Complete /alarm-hizli Integration & Metadata Persistence**:
+     - Passed `profile` and `extra_facets` into `_execute_alarm_creation`, persisting complete structured filter metadata into SQLite `filters_json`.
+     - Preserved non-lossy search text merging and over-filtering prevention.
+  5. **Exhaustive Testing**: Added `tests/test_twenty_four_profiles.py` covering all 24 profiles, profile suggestions, metadata persistence, and validation edge cases (193/193 tests passing).
+- **Consequences**:
+  - 100% alignment with authentic Sahibinden 24-profile category and filter schema.
+  - Zero cross-category suggestion pollution.
+  - Rock-solid Turkish diacritic handling and metadata persistence.
+  - 193/193 tests green.
+
+## ADR-026: Apex /alarm-hizli Hardening: Root Department Resolution, Zero Autocomplete Leakage & Conflicting Facet Priority (2026-10-27)
+
+- **Context**:
+  1. A rigorous review of the prior implementation revealed that `resolver.resolve_category("Vasıta")` hijacked the query to `otomobil` (and `Emlak` to `satilik-daire`) because subcategory aliases were matched before checking normalized exact category keys/slugs across the catalog.
+  2. While 18 profiles had explicit suggestions, 30 categories across `commerce` and `commerce_generic` (such as `dizustu-bilgisayar`, `akilli-saat`, `kol-saati`, `anakart-masaustu`, `monitor-masaustu`, `kasa-guc-kaynagi`, `fotograf-kamera`, `beyaz-esya`, `muzik`, `spor`) had no dedicated entries in `get_spec_suggestions` and fell back to the global default ("Otomatik", "Manuel", "3+1", "2+1", "4x4", "Dizel", "Benzin"), producing absurd car and apartment suggestions for laptops, smartwatches, and washing machines.
+  3. In `/alarm-hizli`, `cat_key`, `ozellik`, and `arama` were concatenated into a single string (`full_text = f"{cat_key} {effective_spec} {effective_query}"`), which caused:
+     - The slug word `tarla` in `satilik-tarla` to forcibly assign `imar_durumu='Tarla'`, corrupting searches for `Zeytinlik` or `Müstakil Parsel`.
+     - Inverted priority when conflicting specs were entered (e.g. `arama="BMW otomatik"`, `ozellik="Manuel"`): internal regex order caused `Otomatik` to win over the user's explicit parameter choice `Manuel`.
+     - Contradictory search queries (`BMW otomatik Manuel` or `Kadıköy 1+1 daire 3+1`) that produced zero search results on Sahibinden.
+  4. `SahibindenURLBuilder.build_url` only checked `tipi`, `kapasite` (ignoring `"hafiza"` on phones and tablets), and `marka`, completely discarding `extra_facets` (`vites`, `yakit`, `oda_sayisi`, `socket`, `cache`, `ceker`).
+  5. `_safe_defer` did not verify `interaction.response.is_done()`, risking `InteractionResponded` exceptions upon re-entry.
+- **Decision**:
+  1. **Strict Key/Slug Precedence in Category Resolution**:
+     - Upgraded `CategoryResolver.resolve_category` to match normalized catalog keys and slugs before evaluating any aliases. Removed duplicate root department aliases from subcategories in `categories.json` (`vasita` from `otomobil`, `emlak` from `satilik-daire`).
+  2. **100% Autocomplete Isolation Across All 111 Categories**:
+     - Tailored spec suggestions implemented for Laptops (RTX 4060, i7, Ryzen 7, 16 GB RAM), Motherboards (AM5, LGA1700, B650), Monitors (144 Hz, 27 inç, 2K), Power Supplies/Cases (750W, 80+ Gold), Smart Watches (Apple Watch, Galaxy Watch, 44 mm), Watches (Quartz, Otomatik, Safir Cam), TVs (OLED, 4K, 55 inç), Home Appliances (No-Frost, Inverter, 9 kg), HVAC (Klima, Kombi, 12000 BTU), Photography (Aynasız, DSLR, Full Frame), Drones, Music, Sports, Antiques, and Commerce.
+     - Neutral shopping terms ("Sıfır", "İkinci El", "Param Güvende") in fallback; apartments (3+1) and car transmissions permanently eliminated from non-home/non-vehicle categories.
+  3. **Strict Parameter Priority & Conflicting Token Stripping in /alarm-hizli**:
+     - Separated `effective_spec` from `effective_query`. Stopped prepending `cat_key` to search text.
+     - Extracted specs from `effective_spec` first and gave them absolute precedence over `effective_query`.
+     - Automatically stripped conflicting facet tokens from `effective_query` (e.g., stripping `otomatik` when `ozellik="Manuel"` is chosen, or `1+1` when `ozellik="3+1"` is chosen), preventing contradictory zero-hit search queries.
+     - Position-aware regex extraction for `vites`, `yakit`, `oda_sayisi`, and specific-before-generic priority for `imar_durumu`.
+  4. **Full Schema Facet Parameter Support in URL Builder**:
+     - Updated `SahibindenURLBuilder.build_url` to accept and process `extra_facets`, mapping `hafiza`, `vites`, `yakit`, `oda_sayisi`, `socket`, `cache`, `ceker` directly to Sahibinden query parameters with non-lossy fallback into `query_text`.
+  5. **Immediate Interaction Deferral & Safety**:
+     - Called `_safe_defer` at the top of `/alarm-hizli` to satisfy Discord's 3-second SLA, and added `if interaction.response.is_done(): return` guard against double-deferral crashes.
+  6. **Multi-Word & Breadcrumb Autocomplete Search**:
+     - Indexed `breadcrumbs` and multi-word token combinations in `get_autocomplete_choices` to match natural inputs like `teknolojik cihaz` and `sanayi ve is makinesi`.
+- **Consequences**:
+  - Full end-to-end category and facet pipeline verified against live schema.
+  - Zero autocomplete leakage across all 111 categories.
+  - All 200/200 unit and integration tests passing green.
+
+
+
 

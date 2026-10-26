@@ -25,6 +25,8 @@ class AlarmCog(commands.Cog):
 
     async def _safe_defer(self, interaction: discord.Interaction, ephemeral: bool = True, max_retries: int = 2):
         """Defers interaction response with retries against momentary proxy or network blips."""
+        if interaction.response.is_done():
+            return
         for attempt in range(max_retries):
             try:
                 await interaction.response.defer(ephemeral=ephemeral)
@@ -299,6 +301,8 @@ class AlarmCog(commands.Cog):
         alarm_adi: str | None = None,
         embed_title: str = "⚡ Yeni Sahibinden Alarmı Başlatıldı!",
         detail_fields: list[tuple[str, str]] | None = None,
+        profile: str | None = None,
+        extra_facets: dict[str, Any] | None = None,
     ):
         await self._safe_defer(interaction, ephemeral=True)
 
@@ -331,12 +335,14 @@ class AlarmCog(commands.Cog):
             tipi=tipi,
             kapasite=kapasite,
             marka=marka,
+            extra_facets=extra_facets,
         )
 
         name = alarm_adi or f"{display_category_name} Takibi"
 
         filters = {
             "kategori": category_slug,
+            "profile": profile,
             "tipi": tipi,
             "kapasite": kapasite,
             "marka": marka,
@@ -347,6 +353,10 @@ class AlarmCog(commands.Cog):
             "kelime": query_text,
             "alarm_adi": name,
         }
+        if extra_facets:
+            for k, v in extra_facets.items():
+                if v and k not in filters:
+                    filters[k] = v
 
         alarm_id = await database.create_alarm(
             name=name,
@@ -398,6 +408,24 @@ class AlarmCog(commands.Cog):
                 if f_val and f_name not in ("📂 Kategori", "🔍 Arama", "⚙️ Özellik", "🔍 Filtre Kelimeleri"):
                     embed.add_field(name=f_name, value=str(f_val), inline=inline)
 
+        if extra_facets:
+            facet_labels = {
+                "vites": "🕹️ Vites",
+                "yakit": "⛽ Yakıt",
+                "oda_sayisi": "🚪 Oda Sayısı",
+                "socket": "🔌 Soket",
+                "cache": "⚡ Ön Bellek",
+                "imar_durumu": "📜 İmar Durumu",
+                "durum": "📦 Durum",
+                "calisma_sekli": "⏱️ Çalışma Şekli",
+                "ceker": "🚜 Çeker",
+            }
+            already_shown = {f.name for f in embed.fields}
+            for k, v in extra_facets.items():
+                label = facet_labels.get(k, k.replace("_", " ").title())
+                if v and label not in already_shown:
+                    embed.add_field(name=label, value=str(v), inline=True)
+
         if min_fiyat or max_fiyat:
             max_str = f"{max_fiyat:,}" if max_fiyat else "Limitsiz"
             embed.add_field(name="💰 Fiyat Aralığı", value=f"{min_fiyat or 0:,} TL - {max_str} TL", inline=True)
@@ -440,17 +468,22 @@ class AlarmCog(commands.Cog):
         sehir: str | None = None,
         alarm_adi: str | None = None,
     ):
+        # 0. Immediate interaction deferral (guarantees meeting Discord 3s SLA)
+        await self._safe_defer(interaction, ephemeral=True)
+
         # 1. Kategori çözümleme
         cat_data = resolver.get_category(kategori)
         if cat_data:
             cat_key = cat_data["key"]
             category_slug = cat_data["slug"]
             display_name = cat_data.get("display_name", kategori)
+            profile = cat_data.get("profile")
             is_generic_fallback = False
         else:
             cat_key = "genel-arama"
             category_slug = "kelime-ile-arama"
             display_name = kategori.strip()
+            profile = "classified"
             is_generic_fallback = True
 
         effective_query = arama.strip() if (arama and arama.strip()) else None
@@ -464,16 +497,21 @@ class AlarmCog(commands.Cog):
             else:
                 effective_query = display_name
 
-        # 2. Metinden donanım ve kategori facet'lerini çıkar
-        full_text = f"{cat_key} {effective_spec or ''} {effective_query or ''}"
-        extracted = resolver.extract_specs_from_text(full_text, category_key=cat_key)
+        # 2. Metinden donanım ve kategori facet'lerini öncelik hiyerarşisiyle çıkar:
+        # Doğrudan seçilen 'ozellik' parametresi, serbest 'arama' metnindeki kelimelere daima üstündür.
+        # Kategori anahtarı (cat_key) metne eklenmez; böylece slug kelimelerinin yanlış facet tetiklemesi önlenir.
+        spec_extracted = resolver.extract_specs_from_text(effective_spec, category_key=cat_key) if effective_spec else {}
+        query_extracted = resolver.extract_specs_from_text(effective_query, category_key=cat_key) if effective_query else {}
+
+        # Öncelik: spec_extracted değerleri query_extracted değerlerini ezer
+        extracted = {**query_extracted, **spec_extracted}
 
         formatted_ddr = extracted.get("tipi")
         raw_cap = extracted.get("kapasite") or extracted.get("bellek") or extracted.get("hafiza")
         formatted_cap = resolver.normalize_capacity_unit(raw_cap, category_key=cat_key) if raw_cap else None
         formatted_brand = extracted.get("marka") or extracted.get("chipset")
 
-        # 3. Yalnızca URL parametresine (a3329, a3332, a3350) dönüşen donanım filtrelerini serbest metinden temizle
+        # 3. Parametrelere dönüşen ve çelişen terimleri serbest arama metninden temizle
         clean_q = effective_query or ""
         clean_s = effective_spec or ""
 
@@ -494,10 +532,32 @@ class AlarmCog(commands.Cog):
                 clean_s = re.sub(cap_dual_re, "", clean_s, flags=re.I)
                 clean_s = re.sub(cap_single_re, "", clean_s, flags=re.I)
 
+        # Kullanıcı 'ozellik' parametresinde açık bir facet belirttiğinde, 'arama' kelimesindeki çelişen eski facet kelimelerini temizle
+        if "vites" in spec_extracted:
+            for v_opt in ("otomatik", "manuel", "yari otomatik", "yarı otomatik"):
+                if v_opt.lower() != spec_extracted["vites"].lower():
+                    clean_q = re.sub(rf"\b{re.escape(v_opt)}\b", "", clean_q, flags=re.I)
+        if "oda_sayisi" in spec_extracted:
+            for r_num in ("1+0", "1+1", "2+1", "3+1", "4+1", "5+1"):
+                if r_num != spec_extracted["oda_sayisi"]:
+                    clean_q = re.sub(rf"\b{re.escape(r_num)}\b", "", clean_q, flags=re.I)
+        if "socket" in spec_extracted:
+            for s_opt in ("am5", "am4", "lga1700", "lga1200", "lga1151", "tr4", "strx4"):
+                if s_opt.lower() != spec_extracted["socket"].lower():
+                    clean_q = re.sub(rf"\b{re.escape(s_opt)}\b", "", clean_q, flags=re.I)
+        if "ceker" in spec_extracted:
+            for c_opt in ("4x4", "4x2"):
+                if c_opt.lower() != spec_extracted["ceker"].lower():
+                    clean_q = re.sub(rf"\b{re.escape(c_opt)}\b", "", clean_q, flags=re.I)
+        if "yakit" in spec_extracted:
+            for y_opt in ("benzin", "dizel", "lpg", "hibrit", "elektrik"):
+                if y_opt.lower() != spec_extracted["yakit"].lower():
+                    clean_q = re.sub(rf"\b{re.escape(y_opt)}\b", "", clean_q, flags=re.I)
+
         clean_q = " ".join(clean_q.split()).strip() or None
         clean_s = " ".join(clean_s.split()).strip() or None
 
-        # 4. Arama ve Özellik terimlerini kelime/token düzeyinde tekrarsız birleştir
+        # 4. Arama ve Özellik terimlerini kelime/token düzeyinde tekrarsız ve çelişkisiz birleştir
         final_query_text = self._merge_query_and_spec(clean_q, clean_s)
 
         # 5. Varsayılan alarm adı belirleme
@@ -518,6 +578,9 @@ class AlarmCog(commands.Cog):
             else:
                 final_alarm_name = f"{display_name} Takibi"
 
+        # Extra extracted facets (e.g. vites, yakit, oda_sayisi, ceker, socket, cache, imar_durumu, durum, calisma_sekli)
+        extra_facets = {k: v for k, v in extracted.items() if k not in ("tipi", "kapasite", "bellek", "hafiza", "marka", "chipset")}
+
         await self._execute_alarm_creation(
             interaction,
             category_slug=category_slug,
@@ -533,6 +596,8 @@ class AlarmCog(commands.Cog):
             sehir=sehir,
             alarm_adi=final_alarm_name,
             embed_title="⚡ Hızlı Alarm Başlatıldı!",
+            profile=profile,
+            extra_facets=extra_facets,
         )
 
     # =========================================================================
