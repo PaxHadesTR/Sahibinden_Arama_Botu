@@ -118,6 +118,11 @@ class StealthScraper:
             "ignore_default_args": ["--enable-automation"],
             "args": args,
             "viewport": {"width": 1280, "height": 800},
+            "locale": "tr-TR",
+            "timezone_id": "Europe/Istanbul",
+            "extra_http_headers": {
+                "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+            },
             "user_agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -137,26 +142,44 @@ class StealthScraper:
                     **launch_kwargs
                 )
                 logger.info(f"Initialized browser persistent context with channel: {settings.BROWSER_CHANNEL}")
-                return self._context
             except Exception as e:
                 logger.warning(
                     f"Failed to launch with channel {settings.BROWSER_CHANNEL}: {e}. "
                     "Falling back to default chromium."
                 )
 
-        self._context = await self._playwright.chromium.launch_persistent_context(**launch_kwargs)
-        logger.info("Initialized default chromium persistent context.")
+        if self._context is None:
+            self._context = await self._playwright.chromium.launch_persistent_context(**launch_kwargs)
+            logger.info("Initialized default chromium persistent context.")
+
+        # Strip navigator.webdriver signature to avoid immediate Turnstile detection
+        try:
+            await self._context.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+            )
+        except Exception as e:
+            logger.debug(f"Could not inject stealth script: {e}")
+
         return self._context
 
     async def _wait_for_challenge_and_table(self, page):
         """Waits for Cloudflare checkLoading interstitial and searchResultsTable."""
-        for _ in range(12):
+        for i in range(30):
             if "checkLoading" not in page.url:
                 break
+            try:
+                await page.mouse.move(150 + (i * 20) % 400, 250 + (i * 15) % 300)
+                for frame in page.frames:
+                    checkbox = await frame.query_selector("input[type=checkbox], .ctp-checkbox-label, #challenge-stage")
+                    if checkbox:
+                        await checkbox.click()
+                        break
+            except Exception:
+                pass
             await asyncio.sleep(1)
 
         try:
-            await page.wait_for_selector("tr.searchResultsItem, table#searchResultsTable", timeout=8000)
+            await page.wait_for_selector("tr.searchResultsItem, table#searchResultsTable", timeout=10000)
         except Exception:
             # Search may legitimately return 0 listings
             pass

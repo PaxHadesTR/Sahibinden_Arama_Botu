@@ -376,40 +376,10 @@ async def test_scenario_alarm_hizli_universal_parameters_vehicle_and_real_estate
     assert "Kad%C4%B1k%C3%B6y" in re_target or "3%2B1" in re_target
 
 
-@pytest.mark.asyncio
-async def test_scenario_alarm_kur_hierarchical_group_views(test_cog_and_db):
-    """Verify /alarm-kur without category defaults to CategoryGroupSelectView, enabling hierarchical drilldown."""
-    from src.bot.views import CategoryGroupSelectView, SubCategorySelectView, SpecFilterModal
-
-    cog, db, _ = test_cog_and_db
-    await db.init_db()
-    inter = MockInteraction(user_id=501)
-    await cog.alarm_kur.callback(cog, inter)
-
-    call_args = inter.response.send_message.call_args[1]
-    view = call_args.get("view")
-    embed = call_args.get("embed")
-
-    assert isinstance(view, CategoryGroupSelectView)
-    assert "Sahibinden Kategori & Alt Kategori Sihirbazı" in embed.title
-
-    # Test SubCategorySelectView for vasita
-    vasita_sub_view = SubCategorySelectView(group_key="vasita")
-    select_item = vasita_sub_view.children[0]
-    option_values = [opt.value for opt in select_item.options]
-    assert "otomobil" in option_values
-    assert "arazi-suv-pickup" in option_values
-    assert "motosiklet" in option_values
-
-    # Test dynamic SpecFilterModal labels per category
-    car_modal = SpecFilterModal("otomobil")
-    assert car_modal.keywords_input.label == "Model / Vites / Paket / Detay"
-
-    re_modal = SpecFilterModal("satilik-daire")
-    assert re_modal.keywords_input.label == "Oda / Durum / Konum / Detay"
-
-    gpu_modal = SpecFilterModal("ekran-karti-masaustu")
-    assert gpu_modal.keywords_input.label == "Model / VRAM / Chipset"
+def test_alarm_kur_command_removed(test_cog_and_db):
+    """Verify /alarm-kur command has been cleanly removed from AlarmCog."""
+    cog, _, _ = test_cog_and_db
+    assert not hasattr(cog, "alarm_kur")
 
 
 @pytest.mark.asyncio

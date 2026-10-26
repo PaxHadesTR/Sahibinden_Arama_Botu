@@ -31,10 +31,10 @@ Sahibinden.com üzerinde **tüm kategorilerde** (Vasıta/Otomobil/Motosiklet/SUV
 
 ## 🚀 Öne Çıkan Özellikler
 
-1. **3 Evrensel Alarm Kurma Yöntemi**:
-   - **Yöntem 1 (`/alarm-ara`):** Kategori seçmeden tüm Sahibinden genelinde anahtar kelime, bütçe aralığı ve şehir filtresiyle arama başlatır. (Arka planda otomatik kategori çıkarımı ve redirect koruması yapar).
-   - **Yöntem 2 (`/alarm-url`):** Sahibinden web sitesinde seçtiğiniz 20+ detaylı filtreli arama URL'sini doğrudan takibe alma. (Mobil URL'leri masaüstüne çevirir, sayfalama parametrelerini sıfırlar, `sorting=date_desc` zorlar).
-   - **Yöntem 3 (`/alarm-kur` & `/alarm-hizli`):** Discord Autocomplete destekli 25 ana kategori seçici, RAM DDR/Kapasite sihirbazı ve tek satırda spesifik donanım alarmı açma.
+1. **3 Güçlü Alarm Kurma Yöntemi**:
+   - **Yöntem 1 (`/alarm-hizli`):** Tek satırda kategori, özellik/birim (DDR, Kapasite, Vites, 3+1 vb.), marka/model ve bütçe ile saniyeler içinde alarm kurma.
+   - **Yöntem 2 (`/alarm-ara`):** Kategori seçmeden tüm Sahibinden genelinde anahtar kelime, bütçe aralığı ve şehir filtresiyle serbest arama başlatma.
+   - **Yöntem 3 (`/alarm-url`):** Sahibinden web sitesinde seçtiğiniz 20+ detaylı filtreli arama URL'sini doğrudan takibe alma. (Mobil URL'leri masaüstüne çevirir, sayfalama parametrelerini sıfırlar, `sorting=date_desc` zorlar).
 2. **Çoklu Birim Desteği (MB, GB, TB, Dual-Kit)**:
    - **RAM Kapasitesi:** Hem eski/retro nesiller (`512 MB`, `256 MB`, `128 MB`) hem modern nesiller (`4 GB`, `8 GB`, `16 GB`, `32 GB`, `64 GB`) ve Dual-Kit setler (`2x 8 GB`, `2x 16 GB`, `2x 32 GB`) tam desteklenir.
    - **Depolama (SSD/HDD):** Hem GB (`120 GB`, `240 GB`, `500 GB`) hem TB (`1 TB`, `2 TB`, `4 TB`, `8 TB`) birimleri hesaplanır.
@@ -226,28 +226,7 @@ Sahibinden web sitesinde seçtiğiniz arama sonucunun URL'sini doğrudan yapış
 
 ---
 
-### 5. `/alarm-kur` (Hiyerarşik Kategori & Alt Kategori Sihirbazı)
-6 Ana Kategori Grubu (**🏠 Emlak**, **🚗 Vasıta**, **🔧 Yedek Parça**, **💻 Donanım**, **📱 Elektronik**, **🛍️ Yaşam**), dinamik alt kategori seçicisi ve kategoriye duyarlı özel alanlara sahip modal formuyla görsel kurulum:
-```
-/alarm-kur
-/alarm-kur kategori: ram
-/alarm-kur kategori: otomobil
-```
-/alarm-url url: https://www.sahibinden.com/otomobil/ankara-cankaya?sorting=date_desc&price_max=850000 alarm_adi: Çankaya Araçlar
-```
-
----
-
-### 5. `/alarm-kur` (Görsel Sihirbaz)
-Kategori açılır menüsü (Select Menu), RAM DDR/Kapasite seçicisi ve fiyat modal penceresiyle görsel kurulum:
-```
-/alarm-kur
-/alarm-kur kategori: ram
-```
-
----
-
-### 6. Yönetim Komutları
+### 5. Yönetim Komutları
 
 | Komut | Parametreler | Açıklama |
 |---|---|---|

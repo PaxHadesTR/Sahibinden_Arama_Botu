@@ -10,14 +10,7 @@ from src.catalog.resolver import resolver
 from src.services.url_builder import SahibindenURLBuilder
 from src.db.database import database
 from src.services.scraper import scraper
-from src.bot.views import (
-    RamSpecSelectView,
-    SpecFilterModal,
-    DeleteAlarmView,
-    UniversalCategorySelectView,
-    CategoryGroupSelectView,
-    SubCategorySelectView,
-)
+from src.bot.views import DeleteAlarmView
 from src.services.monitor import AlarmMonitor
 
 logger = logging.getLogger("sahibinden_bot.cogs.alarms")
@@ -47,11 +40,15 @@ class AlarmCog(commands.Cog):
         current: str
     ) -> list[app_commands.Choice[str]]:
         """Provides dynamic autocomplete choices for category inputs with example hints."""
-        matches = resolver.get_autocomplete_choices(current)
-        return [
-            app_commands.Choice(name=display[:100], value=cat_key)
-            for display, cat_key in matches[:25]
-        ]
+        try:
+            matches = resolver.get_autocomplete_choices(current)
+            return [
+                app_commands.Choice(name=display[:100], value=cat_key[:100])
+                for display, cat_key in matches[:25]
+            ]
+        except Exception as e:
+            logger.error(f"Error in category_autocomplete: {e}")
+            return []
 
     # =========================================================================
     # YÖNTEM 1: EVRENSEL SERBEST ARAMA (/alarm-ara)
@@ -227,57 +224,8 @@ class AlarmCog(commands.Cog):
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     # =========================================================================
-    # YÖNTEM 3: AKILLI SİHİRBAZ & ALIAS EŞLEME (/alarm-kur, /alarm-hizli)
+    # YÖNTEM 3: HIZLI PARAMETRİK ALARM (/alarm-hizli)
     # =========================================================================
-    @app_commands.command(
-        name="alarm-kur",
-        description="Sahibinden için görsel kategori ve filtre sihirbazı ile yeni bir alarm kurun."
-    )
-    @app_commands.describe(
-        kategori="Kategori veya takma ad (örn: 'ram', 'ssd', 'ekran kartı', 'telefon', 'araba', 'daire')"
-    )
-    @app_commands.autocomplete(kategori=category_autocomplete)
-    async def alarm_kur(self, interaction: discord.Interaction, kategori: str | None = None):
-        """Interactive setup wizard with autocomplete and visual fallback."""
-        allowed, reason = await database.check_alarm_limits(interaction.user.id)
-        if not allowed:
-            await interaction.response.send_message(reason, ephemeral=True)
-            return
-
-        if not kategori:
-            view = CategoryGroupSelectView()
-            embed = discord.Embed(
-                title="📂 Sahibinden Kategori & Alt Kategori Sihirbazı",
-                description=(
-                    "Sahibinden üzerindeki tüm başlıklar **6 ana grupta** toplanmıştır.\n"
-                    "Lütfen takip etmek istediğiniz ana grubu seçin;\n"
-                    "ardından o gruba ait spesifik alt kategoriler listelenecektir:"
-                ),
-                color=0x3498DB
-            )
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-            return
-
-        cat_data = resolver.get_category(kategori)
-        cat_key = cat_data["key"] if cat_data else "genel-arama"
-        slug = cat_data["slug"] if cat_data else "kelime-ile-arama"
-
-        # Specialized RAM wizard
-        if "ram" in slug or "ram" in cat_key:
-            view = RamSpecSelectView(category_key=cat_key)
-            embed = discord.Embed(
-                title="🧠 RAM Bellek Filtre Sihirbazı",
-                description=(
-                    f"**Kategori:** {cat_data.get('display_name', 'RAM Bellek') if cat_data else 'RAM Bellek'}\n"
-                    "Lütfen DDR neslini ve kapasiteyi seçip ardından **Kriterleri Ayarla** butonuna tıklayın."
-                ),
-                color=0x3498DB
-            )
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-        else:
-            modal = SpecFilterModal(category_key=cat_key)
-            await interaction.response.send_modal(modal)
-
     @app_commands.command(
         name="alarm-hizli",
         description="Tek satırda kategori, özellik/birim ve bütçe ile hızlı alarm oluşturun."

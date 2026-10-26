@@ -241,9 +241,22 @@
 - **Consequences**:
   - Natural, category-specific user experience across all 75 Sahibinden categories. Zero RAM terminology clutter on vehicle or real-estate alarms.
 
+## ADR-018: Removal of /alarm-kur, Defensive Autocomplete & Turnstile Anti-Bot Hardening (2026-10-26)
 
-
-
-
+- **Context**:
+  1. The multi-step modal wizard `/alarm-kur` introduced unnecessary UX complexity and Discord interaction state overhead compared to `/alarm-hizli`, `/alarm-ara`, and `/alarm-url`.
+  2. Users reported "Loading options failed" on Discord autocomplete in `/alarm-hizli` under high latency / SOCKS proxy reconnects due to Discord's rigid 3-second autocomplete timeout.
+  3. Deployments on Coolify Docker containers experienced persistent blocks on Sahibinden's Cloudflare Turnstile challenge (`/cs/checkLoading`), caused by UTC Linux container signatures, headless Chrome fingerprint indicators (`navigator.webdriver = true`), and premature timeout (12s) before Turnstile proof-of-work completion.
+- **Decision**:
+  1. Completely decommission `/alarm-kur` from `src/bot/cogs/alarms.py`, removing obsolete view listeners while retaining `DeleteAlarmView` for `/alarm-sil`.
+  2. Wrap `category_autocomplete` with defensive `try...except` exception handling returning `[]` safely instead of bubbling unhandled exceptions to Discord gateway.
+  3. Harden Playwright browser context in `src/services/scraper.py`:
+     - Force `locale="tr-TR"`, `timezone_id="Europe/Istanbul"`, and Turkish `Accept-Language` headers to prevent timezone mismatch fingerprinting.
+     - Inject `navigator.webdriver = undefined` on document creation.
+     - Increase `checkLoading` resolution timeout from 12s to 30s with human-like mouse jitter simulation (`page.mouse.move`) and automated Cloudflare iframe click dispatching.
+- **Consequences**:
+  - Streamlined command footprint (4 core commands: `/alarm-hizli`, `/alarm-ara`, `/alarm-url`, `/alarm-sil`).
+  - Robust Turnstile challenge resolution on low-resource VPS environments.
+  - 153/153 test suite coverage maintained.
 
 

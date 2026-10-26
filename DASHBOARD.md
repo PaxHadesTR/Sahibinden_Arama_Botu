@@ -74,6 +74,10 @@
   - [x] Replaced hardware-locked `ddr`/`kapasite` parameters in `/alarm-hizli` with universal `ozellik` and `marka_veya_model` while maintaining backward compatibility.
   - [x] Implemented context-aware input labels in `SpecFilterModal` tailored per category type (Vehicle, Real Estate, Hardware, Electronics).
   - [x] Test suite expanded to 153/153 tests passing green.
+- [x] Streamlined Commands & Anti-Bot Hardening (`ADR-018`):
+  - [x] Completely removed obsolete `/alarm-kur` command and modal wizard to streamline bot commands and eliminate view state overhead.
+  - [x] Wrapped Discord autocomplete (`category_autocomplete`) with defensive try/except handling to prevent gateway exceptions on proxy latency.
+  - [x] Hardened Playwright scraper anti-bot evasion: forced Turkish locale/timezone (`tr-TR`, `Europe/Istanbul`), masked `navigator.webdriver = undefined`, and extended Cloudflare Turnstile `checkLoading` resolution timeout from 12s to 30s with simulated mouse jitter and automated iframe dispatch.
 - [x] Automated Test Suite: 153/153 tests passing green across all suites (unit, integration, and full real-world scenarios in `tests/test_real_scenarios.py`)
 - [x] Real-World Scenario Testing Suite (`tests/test_real_scenarios.py`):
   - [x] All 75 categories search URL construction and facet mapping verified.
