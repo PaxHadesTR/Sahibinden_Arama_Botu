@@ -75,8 +75,30 @@ Bot, kurulan alarmları ve taranan ilan geçmişini **SQLite (WAL modunda)** dos
 - **Veritabanı Dosyası:** `/app/data/sahibinden_bot.db`
 - **Tarayıcı Çerez/Oturum Profili:** `/app/data/browser_profile/`
 
-### Coolify & Docker Üzerindeki Kayıt Yeri (Persistent Volume)
-Konteynerler geçicidir (stateless), ancak verilerinizin Coolify üzerinde güncelleme (Redeploy) veya sunucu yeniden başlatmalarında **asla silinmemesi** için `docker-compose.yml` içinde kalıcı bir Docker Volume (`bot_data`) tanımlanmıştır:
+> [!WARNING]
+> **Docker Konteynerleri Doğası Gereği Geçicidir (Stateless):**  
+> Coolify üzerinde kalıcı depolama (**Persistent Storage / Volume**) tanımlanmazsa, **her "Redeploy" veya güncelleme butonuna bastığınızda** eski konteyner silinir ve sıfır bir konteyner yaratılır. Bu durum `/app/data` dizinindeki veritabanını (`sahibinden_bot.db`) sıfırlar ve botun tüm hafızası silinir.
+> 
+> **Hafızanın Kalıcı Olması İçin:** Konteyner içindeki `/app/data` dizinini kalıcı bir depolamaya bağlamanız gerekir.
+
+### 🛠️ Coolify Üzerinde Kalıcı Hafıza Ayarı (Adım Adım)
+
+Coolify kontrol panelinde 1 dakikada kalıcı depolama ekleyebilirsiniz:
+
+1. **Coolify Paneline Giriş Yapın:** Uygulamanızın (Application) sayfasına gelin.
+2. **Storages Sekmesine Geçin:** Üst veya sol menüdeki **Storages** (veya **Depolama**) sekmesine tıklayın.
+3. **+ Add Storage (veya Add Persistent Storage) Butonuna Basın.**
+4. **Formu Aşağıdaki Gibi Doldurun:**
+   - **Name (İsim):** `bot-data` (veya `sahibinden-data`)
+   - **Destination Path (Hedef Dizin):** `/app/data` *(⚠️ En kritik kısım! Tam olarak bu şekilde yazılmalıdır).*
+   - **Source Path / Volume Name (Kaynak):** Boş bırakabilirsiniz (Coolify otomatik kalıcı Docker volume atar) ya da sunucuda sabit bir klasör belirtebilirsiniz (örn: `/data/sahibinden_data`).
+5. **Save (Kaydet)** butonuna tıklayın.
+6. Sağ üstteki **Redeploy** butonuna basarak uygulamayı yeniden dağıtın.
+
+Artık her yeni kod güncellemesinde veya sunucu yeniden başlatıldığında botun tüm alarmları, görülen ilan geçmişi ve Cloudflare çerezleri kalıcı olarak korunur.
+
+### 🐳 Docker Compose ile Çalıştıranlar İçin
+Eğer yerel terminalde veya Docker Compose ile ayağa kaldırıyorsanız, `docker-compose.yml` dosyamızda kalıcı volume zaten hazırdır:
 
 ```yaml
     volumes:
@@ -87,12 +109,12 @@ volumes:
     name: sahibinden_bot_data
 ```
 
-- **Coolify / Linux Sunucunuzdaki Fiziksel Yolu:**
-  Docker bu hacmi host dosya sisteminizde şu dizinde tutar:
+- **Linux Sunucunuzdaki Fiziksel Yolu:**  
+  Docker bu hacmi host dosya sisteminizde şu dizinde tutar:  
   `/var/lib/docker/volumes/sahibinden_bot_data/_data/sahibinden_bot.db`
-- **Yedekleme Kolaylığı:**
+- **Yedekleme Kolaylığı:**  
   İstediğiniz zaman bu `.db` dosyasını `sqlite3` veya *DB Browser for SQLite* ile açabilir, alarmlarınızı ve geçmiş ilanlarınızı doğrudan inceleyebilir veya yedekleyebilirsiniz.
-- **İsteğe Bağlı Host Bind Mount:**
+- **İsteğe Bağlı Host Bind Mount:**  
   Eğer veritabanını Docker hacmi yerine doğrudan sabit bir klasöre (örn: `/data/sahibinden_data`) bağlamak isterseniz, `docker-compose.yml` dosyasındaki satırı `- /data/sahibinden_data:/app/data` şeklinde değiştirmeniz yeterlidir.
 
 ---
@@ -246,12 +268,23 @@ CHECK_INTERVAL_SECONDS=90
 HEADLESS=false
 ```
 
-### Adım 4: Dağıtımı Başlatın (Deploy)
+### Adım 4: Kalıcı Depolama (Persistent Storage / Hafıza) Ekleyin (ÖNEMLİ ⚠️)
+Docker konteynerleri doğası gereği geçicidir (stateless). Her yeni deploy yaptığınızda alarmlarınızın ve görülen ilan geçmişinizin **silinmemesi** için Coolify'a bu dizini kalıcı olarak tanıtmalısınız:
+
+1. Uygulama sayfasında **Storages** (veya **Depolama**) sekmesine tıklayın.
+2. **+ Add Storage** (veya **Add Persistent Storage**) butonuna basın.
+3. Açılan formda:
+   - **Name:** `bot-data` (veya `sahibinden-data`)
+   - **Destination Path:** `/app/data` *(⚠️ Tam olarak bu şekilde yazılmalıdır).*
+   - **Source Path:** Boş bırakabilirsiniz (Coolify otomatik kalıcı Docker volume oluşturur) veya sunucuda sabit bir host dizini belirtebilirsiniz.
+4. **Save** butonuna tıklayarak kaydedin.
+
+### Adım 5: Dağıtımı Başlatın (Deploy)
 Coolify panelinde sağ üstteki **Deploy** butonuna tıklayın.
 - Coolify depoyu çeker, `warp` sidecar ve `sahibinden-bot` konteynerlerini ayağa kaldırır.
 - Discord bağlantısı `socks5://warp:1080` üzerinden gerçekleşir.
 - Sahibinden aramaları doğrudan sunucunuzun Türk IP'sinden çıkar.
-- SQLite veritabanı `bot_data` Docker hacminde kalıcı olarak saklanır.
+- SQLite veritabanı `/app/data` dizininde kalıcı olarak saklanır ve hiçbir güncellemede silinmez.
 
 ---
 
@@ -332,6 +365,9 @@ C: Kesinlikle hayır. Botumuzda **Non-Lossy Fallback (Kayıpsız Arama)** mimari
 
 **S: Bot geçmiş ilanları spamlar mı?**  
 C: Hayır. Alarm ilk oluşturulduğunda mevcut tüm ilanlar otomatik olarak arşivlenir. Yalnızca alarm açıldıktan sonra gelen yeni ilanlar ve fiyatı düşenler bildirilir.
+
+**S: Coolify'da her 'Deploy' veya 'Redeploy' yaptığımda botun alarmları ve geçmişi siliniyor, neden?**  
+C: Docker konteynerleri doğası gereği geçicidir (stateless). Eğer Coolify üzerinde Persistent Storage tanımlanmazsa, her deploy işleminde eski konteyner yok edilip sıfırdan oluşturulur; bu da `/app/data/sahibinden_bot.db` dosyasını siler. Çözüm: Coolify panelinde uygulamanızın **Storages** sekmesine gidip **Destination Path** olarak `/app/data` kalıcı depolamasını ekleyin ve ardından Redeploy yapın. Artık alarmlarınız hiçbir deployda silinmeyecektir.
 
 ---
 
