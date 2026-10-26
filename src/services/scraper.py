@@ -6,6 +6,13 @@ import random
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from playwright.async_api import async_playwright, BrowserContext, Playwright
+
+try:
+    from playwright_stealth import Stealth
+    HAS_PLAYWRIGHT_STEALTH = True
+except ImportError:
+    HAS_PLAYWRIGHT_STEALTH = False
+
 from src.config import settings
 from src.services.parser import SahibindenParser, ListingItem
 
@@ -152,30 +159,49 @@ class StealthScraper:
             self._context = await self._playwright.chromium.launch_persistent_context(**launch_kwargs)
             logger.info("Initialized default chromium persistent context.")
 
-        # Strip navigator.webdriver signature to avoid immediate Turnstile detection
-        try:
-            await self._context.add_init_script(
-                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
-            )
-        except Exception as e:
-            logger.debug(f"Could not inject stealth script: {e}")
+        # Apply comprehensive Playwright stealth evasions
+        if HAS_PLAYWRIGHT_STEALTH:
+            try:
+                stealth = Stealth(
+                    navigator_languages_override=("tr-TR", "tr", "en-US", "en"),
+                    navigator_platform_override="Win32",
+                )
+                await stealth.apply_stealth_async(self._context)
+                logger.info("Applied Playwright stealth evasions to browser context.")
+            except Exception as e:
+                logger.warning(f"Could not apply Playwright stealth: {e}")
+        else:
+            try:
+                await self._context.add_init_script(
+                    "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+                )
+            except Exception as e:
+                logger.debug(f"Could not inject stealth script: {e}")
 
         return self._context
 
     async def _wait_for_challenge_and_table(self, page):
         """Waits for Cloudflare checkLoading interstitial and searchResultsTable."""
-        for i in range(30):
-            if "checkLoading" not in page.url:
-                break
-            try:
-                await page.mouse.move(150 + (i * 20) % 400, 250 + (i * 15) % 300)
+        # Turnstile managed challenge resolution
+        start_time = asyncio.get_event_loop().time()
+        clicked = False
+
+        while "checkLoading" in page.url and (asyncio.get_event_loop().time() - start_time) < 25:
+            elapsed = asyncio.get_event_loop().time() - start_time
+            # After 4s of natural PoW computation, if still stuck, attempt gentle single click on Turnstile widget
+            if elapsed > 4 and not clicked:
                 for frame in page.frames:
-                    checkbox = await frame.query_selector("input[type=checkbox], .ctp-checkbox-label, #challenge-stage")
-                    if checkbox:
-                        await checkbox.click()
-                        break
-            except Exception:
-                pass
+                    if "cloudflare" in frame.url or "challenges" in frame.url:
+                        try:
+                            cb = await frame.query_selector("input[type='checkbox'], span.mark, .ctp-checkbox-label, div#challenge-stage")
+                            if cb:
+                                await asyncio.sleep(random.uniform(0.3, 0.7))
+                                await cb.click(delay=random.randint(100, 200))
+                                logger.info("Gently clicked Cloudflare Turnstile checkbox.")
+                                clicked = True
+                                break
+                        except Exception:
+                            pass
             await asyncio.sleep(1)
 
         try:

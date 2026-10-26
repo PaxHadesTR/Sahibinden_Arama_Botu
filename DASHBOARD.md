@@ -82,7 +82,23 @@
   - [x] Purged legacy hardware parameters (`ddr`, `kapasite`, `marka`) from `/alarm-hizli` slash command; established clean universal parameters (`kategori`, `marka_veya_model`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `kelime`, `alarm_adi`).
   - [x] Expanded Sahibinden catalog to 91 comprehensive categories across all 9 departments (added dedicated slugs for `traktor`, `bisiklet`, `beyaz-esya`, `isitma-sogutma-havalandirma` (klima), `satilik-tarla`, `kiralik-villa`, `gunluk-kiralik-daire`, `jant-lastik`, `cevre-birimleri`, `dronlar-multikopter`, `scooter`, `atv-utv`, `is-makineleri`, `sanayi`).
   - [x] Implemented multi-tier autocomplete ranking in `CategoryResolver`: 25 balanced flagship categories on empty query; multi-tier relevance scoring (Tier 0-6) on text search.
-- [x] Automated Test Suite: 156/156 tests passing green across all suites (unit, integration, and full real-world scenarios in `tests/test_real_scenarios.py`)
+- [x] Playwright-Stealth Integration & Anti-Thrashing Backoff (`ADR-020`):
+  - [x] Added `playwright-stealth>=1.0.6` to `requirements.txt` and integrated `Stealth` in `scraper.py` covering WebGL, Chrome objects, and Turkish OS spoofing.
+  - [x] De-escalated Turnstile resolution from violent 1s mouse jitter/click looping to gentle PoW waiting and single-click dispatch.
+  - [x] Implemented 15s error backoff in `AlarmMonitor` preventing CPU starvation of Discord autocomplete event loop.
+- [x] Category-Specific Subcommand Architecture & Native Discord Choices (`ADR-021`):
+  - [x] Implemented native Discord Subcommands under command group `/alarm`:
+    - `/alarm oto`: `marka`, `model`, `vites` (Choices), `yakit` (Choices), `min_fiyat`, `max_fiyat`, `sehir`, `kelime`, `alarm_adi`.
+    - `/alarm emlak`: `tur` (Choices), `oda_sayisi` (Choices), `ilce_veya_semt`, `min_fiyat`, `max_fiyat`, `sehir`, `kelime`, `alarm_adi`.
+    - `/alarm gpu`: `vram` (Choices), `model`, `chipset` (Choices), `marka`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`.
+    - `/alarm ram`: `kapasite` (Choices), `ddr` (Choices), `tip` (Choices), `marka`, `min_fiyat`, `max_fiyat`, `alarm_adi`.
+    - `/alarm telefon`: `marka` (Choices), `model`, `hafiza` (Choices), `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`.
+    - `/alarm bisiklet`: `tur` (Choices), `jant` (Choices), `marka`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`.
+    - `/alarm traktor`: `marka`, `ceker` (Choices), `model`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`.
+    - `/alarm konsol`: `konsol` (Choices), `ekstra`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`.
+    - `/alarm genel`: `kategori` (91-category autocomplete), `arama_kelimesi`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`.
+  - [x] Full backward compatibility for `/alarm-hizli`, `/alarm-ara`, `/alarm-url`, `/alarmlarim`, `/alarm-durum`, `/alarm-test`, `/kategoriler`.
+- [x] Automated Test Suite: 157/157 tests passing green across all suites (unit, integration, and full real-world scenarios in `tests/test_real_scenarios.py`)
 - [x] Real-World Scenario Testing Suite (`tests/test_real_scenarios.py`):
   - [x] All 75 categories search URL construction and facet mapping verified.
   - [x] Slash command workflows (`/alarm-ara`, `/alarm-url`, `/alarm-hizli`, `/alarmlarim`, `/alarm-durum`, `/alarm-sil`, `/alarm-test`, `/kategoriler`) verified with interaction mocking.

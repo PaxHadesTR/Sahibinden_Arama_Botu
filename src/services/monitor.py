@@ -66,6 +66,8 @@ class AlarmMonitor:
                                 logger.error(f"Error checking alarm #{alarm['id']} ({alarm['name']}): {e}", exc_info=True)
                     except Exception as e:
                         logger.error(f"Error fetching URL {target_url} for {len(alarms_in_group)} alarms: {e}", exc_info=True)
+                        # Backoff on scrape error/challenge to prevent CPU starvation of the asyncio event loop
+                        await asyncio.sleep(15)
 
                     # Inter-alarm delay to avoid rate limits
                     await asyncio.sleep(4)

@@ -654,3 +654,186 @@ def test_scenario_all_sahibinden_categories_inferred_from_natural_text():
         matched = resolver.infer_category_from_text(query)
         assert matched is not None, f"Query '{query}' failed to infer category"
         assert matched["slug"] == expected_slug, f"Query '{query}' resolved to {matched['slug']} instead of {expected_slug}"
+
+
+@pytest.mark.asyncio
+async def test_scenario_dedicated_category_subcommands(test_cog_and_db, monkeypatch):
+    """Verify each dedicated /alarm <category> subcommand creates alarms with tailored options and facets."""
+    cog, db, _ = test_cog_and_db
+    await db.init_db()
+
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+
+    user_base = 800
+
+    # 1. /alarm oto
+    inter_oto = MockInteraction(user_id=user_base + 1)
+    await cog.alarm_oto.callback(
+        cog,
+        inter_oto,
+        marka="Honda",
+        model="Civic",
+        vites="Otomatik",
+        yakit="Benzin",
+        min_fiyat=500000,
+        max_fiyat=900000,
+        sehir="Ankara"
+    )
+    alarms = await db.get_user_alarms(user_base + 1)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "otomobil" in url
+    assert "Honda" in url
+    assert "Civic" in url
+    assert "Otomatik" in url
+    assert "Benzin" in url
+    assert "address_city=6" in url
+    assert "price_min=500000" in url
+    assert "price_max=900000" in url
+
+    # 2. /alarm emlak
+    inter_emlak = MockInteraction(user_id=user_base + 2)
+    await cog.alarm_emlak.callback(
+        cog,
+        inter_emlak,
+        tur="satilik-daire",
+        oda_sayisi="3+1",
+        ilce_veya_semt="Kadikoy",
+        min_fiyat=3000000,
+        max_fiyat=7000000,
+        sehir="Istanbul"
+    )
+    alarms = await db.get_user_alarms(user_base + 2)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "satilik-daire" in url
+    assert "3%2B1" in url or "3+1" in url
+    assert "Kadikoy" in url
+    assert "address_city=34" in url
+
+    # 3. /alarm gpu (Dedicated VRAM and Chipset facets)
+    inter_gpu = MockInteraction(user_id=user_base + 3)
+    await cog.alarm_gpu.callback(
+        cog,
+        inter_gpu,
+        vram="12 GB",
+        model="RTX 4070",
+        chipset="NVIDIA",
+        min_fiyat=15000,
+        max_fiyat=25000
+    )
+    alarms = await db.get_user_alarms(user_base + 3)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "ekran-karti-masaustu" in url
+    assert "a3347=1225091" in url  # 12 GB facet
+    assert "a3345=68145" in url    # NVIDIA facet
+    assert "RTX+4070" in url
+
+    # 4. /alarm ram (Dedicated DDR and Kapasite facets)
+    inter_ram = MockInteraction(user_id=user_base + 4)
+    await cog.alarm_ram.callback(
+        cog,
+        inter_ram,
+        kapasite="16 GB",
+        ddr="DDR4",
+        tip="Masaüstü",
+        marka="Corsair",
+        min_fiyat=1000,
+        max_fiyat=3000
+    )
+    alarms = await db.get_user_alarms(user_base + 4)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "ram-bellek-masaustu" in url
+    assert "a3329=1151866" in url  # DDR4
+    assert "a3332=1168186" in url  # 16 GB
+    assert "Corsair" in url
+
+    # 5. /alarm telefon
+    inter_tel = MockInteraction(user_id=user_base + 5)
+    await cog.alarm_telefon.callback(
+        cog,
+        inter_tel,
+        marka="Apple",
+        model="iPhone 15",
+        hafiza="128 GB",
+        min_fiyat=40000,
+        max_fiyat=55000
+    )
+    alarms = await db.get_user_alarms(user_base + 5)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "cep-telefonu" in url
+    assert "Apple" in url
+    assert "iPhone" in url
+    assert "128+GB" in url or "128" in url
+
+    # 6. /alarm bisiklet
+    inter_bis = MockInteraction(user_id=user_base + 6)
+    await cog.alarm_bisiklet.callback(
+        cog,
+        inter_bis,
+        tur="Dağ Bisikleti",
+        jant="29 Jant",
+        marka="Carraro",
+        max_fiyat=15000
+    )
+    alarms = await db.get_user_alarms(user_base + 6)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "bisiklet" in url
+    assert "Carraro" in url
+    assert "29" in url
+
+    # 7. /alarm traktor
+    inter_tr = MockInteraction(user_id=user_base + 7)
+    await cog.alarm_traktor.callback(
+        cog,
+        inter_tr,
+        marka="New Holland",
+        ceker="4x4",
+        model="T4.75",
+        min_fiyat=700000
+    )
+    alarms = await db.get_user_alarms(user_base + 7)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "traktor" in url
+    assert "New+Holland" in url
+    assert "4x4" in url
+
+    # 8. /alarm konsol
+    inter_kon = MockInteraction(user_id=user_base + 8)
+    await cog.alarm_konsol.callback(
+        cog,
+        inter_kon,
+        konsol="PlayStation 5",
+        ekstra="Slim Digital",
+        min_fiyat=15000,
+        max_fiyat=22000
+    )
+    alarms = await db.get_user_alarms(user_base + 8)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "oyun-konsollari" in url
+    assert "PlayStation" in url
+    assert "Slim" in url
+
+    # 9. /alarm genel
+    inter_gen = MockInteraction(user_id=user_base + 9)
+    await cog.alarm_genel.callback(
+        cog,
+        inter_gen,
+        kategori="dizustu-notebook",
+        arama_kelimesi="ThinkPad",
+        ozellik="16 GB",
+        min_fiyat=10000,
+        max_fiyat=25000
+    )
+    alarms = await db.get_user_alarms(user_base + 9)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "dizustu-notebook" in url
+    assert "ThinkPad" in url
+

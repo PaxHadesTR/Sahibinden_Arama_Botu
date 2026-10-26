@@ -179,15 +179,42 @@ WSL veya sunucunuza `warp-cli` kurmanıza **kesinlikle gerek yoktur!** `docker-c
 
 Bot slash komutlarıyla (`/`) çalışır. Yazmaya başladığınızda Discord otomatik tamamlama ve parametre ipuçları sunar.
 
-### 1. `/kategoriler` (Kategori ve Birim Rehberi)
-Desteklenen tüm kategorileri, RAM (MB/GB), SSD (GB/TB), Ekran Kartı, Vasıta ve Emlak formatlarını gösterir.
+### 1. `/alarm <kategori>` (Kategoriye Özel Parametrik ve Seçmeli Dropdown Alarmlar)
+Her ana kategorinin kendine özgü filtreleri ve hazır Discord açılır menü (choices) seçenekleri bulunur:
+
 ```
-/kategoriler
+# 🚗 Vasıta / Otomobil (Vites & Yakıt açılır menü seçenekli)
+/alarm oto marka: Honda model: Civic vites: Otomatik Vites yakit: Benzin sehir: Ankara min_fiyat: 500000 max_fiyat: 950000
+
+# 🏠 Emlak / Gayrimenkul (Tür & Oda sayısı özel filtreli)
+/alarm emlak tur: Satılık Daire oda_sayisi: 3+1 ilce_veya_semt: Kadıköy sehir: İstanbul max_fiyat: 7500000
+
+# 🎮 Ekran Kartı (VRAM & Çipset açılır menü seçenekli)
+/alarm gpu vram: 12 GB VRAM model: RTX 4070 chipset: Nvidia GeForce min_fiyat: 15000 max_fiyat: 25000
+
+# 🧠 RAM Bellek (Kapasite, DDR Nesli & Tip açılır menü seçenekli)
+/alarm ram kapasite: 16 GB ddr: DDR4 tip: Masaüstü RAM marka: Corsair max_fiyat: 2500
+/alarm ram kapasite: 2x 16 GB (32GB Dual-Kit) ddr: DDR5 tip: Masaüstü RAM marka: G.Skill
+
+# 📱 Cep Telefonu (Marka & Hafıza açılır menü seçenekli)
+/alarm telefon marka: Apple model: iPhone 15 Pro hafiza: 128 GB max_fiyat: 60000
+
+# 🚲 Bisiklet (Tür & Jant Boyutu açılır menü seçenekli)
+/alarm bisiklet tur: Dağ Bisikleti jant: 29 Jant marka: Carraro max_fiyat: 18000
+
+# 🚜 Traktör & Tarım (Çeker seçeneği: 4x4 / 4x2)
+/alarm traktor marka: New Holland ceker: 4x4 model: T4.75 min_fiyat: 750000
+
+# 🕹️ Oyun Konsolu (Konsol türü hazır menülü)
+/alarm konsol konsol: PlayStation 5 ekstra: Slim Digital max_fiyat: 22000
+
+# 🌐 Tüm Diğer 90+ Kategori (Genel Arama & Akıllı Otomatik Tamamlama)
+/alarm genel kategori: Dizüstü (Notebook) arama_kelimesi: ThinkPad ozellik: 16 GB max_fiyat: 30000
 ```
 
 ---
 
-### 2. `/alarm-hizli` (Tek Satırda Parametrik Alarm)
+### 2. `/alarm-hizli` (Tek Satırda Hızlı Parametrik Alarm)
 Kategori, özellik/birim ve bütçe kriterlerini tek satırda yazarak saniyeler içinde alarm kurun (Tüm kategorilerle uyumlu evrensel parametreler):
 ```
 # Vasıta / Otomobil Alarmı
@@ -213,7 +240,15 @@ Kategori, özellik/birim ve bütçe kriterlerini tek satırda yazarak saniyeler 
 
 ---
 
-### 3. `/alarm-ara` (Evrensel Serbest Arama)
+### 3. `/kategoriler` (Kategori ve Birim Rehberi)
+Desteklenen tüm kategorileri, RAM (MB/GB), SSD (GB/TB), Ekran Kartı, Vasıta ve Emlak formatlarını gösterir.
+```
+/kategoriler
+```
+
+---
+
+### 4. `/alarm-ara` (Evrensel Serbest Arama)
 Kategori belirtmeden tüm sitede serbest kelime ve bütçe araması:
 ```
 /alarm-ara kelime: Kadıköy 3+1 satılık daire min_fiyat: 4000000 max_fiyat: 7500000 sehir: İstanbul
@@ -223,7 +258,7 @@ Kategori belirtmeden tüm sitede serbest kelime ve bütçe araması:
 
 ---
 
-### 4. `/alarm-url` (Detaylı Sahibinden Linki Takibi)
+### 5. `/alarm-url` (Detaylı Sahibinden Linki Takibi)
 Sahibinden web sitesinde seçtiğiniz arama sonucunun URL'sini doğrudan yapıştırın:
 ```
 /alarm-url url: https://www.sahibinden.com/otomobil?sorting=date_desc&price_max=950000 alarm_adi: Civic Arama
@@ -231,10 +266,14 @@ Sahibinden web sitesinde seçtiğiniz arama sonucunun URL'sini doğrudan yapış
 
 ---
 
-### 5. Yönetim Komutları
+### 6. Yönetim Komutları
 
 | Komut | Parametreler | Açıklama |
 |---|---|---|
+| `/alarm <kategori>` | `oto`, `emlak`, `gpu`, `ram`, `telefon`, `bisiklet`, `traktor`, `konsol`, `genel` | Kategoriye özel optimize filtreler ve hazır açılır menülerle nokta atışı alarm kurar. |
+| `/alarm-hizli` | `kategori`, `marka_veya_model`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `kelime` | Tek komutta hızlı evrensel parametrik alarm kurar. |
+| `/alarm-ara` | `kelime`, `min_fiyat`, `max_fiyat`, `sehir` | Tüm Sahibinden sitesinde serbest arama yapar. |
+| `/alarm-url` | `url`, `alarm_adi` | Doğrudan yapıştırılan Sahibinden arama URL'sini dinler. |
 | `/kategoriler` | `-` | Tüm kategorileri, birim türlerini (MB, GB, TB) ve komut örneklerini gösterir. |
 | `/alarmlarim` | `-` | Kurduğunuz tüm alarmları, ID numaralarını ve aktiflik durumlarını listeler. |
 | `/alarm-durum` | `alarm_id: <ID> aktif: <True/False>` | Bir alarmı silmeden geçici olarak duraklatır (`False`) veya yeniden başlatır (`True`). |
