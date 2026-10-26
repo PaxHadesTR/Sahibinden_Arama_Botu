@@ -259,4 +259,21 @@
   - Robust Turnstile challenge resolution on low-resource VPS environments.
   - 153/153 test suite coverage maintained.
 
+## ADR-019: Authentic Sahibinden Taxonomy Expansion, Clean Universal Parameters & Multi-Tier Autocomplete Ranking (2026-10-26)
+
+- **Context**:
+  1. Users reported that essential Sahibinden categories (such as tractors/agriculture, bicycles, air conditioning/heating, home appliances, specific vehicle types, and real estate subcategories) were missing or resolving to generic umbrellas.
+  2. In `/alarm-hizli`, legacy backward-compatibility parameters (`ddr`, `kapasite`, `marka`) were visible in Discord's slash command suggestion list for every category, polluting car, real estate, and appliance alarms with RAM/hardware-specific options.
+  3. Default autocomplete (when user input was empty) listed the first 25 items from the JSON file, heavily skewed towards PC hardware components (10 out of 25), failing to represent the broader platform.
+- **Decision**:
+  1. **Purge Hardware Options from `/alarm-hizli`**: Completely remove `ddr`, `kapasite`, and `marka` arguments from `@app_commands.command` signature. Standardize on the universal parameter schema: `kategori`, `marka_veya_model`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `kelime`, `alarm_adi`.
+  2. **Expand Authentic Catalog to 91 Categories**: Added dedicated categories and verified URL slugs for `traktor`, `bisiklet`, `beyaz-esya`, `isitma-sogutma-havalandirma` (klima/kombi), `satilik-tarla`, `kiralik-villa`, `gunluk-kiralik-daire`, `jant-lastik`, `cevre-birimleri`, `dronlar-multikopter`, `kamp-doga-sporlari`, `avcilik-balikcilik`, `scooter`, `atv-utv`, `is-makineleri`, `sanayi`.
+  3. **Multi-Tier Autocomplete Ranking in `CategoryResolver`**:
+     - When query is empty, return a balanced top 25 flagship list representing all departments (Cars, Apartments, Lands, SUVs, Bikes, Phones, Laptops, PCs, GPUs, RAM, Consoles, TVs, Bicycles, Watches, Tractors, Appliances, Air Conditioners, etc.).
+     - When query is typed, apply multi-tier scoring (Tier 0: exact key/slug, Tier 1: exact alias, Tier 2: prefix key/slug, Tier 3: prefix alias, Tier 4: substring alias, Tier 5: display name, Tier 6: hint) so exact terms always rank #1.
+  4. Expanded test suite to 156/156 green tests.
+- **Consequences**:
+  - Intuitive, universal slash command UX across all 91 Sahibinden categories with zero hardware clutter on non-hardware alarms.
+  - Lightning-fast, hyper-accurate category discovery in Discord.
+
 

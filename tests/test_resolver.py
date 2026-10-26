@@ -199,3 +199,58 @@ def test_token_number_capacity_extraction():
     assert specs_gpu.get("chipset") == "Nvidia"
 
 
+def test_expanded_authentic_sahibinden_categories():
+    """Verify newly added categories like traktor, bisiklet, beyaz-esya, klima resolve correctly."""
+    assert resolver.resolve_category("traktör")["slug"] == "traktor"
+    assert resolver.resolve_category("new holland")["slug"] == "traktor"
+    assert resolver.resolve_category("bisiklet")["slug"] == "bisiklet"
+    assert resolver.resolve_category("dag bisikleti")["slug"] == "bisiklet"
+    assert resolver.resolve_category("beyaz eşya")["slug"] == "beyaz-esya"
+    assert resolver.resolve_category("buzdolabı")["slug"] == "beyaz-esya"
+    assert resolver.resolve_category("klima")["slug"] == "isitma-sogutma-havalandirma"
+    assert resolver.resolve_category("kombi")["slug"] == "isitma-sogutma-havalandirma"
+    assert resolver.resolve_category("satılık tarla")["slug"] == "satilik-tarla"
+    assert resolver.resolve_category("kiralık villa")["slug"] == "kiralik-villa"
+    assert resolver.resolve_category("jant lastik")["slug"] == "jant-lastik"
+    assert resolver.resolve_category("scooter")["slug"] == "scooter"
+
+
+def test_default_flagship_autocomplete():
+    """Verify default empty autocomplete returns 25 diverse flagship categories representing all Sahibinden sections."""
+    choices = resolver.get_autocomplete_choices("")
+    assert len(choices) == 25
+    keys = [k for _, k in choices]
+    # Essential flagship sections must all be represented
+    assert "otomobil" in keys
+    assert "satilik-daire" in keys
+    assert "kiralik-daire" in keys
+    assert "arazi-suv-pickup" in keys
+    assert "motosiklet" in keys
+    assert "cep-telefonu" in keys
+    assert "dizustu-bilgisayar" in keys
+    assert "ekran-karti-masaustu" in keys
+    assert "ram-bellek-masaustu" in keys
+    assert "bisiklet" in keys
+    assert "traktor" in keys
+    assert "beyaz-esya" in keys
+    assert "kol-saati" in keys
+    assert "isitma-sogutma-havalandirma" in keys
+    assert "genel-arama" in keys
+
+
+def test_ranked_autocomplete_scoring():
+    """Verify smart multi-tier ranking places the exact match at the top of choices."""
+    top_traktor = resolver.get_autocomplete_choices("traktor")[0][1]
+    assert top_traktor == "traktor"
+
+    top_bisiklet = resolver.get_autocomplete_choices("bisiklet")[0][1]
+    assert top_bisiklet == "bisiklet"
+
+    top_klima = resolver.get_autocomplete_choices("klima")[0][1]
+    assert top_klima == "isitma-sogutma-havalandirma"
+
+    top_bmw = resolver.get_autocomplete_choices("bmw")[0][1]
+    assert top_bmw == "otomobil"
+
+
+

@@ -231,33 +231,27 @@ class AlarmCog(commands.Cog):
         description="Tek satırda kategori, özellik/birim ve bütçe ile hızlı alarm oluşturun."
     )
     @app_commands.describe(
-        kategori="Kategori veya takma ad (örn: 'otomobil', 'daire', 'ram', 'gpu', 'telefon', 'arsa')",
-        ozellik="Özellik / Tip / Birim (örn: '16 GB', 'DDR4', 'Otomatik', '3+1', '1 TB', '512 MB')",
-        marka_veya_model="Marka, Model veya Çipset (örn: 'Civic', 'Nvidia', 'Corsair', 'iPhone', 'BMW')",
-        min_fiyat="Minimum Fiyat TL (örn: 500, 2000)",
-        max_fiyat="Maksimum Fiyat TL (örn: 5000, 35000)",
-        sehir="Şehir filtresi (örn: 'İstanbul', 'Ankara', 'İzmir', 'Bursa')",
+        kategori="Kategori seçin veya arayın (örn: 'otomobil', 'satılık daire', 'ram', 'gpu', 'traktör', 'bisiklet')",
+        marka_veya_model="Marka, model veya bölge (örn: 'Civic', 'BMW', 'RTX 4070', 'iPhone 15', 'Kadıköy', 'Carraro')",
+        ozellik="Özellik, tip veya birim (örn: 'Otomatik', '3+1', '16 GB DDR4', '1 TB', '4x4', 'Dizel', '12 GB')",
+        min_fiyat="Minimum Fiyat TL (örn: 500, 2000, 500000)",
+        max_fiyat="Maksimum Fiyat TL (örn: 5000, 35000, 950000)",
+        sehir="Şehir filtresi (örn: 'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya')",
         kelime="Ek arama kelimesi veya detay (örn: 'Boyasız', 'Kombili', 'M.2', 'Kutulu')",
-        alarm_adi="Alarm için hatırlatıcı isim (örn: 'Civic Otomatik', '16GB RAM', 'Kadıköy 3+1')",
-        ddr="[Geriye dönük uyumluluk] RAM bellek tipi (örn: 'DDR4')",
-        kapasite="[Geriye dönük uyumluluk] Kapasite ve birimi (örn: '16 GB')",
-        marka="[Geriye dönük uyumluluk] Marka veya Chipset (örn: 'Corsair')"
+        alarm_adi="Alarm için hatırlatıcı isim (örn: 'Civic Otomatik', '16GB RAM', 'Kadıköy 3+1') (opsiyonel)"
     )
     @app_commands.autocomplete(kategori=category_autocomplete)
     async def alarm_hizli(
         self,
         interaction: discord.Interaction,
         kategori: str,
-        ozellik: str | None = None,
         marka_veya_model: str | None = None,
+        ozellik: str | None = None,
         min_fiyat: int | None = None,
         max_fiyat: int | None = None,
         sehir: str | None = None,
         kelime: str | None = None,
         alarm_adi: str | None = None,
-        ddr: str | None = None,
-        kapasite: str | None = None,
-        marka: str | None = None,
     ):
         await self._safe_defer(interaction, ephemeral=True)
 
@@ -285,23 +279,22 @@ class AlarmCog(commands.Cog):
         cat_key = cat_data["key"] if cat_data else "genel-arama"
         category_slug = cat_data["slug"] if cat_data else "kelime-ile-arama"
 
-        # Backward compatibility: merge legacy parameters into effective spec and brand
-        effective_spec = " ".join(filter(None, [ozellik, ddr, kapasite])).strip() or None
-        effective_brand = (marka_veya_model or marka or "").strip() or None
+        effective_spec = ozellik.strip() if ozellik else None
+        effective_brand = marka_veya_model.strip() if marka_veya_model else None
 
         # Auto-extract embedded hardware facets if applicable
         extracted = resolver.extract_specs_from_text(
-            f"{kategori} {effective_spec or ''} {kelime or ''}",
+            f"{kategori} {effective_spec or ''} {effective_brand or ''} {kelime or ''}",
             category_key=cat_key
         )
 
-        formatted_ddr = ddr.upper().strip() if ddr else extracted.get("tipi")
+        formatted_ddr = extracted.get("tipi")
 
         # Multi-unit capacity normalization (supports MB, GB, TB, Dual-Kit)
-        raw_cap = kapasite.strip() if kapasite else (extracted.get("kapasite") or extracted.get("bellek"))
+        raw_cap = extracted.get("kapasite") or extracted.get("bellek")
         formatted_cap = resolver.normalize_capacity_unit(raw_cap, category_key=cat_key) if raw_cap else None
 
-        formatted_brand = marka.strip() if marka else (extracted.get("marka") or extracted.get("chipset") or effective_brand)
+        formatted_brand = extracted.get("marka") or extracted.get("chipset") or effective_brand
 
         # Prepare query parts for non-facet search terms (e.g. "Civic", "Otomatik", "3+1")
         query_parts: list[str] = []
@@ -420,9 +413,9 @@ class AlarmCog(commands.Cog):
         embed = discord.Embed(
             title="📚 Sahibinden Alarm Botu: Kategori & Birim Rehberi",
             description=(
-                "Bot; Vasıta, Emlak, Yedek Parça, Bilgisayar Donanımı, Telefon, Elektronik ve İkinci El dahil "
-                "Sahibinden'in **tüm 75+ başlığını** ve bunlara ait farklı birim türlerini hesaplar.\n"
-                "Aşağıdaki başlıkları `/alarm-hizli`, `/alarm-kur` veya `/alarm-ara` ile kullanabilirsiniz:"
+                "Bot; Vasıta, Emlak, Yedek Parça, Bilgisayar Donanımı, Telefon, Elektronik, İş Makineleri, Tarım ve İkinci El dahil "
+                "Sahibinden'in **tüm 90+ başlığını** ve bunlara ait farklı birim türlerini hesaplar.\n"
+                "Aşağıdaki başlıkları `/alarm-hizli`, `/alarm-ara` veya `/alarm-url` ile kullanabilirsiniz:"
             ),
             color=0x3498DB
         )
@@ -498,7 +491,7 @@ class AlarmCog(commands.Cog):
             name="📱 Telefon, Fotoğraf & Ev Elektroniği",
             value=(
                 "• **Kategoriler**: `cep-telefonu`, `akilli-saat`, `tablet-bilgisayar`, `fotograf-kamera`, `ev-elektronigi`, `televizyon`, `elektrikli-ev-aletleri`, `teknik-elektronik`\n"
-                "• *Örnek Telefon*: `/alarm-hizli kategori:telefon kelime:iPhone 15 Pro kapasite:128 GB max_fiyat:60000`\n"
+                "• *Örnek Telefon*: `/alarm-hizli kategori:telefon marka_veya_model:iPhone 15 Pro ozellik:128 GB max_fiyat:60000`\n"
                 "• *Örnek Kamera*: `/alarm-ara kelime:Sony A7 IV gövde min_fiyat:50000 max_fiyat:80000`\n"
                 "• *Örnek Ev Aleti*: `/alarm-ara kelime:Dyson V15 süpürge kutulu min_fiyat:15000 max_fiyat:25000`"
             ),

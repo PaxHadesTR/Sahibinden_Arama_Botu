@@ -204,6 +204,11 @@ Kategori, özellik/birim ve bütçe kriterlerini tek satırda yazarak saniyeler 
 # SSD & Ekran Kartı (VRAM)
 /alarm-hizli kategori: ssd ozellik: 1 TB kelime: NVMe max_fiyat: 3500
 /alarm-hizli kategori: gpu ozellik: 12 GB marka_veya_model: Nvidia kelime: RTX 4070 max_fiyat: 22000
+
+# Tarım / Traktör, Bisiklet & Ev Aletleri
+/alarm-hizli kategori: traktor marka_veya_model: New Holland ozellik: 4x4 max_fiyat: 1200000
+/alarm-hizli kategori: bisiklet marka_veya_model: Carraro ozellik: 28 Jant max_fiyat: 15000
+/alarm-hizli kategori: klima marka_veya_model: Mitsubishi ozellik: 12000 BTU max_fiyat: 35000
 ```
 
 ---

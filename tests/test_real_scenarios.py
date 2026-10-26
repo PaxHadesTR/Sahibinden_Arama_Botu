@@ -284,9 +284,8 @@ async def test_scenario_alarm_hizli_multi_units_and_specs(test_cog_and_db, monke
         cog,
         inter_a,
         kategori="ram",
-        ddr="DDR2",
-        kapasite="512 MB",
-        marka="Kingston",
+        marka_veya_model="Kingston",
+        ozellik="512 MB DDR2",
         max_fiyat=400,
         alarm_adi="Retro RAM"
     )
@@ -302,7 +301,7 @@ async def test_scenario_alarm_hizli_multi_units_and_specs(test_cog_and_db, monke
         cog,
         inter_b,
         kategori="ssd",
-        kapasite="1000 GB",
+        ozellik="1000 GB",
         kelime="NVMe",
         max_fiyat=4000
     )
@@ -640,10 +639,14 @@ def test_scenario_all_sahibinden_categories_inferred_from_natural_text():
         ("sony a7 iv fotograf makinesi", "fotograf-kamera"),
         ("dyson süpürge elektrikli ev aletleri", "elektrikli-ev-aletleri"),
         ("fender elektro gitar enstrüman", "muzik"),
-        ("trek dağ bisikleti outdoor", "spor"),
+        ("koşu bandı fitness outdoor", "spor"),
+        ("carraro dağ bisikleti", "bisiklet"),
         ("osmanlı madeni para koleksiyon", "koleksiyon"),
         ("antik gramofon porselen", "antika"),
-        ("jcb kepçe iş makinesi traktör", "is-makineleri-sanayi"),
+        ("jcb kepçe iş makineleri ve sanayi", "is-makineleri-sanayi"),
+        ("new holland traktör 4x4", "traktor"),
+        ("inverter klima 12000 btu", "isitma-sogutma-havalandirma"),
+        ("bosch çamaşır makinesi beyaz eşya", "beyaz-esya"),
         ("evden eve nakliyat ustalar", "ustalar-ve-hizmetler"),
         ("lgs matematik özel ders", "ozel-ders-verenler"),
     ]

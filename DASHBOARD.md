@@ -78,7 +78,11 @@
   - [x] Completely removed obsolete `/alarm-kur` command and modal wizard to streamline bot commands and eliminate view state overhead.
   - [x] Wrapped Discord autocomplete (`category_autocomplete`) with defensive try/except handling to prevent gateway exceptions on proxy latency.
   - [x] Hardened Playwright scraper anti-bot evasion: forced Turkish locale/timezone (`tr-TR`, `Europe/Istanbul`), masked `navigator.webdriver = undefined`, and extended Cloudflare Turnstile `checkLoading` resolution timeout from 12s to 30s with simulated mouse jitter and automated iframe dispatch.
-- [x] Automated Test Suite: 153/153 tests passing green across all suites (unit, integration, and full real-world scenarios in `tests/test_real_scenarios.py`)
+- [x] Authentic Sahibinden Taxonomy Expansion & Smart Autocomplete (`ADR-019`):
+  - [x] Purged legacy hardware parameters (`ddr`, `kapasite`, `marka`) from `/alarm-hizli` slash command; established clean universal parameters (`kategori`, `marka_veya_model`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `kelime`, `alarm_adi`).
+  - [x] Expanded Sahibinden catalog to 91 comprehensive categories across all 9 departments (added dedicated slugs for `traktor`, `bisiklet`, `beyaz-esya`, `isitma-sogutma-havalandirma` (klima), `satilik-tarla`, `kiralik-villa`, `gunluk-kiralik-daire`, `jant-lastik`, `cevre-birimleri`, `dronlar-multikopter`, `scooter`, `atv-utv`, `is-makineleri`, `sanayi`).
+  - [x] Implemented multi-tier autocomplete ranking in `CategoryResolver`: 25 balanced flagship categories on empty query; multi-tier relevance scoring (Tier 0-6) on text search.
+- [x] Automated Test Suite: 156/156 tests passing green across all suites (unit, integration, and full real-world scenarios in `tests/test_real_scenarios.py`)
 - [x] Real-World Scenario Testing Suite (`tests/test_real_scenarios.py`):
   - [x] All 75 categories search URL construction and facet mapping verified.
   - [x] Slash command workflows (`/alarm-ara`, `/alarm-url`, `/alarm-hizli`, `/alarmlarim`, `/alarm-durum`, `/alarm-sil`, `/alarm-test`, `/kategoriler`) verified with interaction mocking.

@@ -262,36 +262,115 @@ class CategoryResolver:
 
         return found_facets
 
+    FLAGSHIP_CATEGORIES = [
+        "otomobil",
+        "satilik-daire",
+        "kiralik-daire",
+        "satilik-arsa",
+        "satilik-tarla",
+        "arazi-suv-pickup",
+        "motosiklet",
+        "cep-telefonu",
+        "dizustu-bilgisayar",
+        "masaustu-bilgisayar",
+        "ekran-karti-masaustu",
+        "ram-bellek-masaustu",
+        "ssd-dahili-sabit-disk",
+        "oyun-konsolu",
+        "televizyon",
+        "bisiklet",
+        "kol-saati",
+        "traktor",
+        "beyaz-esya",
+        "isitma-sogutma-havalandirma",
+        "minivan-panelvan",
+        "elektrikli-araclar",
+        "karavan",
+        "satilik-isyeri",
+        "genel-arama",
+    ]
+
+    def _format_choice_label(self, cat_key: str, cat_data: dict[str, Any]) -> str:
+        display = cat_data.get("display_name", cat_key)
+        hint = cat_data.get("example_hint")
+        label = f"{display} ({hint})" if hint else display
+        if len(label) > 100:
+            label = label[:97] + "..."
+        return label
+
     def get_autocomplete_choices(self, current: str) -> list[tuple[str, str]]:
         """Returns (display_label, category_key) pairs matching the user's input for Discord autocomplete.
 
-        Labels include example hints (e.g., '🧠 RAM Bellek (Masaüstü) (Örn: DDR4, DDR5, 16 GB, 512 MB)')
-        to guide users on syntax directly in the Discord UI.
+        When current is empty, returns the top 25 flagship categories representing every major
+        department of Sahibinden (vehicles, real estate, hardware, phones, consoles, appliances, etc.).
+        When current is typed, uses multi-tier relevance ranking against keys, slugs, aliases,
+        display names, and contextual hints.
         """
         query = self.normalize_turkish(current)
-        results: list[tuple[str, str]] = []
-        for cat_key, cat_data in self.categories.items():
-            display = cat_data.get("display_name", cat_key)
-            hint = cat_data.get("example_hint")
-            label = f"{display} ({hint})" if hint else display
-            # Discord choice name limit is 100 characters
-            if len(label) > 100:
-                label = label[:97] + "..."
 
-            norm_display = self.normalize_turkish(display)
+        # 1. Default Flagship Choices when user hasn't typed anything
+        if not query:
+            results: list[tuple[str, str]] = []
+            seen_keys: set[str] = set()
+            for key in self.FLAGSHIP_CATEGORIES:
+                if key in self.categories and key not in seen_keys:
+                    cat_data = self.categories[key]
+                    results.append((self._format_choice_label(key, cat_data), key))
+                    seen_keys.add(key)
+                if len(results) >= 25:
+                    break
+
+            if len(results) < 25:
+                for cat_key, cat_data in self.categories.items():
+                    if cat_key not in seen_keys:
+                        results.append((self._format_choice_label(cat_key, cat_data), cat_key))
+                        seen_keys.add(cat_key)
+                    if len(results) >= 25:
+                        break
+            return results
+
+        # 2. Multi-tier Relevance Scoring for Search Query
+        scored_matches: list[tuple[int, str, str]] = []
+
+        for cat_key, cat_data in self.categories.items():
+            label = self._format_choice_label(cat_key, cat_data)
+            norm_key = self.normalize_turkish(cat_key)
+            norm_slug = self.normalize_turkish(cat_data.get("slug", ""))
+            norm_display = self.normalize_turkish(cat_data.get("display_name", ""))
             aliases = [self.normalize_turkish(a) for a in cat_data.get("aliases", [])]
+            hint = cat_data.get("example_hint")
             norm_hint = self.normalize_turkish(hint) if hint else ""
 
-            if (
-                not query
-                or query in norm_display
-                or any(query in a for a in aliases)
-                or (norm_hint and query in norm_hint)
-            ):
-                results.append((label, cat_key))
-            if len(results) >= 25:
-                break
-        return results
+            score: int | None = None
+
+            # Tier 0: Exact match on catalog key or URL slug
+            if query == norm_key or query == norm_slug:
+                score = 0
+            # Tier 1: Exact match on any alias
+            elif any(query == a for a in aliases):
+                score = 1
+            # Tier 2: Prefix match on catalog key or URL slug
+            elif norm_key.startswith(query) or norm_slug.startswith(query):
+                score = 2
+            # Tier 3: Prefix match on any alias
+            elif any(a.startswith(query) for a in aliases):
+                score = 3
+            # Tier 4: Substring match inside an alias
+            elif any(query in a for a in aliases):
+                score = 4
+            # Tier 5: Match in display name
+            elif query in norm_display:
+                score = 5
+            # Tier 6: Match in contextual example hint
+            elif norm_hint and query in norm_hint:
+                score = 6
+
+            if score is not None:
+                scored_matches.append((score, label, cat_key))
+
+        # Sort by relevance tier, then return top 25 choices
+        scored_matches.sort(key=lambda item: item[0])
+        return [(label, cat_key) for _, label, cat_key in scored_matches[:25]]
 
     def infer_category_from_text(self, text: str) -> dict[str, Any] | None:
         """Attempts to infer an exact category from freeform search text using specificity-sorted word boundaries."""
