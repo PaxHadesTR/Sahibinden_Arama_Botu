@@ -289,6 +289,7 @@
       "slug": "cep-telefonu",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Cep Telefonu > Modeller",
       "example_hint": "Örn: iPhone 15 Pro, Samsung S24, 128 GB",
+      "profile": "phone",
       "aliases": [
         "cep telefonu",
         "akilli telefon",
@@ -298,7 +299,19 @@
         "xiaomi",
         "redmi"
       ],
-      "facets": {}
+      "facets": {
+        "hafiza": {
+          "param_name": "hafiza",
+          "label": "Dahili Hafıza",
+          "options": {
+            "64 GB": "64",
+            "128 GB": "128",
+            "256 GB": "256",
+            "512 GB": "512",
+            "1 TB": "1024"
+          }
+        }
+      }
     },
     "akilli-saat": {
       "id": "111930",
@@ -322,6 +335,7 @@
       "slug": "tablet-bilgisayar",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Tablet",
       "example_hint": "Örn: iPad Pro, iPad Air, Galaxy Tab",
+      "profile": "tablet",
       "aliases": [
         "tablet",
         "ipad",
@@ -329,7 +343,20 @@
         "ipad air",
         "galaxy tab"
       ],
-      "facets": {}
+      "facets": {
+        "hafiza": {
+          "param_name": "hafiza",
+          "label": "Dahili Hafıza",
+          "options": {
+            "64 GB": "64",
+            "128 GB": "128",
+            "256 GB": "256",
+            "512 GB": "512",
+            "1 TB": "1024",
+            "2 TB": "2048"
+          }
+        }
+      }
     },
     "dizustu-bilgisayar": {
       "id": "22856",
@@ -1888,7 +1915,7 @@
     },
     "sanayi": {
       "id": "3680",
-      "display_name": "🏭 Sanayi / Sanayi & İmalat",
+      "display_name": "🚜 İş Makineleri / Sanayi & İmalat",
       "slug": "sanayi",
       "breadcrumbs": "İş Makineleri & Sanayi > Sanayi",
       "example_hint": "Örn: Torna tezgahı, CNC dik işleme, Vidalı kompresör, Jeneratör",
@@ -2027,7 +2054,7 @@
     },
     "elektrik-enerji": {
       "id": "c0314",
-      "display_name": "🏭 Sanayi / Elektrik & Enerji",
+      "display_name": "🚜 İş Makineleri / Elektrik & Enerji",
       "slug": "elektrik-enerji",
       "breadcrumbs": "İş Makineleri & Sanayi > Elektrik & Enerji",
       "example_hint": "Örn: Güneş paneli, jeneratör, trafo, invertör, enerji depolama",

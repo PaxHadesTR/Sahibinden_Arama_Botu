@@ -373,3 +373,32 @@
   - Frictionless, intuitive Discord slash command UX.
   - 167/167 tests passing green.
 
+## ADR-024: Zero Over-Filtering Query Deduplication, Dual-Token Resolution & Phone Storage Hardening (2026-10-27)
+
+- **Context**:
+  1. In `/alarm-hizli`, when search queries and spec filters had overlapping words (e.g. `arama="Honda Civic Otomatik"` and `ozellik="Otomatik"`, or `arama="Kadıköy 3+1 Daire"` and `ozellik="3+1"`, or `arama="New Holland 4x4"` and `ozellik="4x4"`), naive string concatenation produced duplicate query keywords in the target URL (e.g. `Honda Civic Otomatik Otomatik`). Sahibinden searches for exact multi-occurrences, causing 0-result drops.
+  2. Mobile and tablet storage options were stored under facet `"hafiza"` in `categories.json`, but `alarm_hizli` and `extract_specs_from_text` only inspected `"kapasite"` and `"bellek"`. As a result, capacity was dropped from SQLite `filters`, preventing `AlarmMonitor` from performing client-side capacity post-filtering and causing duplicate storage strings in the URL.
+  3. `CategoryResolver.get_spec_suggestions` did not resolve aliases through `get_category`, causing natural queries like `araba`, `ev`, `ekran kartı`, and `telefon` to fall back to generic suggestions.
+  4. In `_execute_alarm_creation`, `📂 Kategori` and search terms were added twice to the confirmation embed.
+  5. Unrecognized freeform categories entered into `kategori` were silently dropped, searching with an empty query on the root catalog instead of preserving the keyword.
+- **Decision**:
+  1. **Token & Phrase-Level Non-Redundant Query Merging**:
+     - Implemented `AlarmCog._merge_query_and_spec(query, spec)`. If `spec` is a substring of `query` (or vice versa), the superset is preserved without duplication. Otherwise, individual tokens/words from `spec` that already appear in `query` are skipped.
+  2. **Phone & Tablet Capacity Hardening**:
+     - Extended `extract_specs_from_text` and `alarm_hizli` to inspect `"hafiza"` alongside `"kapasite"` and `"bellek"`.
+     - Added `"hafiza"` facet definitions to `cep-telefonu` and `tablet-bilgisayar` in `categories.json`.
+     - Capacity is stored in SQLite `filters` ensuring `AlarmMonitor`'s defense-in-depth capacity post-filter operates reliably.
+  3. **Alias Resolution in Spec Autocomplete**:
+     - Updated `get_spec_suggestions` to resolve `category_key` through `self.get_category` before matching, instantly offering category-tailored suggestions for aliases like `araba` (cars), `ev` (real estate), `gpu` (graphics cards), and `telefon` (smartphones).
+  4. **Clean Single-Instance Confirmation Embed**:
+     - Refactored `_execute_alarm_creation` to render each field (`🆔 Alarm ID`, `📂 Kategori`, `🔍 Arama`, `⚙️ Özellik`, `💰 Fiyat Aralığı`, `📍 Şehir`) exactly once.
+  5. **Freeform Category Preservation**:
+     - If `kategori` does not match any known category, its text is merged into `effective_query` rather than discarded.
+  6. **Root Departments Categorization Alignment**:
+     - Aligned `sanayi` and `elektrik-enerji` display names to `🚜 İş Makineleri / ...` matching authentic taxonomy.
+- **Consequences**:
+  - Over-filtering bugs caused by repeated words are completely eliminated.
+  - Zero duplicate fields in Discord confirmation embeds.
+  - Test suite expanded to 177/177 passing green tests.
+
+

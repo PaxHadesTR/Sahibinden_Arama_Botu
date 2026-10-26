@@ -45,9 +45,10 @@ class AlarmCog(commands.Cog):
             logger.info(f"category_autocomplete invoked with current='{current}'")
             matches = resolver.get_autocomplete_choices(current)
             choices = [
-                app_commands.Choice(name=display[:100], value=cat_key[:100])
-                for display, cat_key in matches[:25]
-            ]
+                app_commands.Choice(name=display.strip()[:100], value=cat_key.strip()[:100])
+                for display, cat_key in matches
+                if display and cat_key and display.strip() and cat_key.strip()
+            ][:25]
             logger.info(f"category_autocomplete returning {len(choices)} choices")
             return choices
         except Exception as e:
@@ -64,9 +65,10 @@ class AlarmCog(commands.Cog):
             selected_cat = getattr(interaction.namespace, "kategori", None) or ""
             suggestions = resolver.get_spec_suggestions(selected_cat, current)
             return [
-                app_commands.Choice(name=s[:100], value=s[:100])
-                for s in suggestions[:25]
-            ]
+                app_commands.Choice(name=s.strip()[:100], value=s.strip()[:100])
+                for s in suggestions
+                if s and s.strip()
+            ][:25]
         except Exception as e:
             logger.error(f"Error in ozellik_autocomplete: {e}", exc_info=True)
             return []
@@ -244,6 +246,38 @@ class AlarmCog(commands.Cog):
         embed.add_field(name="📊 Başlangıç Durumu", value=baseline_msg, inline=False)
         await interaction.followup.send(embed=embed, ephemeral=True)
 
+    @staticmethod
+    def _merge_query_and_spec(query: str | None, spec: str | None) -> str | None:
+        """Merges search query and spec filter without duplicate words or substrings."""
+        q = (query or "").strip()
+        s = (spec or "").strip()
+        if not q:
+            return s or None
+        if not s:
+            return q or None
+
+        q_low = q.lower()
+        s_low = s.lower()
+        if s_low in q_low:
+            return q
+        if q_low in s_low:
+            return s
+
+        q_words = q.split()
+        q_words_norm = {w.lower().strip(",.;:") for w in q_words}
+
+        s_tokens = s.split()
+        to_add = []
+        for token in s_tokens:
+            norm = token.lower().strip(",.;:")
+            if norm not in q_words_norm:
+                to_add.append(token)
+                q_words_norm.add(norm)
+
+        if not to_add:
+            return q
+        return (q + " " + " ".join(to_add)).strip()
+
     # =========================================================================
     # ORTAK ALARM OLUŞTURMA YARDIMCISI (_execute_alarm_creation)
     # =========================================================================
@@ -257,6 +291,8 @@ class AlarmCog(commands.Cog):
         tipi: str | None = None,
         kapasite: str | None = None,
         marka: str | None = None,
+        ozellik: str | None = None,
+        raw_query: str | None = None,
         min_fiyat: int | None = None,
         max_fiyat: int | None = None,
         sehir: str | None = None,
@@ -304,6 +340,7 @@ class AlarmCog(commands.Cog):
             "tipi": tipi,
             "kapasite": kapasite,
             "marka": marka,
+            "ozellik": ozellik,
             "min_fiyat": min_fiyat,
             "max_fiyat": max_fiyat,
             "sehir": sehir,
@@ -343,6 +380,14 @@ class AlarmCog(commands.Cog):
         embed.add_field(name="🆔 Alarm ID", value=f"`#{alarm_id}`", inline=True)
         embed.add_field(name="📂 Kategori", value=display_category_name, inline=True)
 
+        if raw_query:
+            embed.add_field(name="🔍 Arama", value=raw_query, inline=True)
+        elif query_text:
+            embed.add_field(name="🔍 Filtre Kelimeleri", value=f"`{query_text}`", inline=True)
+
+        if ozellik:
+            embed.add_field(name="⚙️ Özellik", value=ozellik, inline=True)
+
         if detail_fields:
             for item in detail_fields:
                 if len(item) == 3:
@@ -350,7 +395,7 @@ class AlarmCog(commands.Cog):
                 else:
                     f_name, f_val = item
                     inline = True
-                if f_val:
+                if f_val and f_name not in ("📂 Kategori", "🔍 Arama", "⚙️ Özellik", "🔍 Filtre Kelimeleri"):
                     embed.add_field(name=f_name, value=str(f_val), inline=inline)
 
         if min_fiyat or max_fiyat:
@@ -358,8 +403,6 @@ class AlarmCog(commands.Cog):
             embed.add_field(name="💰 Fiyat Aralığı", value=f"{min_fiyat or 0:,} TL - {max_str} TL", inline=True)
         if sehir:
             embed.add_field(name="📍 Şehir", value=sehir.title(), inline=True)
-        if query_text:
-            embed.add_field(name="🔍 Filtre Kelimeleri", value=f"`{query_text}`", inline=True)
 
         if primed_immediately:
             baseline_msg = f"Şu an arama sonucundaki **{initial_count}** ilan arşivlendi. Yalnızca yeni gelen veya fiyatı düşen ilanlar bildirilecek."
@@ -397,70 +440,83 @@ class AlarmCog(commands.Cog):
         sehir: str | None = None,
         alarm_adi: str | None = None,
     ):
+        # 1. Kategori çözümleme
         cat_data = resolver.get_category(kategori)
-        cat_key = cat_data["key"] if cat_data else "genel-arama"
-        category_slug = cat_data["slug"] if cat_data else "kelime-ile-arama"
-        display_name = cat_data.get("display_name", kategori) if cat_data else kategori
+        if cat_data:
+            cat_key = cat_data["key"]
+            category_slug = cat_data["slug"]
+            display_name = cat_data.get("display_name", kategori)
+            is_generic_fallback = False
+        else:
+            cat_key = "genel-arama"
+            category_slug = "kelime-ile-arama"
+            display_name = kategori.strip()
+            is_generic_fallback = True
 
-        # 1. Arama terimlerini belirle
-        search_terms: list[str] = []
-        if arama and arama.strip():
-            search_terms.append(arama.strip())
-        effective_query = " ".join(search_terms).strip() or None
+        effective_query = arama.strip() if (arama and arama.strip()) else None
+        effective_spec = ozellik.strip() if (ozellik and ozellik.strip()) else None
 
-        # 2. Özellik terimlerini belirle
-        spec_terms: list[str] = []
-        if ozellik and ozellik.strip():
-            spec_terms.append(ozellik.strip())
-        effective_spec = " ".join(spec_terms).strip() or None
+        # Kategori tanınmadıysa (serbest arama terimi girildiyse), arama metnine dahil et
+        if is_generic_fallback and display_name:
+            if effective_query:
+                if display_name.lower() not in effective_query.lower():
+                    effective_query = f"{display_name} {effective_query}".strip()
+            else:
+                effective_query = display_name
 
-        # 3. Metinden gömülü donanım facet'lerini akıllıca çıkar
-        full_text = f"{kategori} {effective_spec or ''} {effective_query or ''}"
+        # 2. Metinden donanım ve kategori facet'lerini çıkar
+        full_text = f"{cat_key} {effective_spec or ''} {effective_query or ''}"
         extracted = resolver.extract_specs_from_text(full_text, category_key=cat_key)
 
         formatted_ddr = extracted.get("tipi")
-        raw_cap = extracted.get("kapasite") or extracted.get("bellek")
+        raw_cap = extracted.get("kapasite") or extracted.get("bellek") or extracted.get("hafiza")
         formatted_cap = resolver.normalize_capacity_unit(raw_cap, category_key=cat_key) if raw_cap else None
         formatted_brand = extracted.get("marka") or extracted.get("chipset")
 
-        # 4. Facet olarak eşleşen terimleri serbest arama metninden temizle
-        query_parts: list[str] = []
+        # 3. Yalnızca URL parametresine (a3329, a3332, a3350) dönüşen donanım filtrelerini serbest metinden temizle
+        clean_q = effective_query or ""
+        clean_s = effective_spec or ""
 
-        if effective_query:
-            leftover_q = effective_query
+        is_ram = "ram" in cat_key
+        is_ssd = "ssd" in cat_key or "sabit-disk" in cat_key
+        is_gpu = "ekran-karti" in cat_key or "gpu" in cat_key
+
+        if is_ram or is_ssd or is_gpu:
             if formatted_ddr:
-                leftover_q = re.sub(rf"\b{re.escape(formatted_ddr.lower())}\b", "", leftover_q, flags=re.I)
+                ddr_re = rf"\b{re.escape(formatted_ddr.lower())}\b"
+                clean_q = re.sub(ddr_re, "", clean_q, flags=re.I)
+                clean_s = re.sub(ddr_re, "", clean_s, flags=re.I)
             if formatted_cap:
-                leftover_q = re.sub(r"\b\d+x\s*\d+\s*(?:gb|mb|tb)\b", "", leftover_q, flags=re.I)
-                leftover_q = re.sub(r"\b\d+\s*(?:gb|mb|tb)\b", "", leftover_q, flags=re.I)
-            leftover_q_clean = " ".join(leftover_q.split()).strip()
-            if leftover_q_clean:
-                query_parts.append(leftover_q_clean)
+                cap_dual_re = r"\b\d+x\s*\d+\s*(?:gb|mb|tb)\b"
+                cap_single_re = r"\b\d+\s*(?:gb|mb|tb)\b"
+                clean_q = re.sub(cap_dual_re, "", clean_q, flags=re.I)
+                clean_q = re.sub(cap_single_re, "", clean_q, flags=re.I)
+                clean_s = re.sub(cap_dual_re, "", clean_s, flags=re.I)
+                clean_s = re.sub(cap_single_re, "", clean_s, flags=re.I)
 
-        if effective_spec:
-            leftover_s = effective_spec
-            if formatted_ddr:
-                leftover_s = re.sub(rf"\b{re.escape(formatted_ddr.lower())}\b", "", leftover_s, flags=re.I)
-            if formatted_cap:
-                leftover_s = re.sub(r"\b\d+x\s*\d+\s*(?:gb|mb|tb)\b", "", leftover_s, flags=re.I)
-                leftover_s = re.sub(r"\b\d+\s*(?:gb|mb|tb)\b", "", leftover_s, flags=re.I)
-            leftover_s_clean = " ".join(leftover_s.split()).strip()
-            if leftover_s_clean and leftover_s_clean not in query_parts:
-                query_parts.append(leftover_s_clean)
+        clean_q = " ".join(clean_q.split()).strip() or None
+        clean_s = " ".join(clean_s.split()).strip() or None
 
-        final_query_text = " ".join(query_parts).strip() or None
+        # 4. Arama ve Özellik terimlerini kelime/token düzeyinde tekrarsız birleştir
+        final_query_text = self._merge_query_and_spec(clean_q, clean_s)
 
-        # Discord bilgilendirme alanları
-        detail_fields = [("📂 Kategori", display_name, True)]
-        if effective_query:
-            detail_fields.append(("🔍 Arama", effective_query, True))
-        if effective_spec:
-            detail_fields.append(("⚙️ Özellik", effective_spec, True))
-
-        default_alarm_name = f"{display_name} Takibi"
-        if effective_query:
-            clean_cat_title = display_name.split("/")[-1].strip()
-            default_alarm_name = f"{effective_query} ({clean_cat_title})"
+        # 5. Varsayılan alarm adı belirleme
+        clean_cat_title = display_name.split("/")[-1].strip()
+        if alarm_adi and alarm_adi.strip():
+            final_alarm_name = alarm_adi.strip()
+        else:
+            if effective_query and effective_spec:
+                spec_in_query = effective_spec.lower() in effective_query.lower()
+                if spec_in_query:
+                    final_alarm_name = f"{effective_query} ({clean_cat_title})"
+                else:
+                    final_alarm_name = f"{effective_query} {effective_spec} ({clean_cat_title})"
+            elif effective_query:
+                final_alarm_name = f"{effective_query} ({clean_cat_title})"
+            elif effective_spec:
+                final_alarm_name = f"{effective_spec} ({clean_cat_title})"
+            else:
+                final_alarm_name = f"{display_name} Takibi"
 
         await self._execute_alarm_creation(
             interaction,
@@ -470,12 +526,13 @@ class AlarmCog(commands.Cog):
             tipi=formatted_ddr,
             kapasite=formatted_cap,
             marka=formatted_brand,
+            ozellik=effective_spec,
+            raw_query=effective_query,
             min_fiyat=min_fiyat,
             max_fiyat=max_fiyat,
             sehir=sehir,
-            alarm_adi=alarm_adi or default_alarm_name,
+            alarm_adi=final_alarm_name,
             embed_title="⚡ Hızlı Alarm Başlatıldı!",
-            detail_fields=detail_fields,
         )
 
     # =========================================================================
@@ -638,6 +695,8 @@ class AlarmCog(commands.Cog):
                 filter_parts.append(f"Kapasite: {filters['kapasite']}")
             if filters.get("marka"):
                 filter_parts.append(f"Marka: {filters['marka']}")
+            if filters.get("ozellik") and not filters.get("kapasite") and not filters.get("tipi"):
+                filter_parts.append(f"Özellik: {filters['ozellik']}")
             if filters.get("kelime"):
                 filter_parts.append(f"Kelime: '{filters['kelime']}'")
             if filters.get("min_fiyat") or filters.get("max_fiyat"):

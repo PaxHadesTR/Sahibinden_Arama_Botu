@@ -328,3 +328,246 @@ async def test_alarm_hizli_ustalar_ve_hizmetler(test_env, monkeypatch):
     assert "ev-tadilat-dekorasyon" in url
     assert "Boya" in url
     assert "address_city=16" in url
+
+
+# =============================================================================
+# SUITE 4: ZERO OVER-FILTERING DEDUPLICATION & EMBED UX TESTS
+# =============================================================================
+@pytest.mark.asyncio
+async def test_alarm_hizli_deduplicates_overlapping_words_car(test_env, monkeypatch):
+    """Verify that overlapping words between arama and ozellik do not create duplicate terms in URL."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+    inter = MockInteraction(user_id=2001)
+
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="otomobil",
+        arama="Honda Civic Otomatik",
+        ozellik="Otomatik Benzin",
+    )
+
+    alarms = await db.get_user_alarms(2001)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "Honda" in url
+    assert "Civic" in url
+    assert "Otomatik" in url
+    assert "Benzin" in url
+    # MUST NOT contain duplicate "Otomatik Otomatik"
+    assert "Otomatik+Otomatik" not in url
+    assert "Otomatik%20Otomatik" not in url
+
+
+@pytest.mark.asyncio
+async def test_alarm_hizli_deduplicates_overlapping_words_real_estate(test_env, monkeypatch):
+    """Verify room count is not duplicated when typed in both arama and ozellik."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+    inter = MockInteraction(user_id=2002)
+
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="satilik-daire",
+        arama="Kadıköy 3+1 Daire",
+        ozellik="3+1",
+    )
+
+    alarms = await db.get_user_alarms(2002)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "Kad%C4%B1k%C3%B6y" in url or "Kadıköy" in url
+    # MUST NOT contain duplicate "3+1 3+1"
+    assert "3%2B1+3%2B1" not in url
+    assert "3+1+3+1" not in url
+
+
+@pytest.mark.asyncio
+async def test_alarm_hizli_deduplicates_overlapping_words_tractor(test_env, monkeypatch):
+    """Verify 4x4 drive is not duplicated when typed in both arama and ozellik."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+    inter = MockInteraction(user_id=2003)
+
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="traktor",
+        arama="New Holland 4x4",
+        ozellik="4x4",
+    )
+
+    alarms = await db.get_user_alarms(2003)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "4x4+4x4" not in url
+
+
+@pytest.mark.asyncio
+async def test_alarm_hizli_deduplicates_overlapping_words_cpu(test_env, monkeypatch):
+    """Verify CPU socket is not duplicated when typed in both arama and ozellik."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+    inter = MockInteraction(user_id=2004)
+
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="islemci-masaustu",
+        arama="Ryzen 5 7600 AM5",
+        ozellik="AM5 32 MB",
+    )
+
+    alarms = await db.get_user_alarms(2004)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "AM5+AM5" not in url
+
+
+@pytest.mark.asyncio
+async def test_alarm_hizli_phone_capacity_and_deduplication(test_env, monkeypatch):
+    """Verify phone capacity is properly extracted, stored in filters, and not duplicated."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+    inter = MockInteraction(user_id=2005)
+
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="yenilenmis-cep-telefonu",
+        arama="iPhone 13 128 GB",
+        ozellik="128 GB A Kalite",
+    )
+
+    alarms = await db.get_user_alarms(2005)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    # URL must not have duplicate 128 GB
+    assert "128+GB+128+GB" not in url
+    # Filter must store capacity so client-side post-filter can verify
+    import json
+    f = json.loads(alarms[0]["filters_json"])
+    assert f.get("kapasite") == "128 GB"
+
+
+@pytest.mark.asyncio
+async def test_alarm_hizli_unknown_category_preserves_keyword(test_env, monkeypatch):
+    """Verify that an unrecognized freeform category keyword is preserved in search text."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+    inter = MockInteraction(user_id=2006)
+
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="uçak",
+        arama="Boeing 737",
+    )
+
+    alarms = await db.get_user_alarms(2006)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "kelime-ile-arama" in url
+    assert "Boeing" in url
+    # 'uçak' keyword must NOT be silently dropped!
+    assert "ucak" in url or "u%C3%A7ak" in url or "%C3%A7ak" in url or "uçak" in url
+
+
+@pytest.mark.asyncio
+async def test_alarm_hizli_only_ozellik_alarm_naming(test_env, monkeypatch):
+    """Verify that when only ozellik is provided, the alarm name includes the spec."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+    inter = MockInteraction(user_id=2007)
+
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="satilik-daire",
+        ozellik="3+1",
+    )
+
+    alarms = await db.get_user_alarms(2007)
+    assert len(alarms) == 1
+    # Must be '3+1 (Satılık Daire)', not generic '🏠 Emlak / Satılık Daire Takibi'
+    assert alarms[0]["name"] == "3+1 (Satılık Daire)"
+
+
+def test_get_spec_suggestions_resolves_aliases():
+    """Verify that get_spec_suggestions resolves category aliases (araba, ev, gpu, telefon)."""
+    # 'araba' alias for otomobil
+    car_suggs = resolver.get_spec_suggestions("araba")
+    assert "Otomatik" in car_suggs
+    assert "Manuel" in car_suggs
+
+    # 'ev' alias for emlak
+    home_suggs = resolver.get_spec_suggestions("ev")
+    assert "3+1" in home_suggs
+    assert "2+1" in home_suggs
+
+    # 'ekran kartı' alias for GPU
+    gpu_suggs = resolver.get_spec_suggestions("ekran kartı")
+    assert "12 GB" in gpu_suggs
+    assert "16 GB" in gpu_suggs
+
+    # 'telefon' alias for cep telefonu
+    phone_suggs = resolver.get_spec_suggestions("telefon")
+    assert "128 GB" in phone_suggs
+    assert "256 GB" in phone_suggs
+
+
+@pytest.mark.asyncio
+async def test_alarm_hizli_embed_has_no_duplicate_fields(test_env, monkeypatch):
+    """Verify that the confirmation embed contains clean, single non-duplicate fields."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+    inter = MockInteraction(user_id=2008)
+
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="otomobil",
+        arama="Civic",
+        ozellik="Otomatik",
+        min_fiyat=500000,
+        max_fiyat=900000,
+        sehir="İstanbul",
+    )
+
+    assert inter.followup.send.called
+    call_kwargs = inter.followup.send.call_args[1]
+    embed = call_kwargs.get("embed")
+    assert embed is not None
+
+    field_names = [f.name for f in embed.fields]
+    # Check that Kategori is present exactly once
+    assert field_names.count("📂 Kategori") == 1
+    # Check that Arama is present exactly once
+    assert field_names.count("🔍 Arama") == 1
+    # Check that Özellik is present exactly once
+    assert field_names.count("⚙️ Özellik") == 1
+    # Check no duplicate Filtre Kelimeleri
+    assert "🔍 Filtre Kelimeleri" not in field_names
+
+
+def test_all_categories_belong_to_root_departments():
+    """Verify that all categories in catalog belong cleanly to root departments."""
+    roots = resolver.categories
+    sanayi = resolver.get_category("sanayi")
+    assert sanayi is not None
+    assert sanayi["display_name"].startswith("🚜 İş Makineleri")
+
+    elektrik = resolver.get_category("elektrik-enerji")
+    assert elektrik is not None
+    assert elektrik["display_name"].startswith("🚜 İş Makineleri")
+

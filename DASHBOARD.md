@@ -100,7 +100,15 @@
   - [x] Maintained clean 7-parameter command footprint in `/alarm-hizli` with zero `+10 more` confusing parameter chips in Discord.
   - [x] Full over-filtering defense: hardware facets stripped from freeform query text while GPU VRAM is reinforced and all custom specs are preserved in query text.
   - [x] Expanded automated test suite with `tests/test_eleven_branches.py` (167/167 green tests).
-- [x] Automated Test Suite: 167/167 tests passing green across all suites (unit, integration, 11-branch validation, and full real-world scenarios in `tests/test_real_scenarios.py` and `tests/test_eleven_branches.py`)
+- [x] Zero Over-Filtering Query Deduplication, Dual-Token Resolution & Phone Storage Hardening (`ADR-024`):
+  - [x] Implemented token/word-level query deduplication in `AlarmCog._merge_query_and_spec`, eliminating redundant keywords (`Otomatik Otomatik`, `3+1 3+1`, `4x4 4x4`, `AM5 AM5`) that cause 0-result drops on Sahibinden.
+  - [x] Extended phone & tablet storage extraction to recognize `"hafiza"` facets across new and renewed models, properly populating `kapasite` for `AlarmMonitor` post-filtering.
+  - [x] Enabled alias resolution in `CategoryResolver.get_spec_suggestions` (`araba` -> car specs, `ev` -> home specs, `gpu` -> GPU specs).
+  - [x] Eliminated duplicate embed fields in `_execute_alarm_creation` (guaranteeing exactly 1 `📂 Kategori` and 1 `🔍 Arama` field).
+  - [x] Preserved freeform custom category keywords when `kategori` does not match the catalog.
+  - [x] Aligned `sanayi` and `elektrik-enerji` display names to `🚜 İş Makineleri / ...`.
+  - [x] Expanded test suite to 177/177 passing green tests.
+- [x] Automated Test Suite: 177/177 tests passing green across all suites (unit, integration, 11-branch validation, and full real-world scenarios in `tests/test_real_scenarios.py` and `tests/test_eleven_branches.py`)
 - [x] Real-World Scenario Testing Suite (`tests/test_real_scenarios.py` & `tests/test_eleven_branches.py`):
   - [x] All 111 categories search URL construction and facet mapping verified.
   - [x] Slash command workflows (`/alarm-ara`, `/alarm-url`, `/alarm-hizli`, `/alarmlarim`, `/alarm-durum`, `/alarm-sil`, `/alarm-test`, `/kategoriler`) verified with interaction mocking.

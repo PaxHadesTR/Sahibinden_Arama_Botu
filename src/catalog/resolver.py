@@ -211,8 +211,8 @@ class CategoryResolver:
                     found_facets["tipi"] = opt_label
                     break
 
-        # 2. Kapasite or Bellek (e.g. 2x 16 GB, 16 GB, 512 MB, 1 TB, 256 MB)
-        for cap_facet_key in ("kapasite", "bellek"):
+        # 2. Kapasite, Bellek or Hafıza (e.g. 2x 16 GB, 16 GB, 512 MB, 1 TB, 256 MB, 128 GB)
+        for cap_facet_key in ("kapasite", "bellek", "hafiza"):
             if cap_facet_key in facets:
                 sorted_opts = sorted(facets[cap_facet_key]["options"].keys(), key=len, reverse=True)
                 for opt_label in sorted_opts:
@@ -275,14 +275,17 @@ class CategoryResolver:
 
         # 5. Regex heuristics for room count, 4x4, CPU socket & cache across all categories
         if "oda_sayisi" not in found_facets:
-            oda_m = re.search(r"\b(\d\+\d)\b", normalized)
-            if oda_m:
-                found_facets["oda_sayisi"] = oda_m.group(1)
+            if re.search(r"\b(studyo|study|1\+0)\b", normalized):
+                found_facets["oda_sayisi"] = "1+0 (Stüdyo)"
+            else:
+                oda_m = re.search(r"\b(\d\+\d)\b", normalized)
+                if oda_m:
+                    found_facets["oda_sayisi"] = oda_m.group(1)
 
         if "ceker" not in found_facets:
-            if re.search(r"\b4x4\b", normalized):
+            if re.search(r"\b4x4\b", normalized) or "cift ceker" in normalized:
                 found_facets["ceker"] = "4x4"
-            elif re.search(r"\b4x2\b", normalized):
+            elif re.search(r"\b4x2\b", normalized) or "tek ceker" in normalized:
                 found_facets["ceker"] = "4x2"
 
         if "socket" not in found_facets:
@@ -292,13 +295,19 @@ class CategoryResolver:
                 found_facets["socket"] = raw_s.replace("LGA ", "LGA").replace(" ", "")
 
         if "vites" not in found_facets:
-            if re.search(r"\botomatik\b", normalized):
+            if re.search(r"\byari\s+otomatik\b", normalized):
+                found_facets["vites"] = "Yarı Otomatik"
+            elif re.search(r"\botomatik\b", normalized):
                 found_facets["vites"] = "Otomatik"
             elif re.search(r"\bmanuel\b", normalized):
                 found_facets["vites"] = "Manuel"
 
         if "yakit" not in found_facets:
-            if re.search(r"\bbenzin\b", normalized):
+            if re.search(r"\b(benzin\s*&\s*lpg|benzin\s+lpg)\b", normalized):
+                found_facets["yakit"] = "Benzin & LPG"
+            elif re.search(r"\blpg\b", normalized):
+                found_facets["yakit"] = "LPG"
+            elif re.search(r"\bbenzin\b", normalized):
                 found_facets["yakit"] = "Benzin"
             elif re.search(r"\bdizel\b", normalized):
                 found_facets["yakit"] = "Dizel"
@@ -339,7 +348,10 @@ class CategoryResolver:
 
     def get_spec_suggestions(self, category_key: str | None, current: str = "") -> list[str]:
         """Provides category-aware spec suggestions for Discord autocomplete on /alarm-hizli ozellik."""
-        cat_key = (category_key or "").lower()
+        cat_data = self.get_category(category_key) if category_key else None
+        cat_key = (cat_data["key"] if cat_data else (category_key or "")).lower()
+        if cat_data:
+            cat_key = f"{cat_key} {cat_data.get('slug', '')} {cat_data.get('display_name', '')}".lower()
         norm_cur = self.normalize_turkish(current) if current else ""
 
         suggestions = []
