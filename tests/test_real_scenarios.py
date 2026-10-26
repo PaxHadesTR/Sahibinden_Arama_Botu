@@ -284,7 +284,7 @@ async def test_scenario_alarm_hizli_multi_units_and_specs(test_cog_and_db, monke
         cog,
         inter_a,
         kategori="ram",
-        marka_veya_model="Kingston",
+        arama="Kingston",
         ozellik="512 MB DDR2",
         max_fiyat=400,
         alarm_adi="Retro RAM"
@@ -302,7 +302,7 @@ async def test_scenario_alarm_hizli_multi_units_and_specs(test_cog_and_db, monke
         inter_b,
         kategori="ssd",
         ozellik="1000 GB",
-        kelime="NVMe",
+        arama="NVMe",
         max_fiyat=4000
     )
     alarms_b = await db.get_user_alarms(302)
@@ -317,7 +317,7 @@ async def test_scenario_alarm_hizli_multi_units_and_specs(test_cog_and_db, monke
         cog,
         inter_c,
         kategori="ram",
-        kelime="ddr4 16gb corsair 3200mhz",
+        arama="ddr4 16gb corsair 3200mhz",
         max_fiyat=2500
     )
     alarms_c = await db.get_user_alarms(303)
@@ -341,7 +341,7 @@ async def test_scenario_alarm_hizli_universal_parameters_vehicle_and_real_estate
         cog,
         inter_car,
         kategori="otomobil",
-        marka_veya_model="Honda Civic",
+        arama="Honda Civic",
         ozellik="Otomatik Boyasız",
         sehir="Antalya",
         max_fiyat=950000,
@@ -361,7 +361,7 @@ async def test_scenario_alarm_hizli_universal_parameters_vehicle_and_real_estate
         cog,
         inter_re,
         kategori="satilik-daire",
-        marka_veya_model="Kadıköy",
+        arama="Kadıköy",
         ozellik="3+1 Kombili",
         min_fiyat=4000000,
         max_fiyat=8000000
@@ -657,8 +657,8 @@ def test_scenario_all_sahibinden_categories_inferred_from_natural_text():
 
 
 @pytest.mark.asyncio
-async def test_scenario_dedicated_category_subcommands(test_cog_and_db, monkeypatch):
-    """Verify each dedicated /alarm <category> subcommand creates alarms with tailored options and facets."""
+async def test_scenario_alarm_hizli_across_all_four_departments(test_cog_and_db, monkeypatch):
+    """Verify /alarm-hizli seamlessly creates alarms across all 4 main departments and categories."""
     cog, db, _ = test_cog_and_db
     await db.init_db()
 
@@ -666,15 +666,14 @@ async def test_scenario_dedicated_category_subcommands(test_cog_and_db, monkeypa
 
     user_base = 800
 
-    # 1. /alarm oto
+    # 1. Department 2: Vasıta / Otomobil
     inter_oto = MockInteraction(user_id=user_base + 1)
-    await cog.alarm_oto.callback(
+    await cog.alarm_hizli.callback(
         cog,
         inter_oto,
-        marka="Honda",
-        model="Civic",
-        vites="Otomatik",
-        yakit="Benzin",
+        kategori="otomobil",
+        arama="Honda Civic",
+        ozellik="Otomatik Benzin",
         min_fiyat=500000,
         max_fiyat=900000,
         sehir="Ankara"
@@ -691,14 +690,14 @@ async def test_scenario_dedicated_category_subcommands(test_cog_and_db, monkeypa
     assert "price_min=500000" in url
     assert "price_max=900000" in url
 
-    # 2. /alarm emlak
+    # 2. Department 1: Emlak / Satılık Daire
     inter_emlak = MockInteraction(user_id=user_base + 2)
-    await cog.alarm_emlak.callback(
+    await cog.alarm_hizli.callback(
         cog,
         inter_emlak,
-        tur="satilik-daire",
-        oda_sayisi="3+1",
-        ilce_veya_semt="Kadikoy",
+        kategori="satilik-daire",
+        arama="Kadikoy",
+        ozellik="3+1 Kombili",
         min_fiyat=3000000,
         max_fiyat=7000000,
         sehir="Istanbul"
@@ -711,14 +710,14 @@ async def test_scenario_dedicated_category_subcommands(test_cog_and_db, monkeypa
     assert "Kadikoy" in url
     assert "address_city=34" in url
 
-    # 3. /alarm gpu (Dedicated VRAM and Chipset facets)
+    # 3. Department 4: İkinci El / Bilgisayar / GPU (Facet a3347 extracted & clean query_text)
     inter_gpu = MockInteraction(user_id=user_base + 3)
-    await cog.alarm_gpu.callback(
+    await cog.alarm_hizli.callback(
         cog,
         inter_gpu,
-        vram="12 GB",
-        model="RTX 4070",
-        chipset="NVIDIA",
+        kategori="ekran-karti-masaustu",
+        arama="RTX 4070",
+        ozellik="12 GB",
         min_fiyat=15000,
         max_fiyat=25000
     )
@@ -727,18 +726,16 @@ async def test_scenario_dedicated_category_subcommands(test_cog_and_db, monkeypa
     url = alarms[0]["target_url"]
     assert "ekran-karti-masaustu" in url
     assert "a3347=1225091" in url  # 12 GB facet
-    assert "a3345=68145" in url    # NVIDIA facet
     assert "RTX+4070" in url
 
-    # 4. /alarm ram (Dedicated DDR and Kapasite facets)
+    # 4. Department 4: İkinci El / Bilgisayar / RAM (Facets a3329 & a3332 extracted)
     inter_ram = MockInteraction(user_id=user_base + 4)
-    await cog.alarm_ram.callback(
+    await cog.alarm_hizli.callback(
         cog,
         inter_ram,
-        kapasite="16 GB",
-        ddr="DDR4",
-        tip="Masaüstü",
-        marka="Corsair",
+        kategori="ram-bellek-masaustu",
+        arama="Corsair",
+        ozellik="16 GB DDR4",
         min_fiyat=1000,
         max_fiyat=3000
     )
@@ -750,14 +747,14 @@ async def test_scenario_dedicated_category_subcommands(test_cog_and_db, monkeypa
     assert "a3332=1168186" in url  # 16 GB
     assert "Corsair" in url
 
-    # 5. /alarm telefon
+    # 5. Department 4: İkinci El / Cep Telefonu
     inter_tel = MockInteraction(user_id=user_base + 5)
-    await cog.alarm_telefon.callback(
+    await cog.alarm_hizli.callback(
         cog,
         inter_tel,
-        marka="Apple",
-        model="iPhone 15",
-        hafiza="128 GB",
+        kategori="cep-telefonu",
+        arama="Apple iPhone 15",
+        ozellik="128 GB",
         min_fiyat=40000,
         max_fiyat=55000
     )
@@ -769,14 +766,14 @@ async def test_scenario_dedicated_category_subcommands(test_cog_and_db, monkeypa
     assert "iPhone" in url
     assert "128+GB" in url or "128" in url
 
-    # 6. /alarm bisiklet
+    # 6. Department 4: İkinci El / Bisiklet
     inter_bis = MockInteraction(user_id=user_base + 6)
-    await cog.alarm_bisiklet.callback(
+    await cog.alarm_hizli.callback(
         cog,
         inter_bis,
-        tur="Dağ Bisikleti",
-        jant="29 Jant",
-        marka="Carraro",
+        kategori="bisiklet",
+        arama="Carraro",
+        ozellik="29 Jant Dağ Bisikleti",
         max_fiyat=15000
     )
     alarms = await db.get_user_alarms(user_base + 6)
@@ -786,14 +783,14 @@ async def test_scenario_dedicated_category_subcommands(test_cog_and_db, monkeypa
     assert "Carraro" in url
     assert "29" in url
 
-    # 7. /alarm traktor
+    # 7. İş Makineleri / Traktör
     inter_tr = MockInteraction(user_id=user_base + 7)
-    await cog.alarm_traktor.callback(
+    await cog.alarm_hizli.callback(
         cog,
         inter_tr,
-        marka="New Holland",
-        ceker="4x4",
-        model="T4.75",
+        kategori="traktor",
+        arama="New Holland T4.75",
+        ozellik="4x4",
         min_fiyat=700000
     )
     alarms = await db.get_user_alarms(user_base + 7)
@@ -803,13 +800,14 @@ async def test_scenario_dedicated_category_subcommands(test_cog_and_db, monkeypa
     assert "New+Holland" in url
     assert "4x4" in url
 
-    # 8. /alarm konsol
+    # 8. Department 4: İkinci El / Oyun Konsolu
     inter_kon = MockInteraction(user_id=user_base + 8)
-    await cog.alarm_konsol.callback(
+    await cog.alarm_hizli.callback(
         cog,
         inter_kon,
-        konsol="PlayStation 5",
-        ekstra="Slim Digital",
+        kategori="oyun-konsolu",
+        arama="PlayStation 5",
+        ozellik="Slim Digital",
         min_fiyat=15000,
         max_fiyat=22000
     )
@@ -820,13 +818,13 @@ async def test_scenario_dedicated_category_subcommands(test_cog_and_db, monkeypa
     assert "PlayStation" in url
     assert "Slim" in url
 
-    # 9. /alarm genel
+    # 9. Department 4: İkinci El / Laptop (Dizüstü)
     inter_gen = MockInteraction(user_id=user_base + 9)
-    await cog.alarm_genel.callback(
+    await cog.alarm_hizli.callback(
         cog,
         inter_gen,
-        kategori="dizustu-notebook",
-        arama_kelimesi="ThinkPad",
+        kategori="dizustu-bilgisayar",
+        arama="ThinkPad",
         ozellik="16 GB",
         min_fiyat=10000,
         max_fiyat=25000
@@ -837,3 +835,70 @@ async def test_scenario_dedicated_category_subcommands(test_cog_and_db, monkeypa
     assert "dizustu-notebook" in url
     assert "ThinkPad" in url
 
+    # 10. Department 3: Yedek Parça / Jant & Lastik
+    inter_jant = MockInteraction(user_id=user_base + 10)
+    await cog.alarm_hizli.callback(
+        cog,
+        inter_jant,
+        kategori="jant-lastik",
+        arama="205 55 R16",
+        ozellik="Kış Lastiği",
+        min_fiyat=3000,
+        max_fiyat=8000
+    )
+    alarms = await db.get_user_alarms(user_base + 10)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "jant-lastik" in url
+    assert "205+55+R16" in url or "205" in url
+
+    # 11. Department 1: Emlak / Satılık Tarla & Bahçe
+    inter_tarla = MockInteraction(user_id=user_base + 11)
+    await cog.alarm_hizli.callback(
+        cog,
+        inter_tarla,
+        kategori="satilik-tarla",
+        arama="Zeytinlik",
+        ozellik="Müstakil Parsel",
+        sehir="Balikesir"
+    )
+    alarms = await db.get_user_alarms(user_base + 11)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "tarla" in url
+    assert "Zeytinlik" in url
+    assert "address_city=10" in url
+
+    # 12. Department 2: Vasıta / Elektrikli Araçlar
+    inter_ev = MockInteraction(user_id=user_base + 12)
+    await cog.alarm_hizli.callback(
+        cog,
+        inter_ev,
+        kategori="elektrikli-araclar",
+        arama="Tesla Model Y",
+        ozellik="Long Range",
+        max_fiyat=2500000
+    )
+    alarms = await db.get_user_alarms(user_base + 12)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "elektrikli-araclar" in url
+    assert "Tesla" in url
+    assert "Model+Y" in url or "Tesla+Model+Y" in url
+
+    # 13. Department 4: İkinci El / SSD (1000 GB normalizes to 1 TB facet)
+    inter_ssd = MockInteraction(user_id=user_base + 13)
+    await cog.alarm_hizli.callback(
+        cog,
+        inter_ssd,
+        kategori="ssd-dahili-sabit-disk",
+        arama="Samsung 980 Pro",
+        ozellik="1000 GB NVMe",
+        max_fiyat=4500
+    )
+    alarms = await db.get_user_alarms(user_base + 13)
+    assert len(alarms) == 1
+    url = alarms[0]["target_url"]
+    assert "dahili-sabit-suruculer" in url
+    assert "a3350=1168189" in url  # 1 TB facet
+    assert "Samsung" in url

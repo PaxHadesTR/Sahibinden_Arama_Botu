@@ -86,18 +86,13 @@
   - [x] Added `playwright-stealth>=1.0.6` to `requirements.txt` and integrated `Stealth` in `scraper.py` covering WebGL, Chrome objects, and Turkish OS spoofing.
   - [x] De-escalated Turnstile resolution from violent 1s mouse jitter/click looping to gentle PoW waiting and single-click dispatch.
   - [x] Implemented 15s error backoff in `AlarmMonitor` preventing CPU starvation of Discord autocomplete event loop.
-- [x] Category-Specific Subcommand Architecture & Native Discord Choices (`ADR-021`):
-  - [x] Implemented native Discord Subcommands under command group `/alarm`:
-    - `/alarm oto`: `marka`, `model`, `vites` (Choices), `yakit` (Choices), `min_fiyat`, `max_fiyat`, `sehir`, `kelime`, `alarm_adi`.
-    - `/alarm emlak`: `tur` (Choices), `oda_sayisi` (Choices), `ilce_veya_semt`, `min_fiyat`, `max_fiyat`, `sehir`, `kelime`, `alarm_adi`.
-    - `/alarm gpu`: `vram` (Choices), `model`, `chipset` (Choices), `marka`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`.
-    - `/alarm ram`: `kapasite` (Choices), `ddr` (Choices), `tip` (Choices), `marka`, `min_fiyat`, `max_fiyat`, `alarm_adi`.
-    - `/alarm telefon`: `marka` (Choices), `model`, `hafiza` (Choices), `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`.
-    - `/alarm bisiklet`: `tur` (Choices), `jant` (Choices), `marka`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`.
-    - `/alarm traktor`: `marka`, `ceker` (Choices), `model`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`.
-    - `/alarm konsol`: `konsol` (Choices), `ekstra`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`.
-    - `/alarm genel`: `kategori` (91-category autocomplete), `arama_kelimesi`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`.
-  - [x] Full backward compatibility for `/alarm-hizli`, `/alarm-ara`, `/alarm-url`, `/alarmlarim`, `/alarm-durum`, `/alarm-test`, `/kategoriler`.
+- [x] Unified 4-Department Information Architecture & Subcommand Decommission (`ADR-022`):
+  - [x] Decommissioned `app_commands.Group(name="alarm")` and all 9 subcommands to eliminate command fragmentation.
+  - [x] Standardized all 91 categories into a clean 4-department tree: 🏠 Emlak, 🚗 Vasıta, 🔧 Yedek Parça, 🛍️ İkinci El ve Sıfır Alışveriş (plus Tarım & İş Makineleri).
+  - [x] Purged all `(Örn: ...)` clutter from autocomplete labels, presenting crystal-clear tree paths (`🚗 Vasıta / Otomobil`, `🏠 Emlak / Satılık Daire`, `🛍️ Alışveriş / Ekran Kartı (GPU)`).
+  - [x] Streamlined `/alarm-hizli` to 6 intuitive visible parameters (`kategori`, `arama`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi`) eliminating `+10 more` parameter noise.
+  - [x] Intelligent spec & hardware facet pipeline: auto-resolves DDR, VRAM, and storage capacity to Sahibinden URL facet parameters and strips them from freeform query text.
+  - [x] Full test coverage with 13-case cross-department verification (157/157 tests green).
 - [x] Automated Test Suite: 157/157 tests passing green across all suites (unit, integration, and full real-world scenarios in `tests/test_real_scenarios.py`)
 - [x] Real-World Scenario Testing Suite (`tests/test_real_scenarios.py`):
   - [x] All 75 categories search URL construction and facet mapping verified.

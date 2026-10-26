@@ -292,11 +292,7 @@ class CategoryResolver:
 
     def _format_choice_label(self, cat_key: str, cat_data: dict[str, Any]) -> str:
         display = cat_data.get("display_name", cat_key)
-        hint = cat_data.get("example_hint")
-        label = f"{display} ({hint})" if hint else display
-        if len(label) > 100:
-            label = label[:97] + "..."
-        return label
+        return display[:100]
 
     def get_autocomplete_choices(self, current: str) -> list[tuple[str, str]]:
         """Returns (display_label, category_key) pairs matching the user's input for Discord autocomplete.

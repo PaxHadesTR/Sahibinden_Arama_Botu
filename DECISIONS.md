@@ -314,5 +314,31 @@
   - Zero cross-category parameter leakage.
   - Full backward compatibility.
 
+## ADR-022: Unified 4-Department Information Architecture & Subcommand Decommission (2026-10-26)
 
-
+- **Context**:
+  1. Splitting categories into 9 separate subcommands (`/alarm oto`, `/alarm emlak`, `/alarm gpu`, `/alarm ram`, etc.) fractured user workflow and created cognitive friction for general search.
+  2. Autocomplete labels in `/alarm-hizli` were cluttered with parenthetical examples `(Örn: Civic, Megane, BMW, Otomatik)` and inconsistent prefixes, exceeding 80+ characters and rendering option dropdowns noisy.
+  3. The parameter list had accumulated 11 arguments (`kategori`, `marka_veya_model`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `kelime`, `alarm_adi`, `ddr`, `kapasite`, `marka`), causing Discord to render `+10 more` confusing parameter options.
+- **Decision**:
+  1. **Decommission Subcommands**: Completely remove `app_commands.Group(name="alarm")` and all 9 subcommands.
+  2. **Standardize on Authentic 4-Department Tree Architecture**:
+     - 🏠 **1. Emlak**: Satılık/Kiralık Daire, Arsa, Tarla, Villa, İş Yeri.
+     - 🚗 **2. Vasıta**: Otomobil, SUV, Motosiklet, Elektrikli Araçlar, Minivan, Deniz Araçları, Karavan.
+     - 🔧 **3. Yedek Parça**: Otomotiv Ekipmanları, Motosiklet Ekipmanları, Jant & Lastik.
+     - 🛍️ **4. İkinci El ve Sıfır Alışveriş**: Bilgisayar (GPU, RAM, SSD, CPU, Laptop, Masaüstü PC), Telefon, Konsol, Bisiklet vb.
+     - (Plus Tarım/Traktör, İş Makineleri, Hizmetler).
+  3. **Purge Autocomplete Label Clutter**: Eliminate all `(Örn: ...)` suffixes from Discord autocomplete labels. Present pristine, concise tree labels (`🚗 Vasıta / Otomobil`, `🏠 Emlak / Satılık Daire`, `🛍️ Alışveriş / Ekran Kartı (GPU)`).
+  4. **Streamline `/alarm-hizli` to 6 Core Visible Parameters**:
+     - `kategori`: Autocomplete with 4-department tree hierarchy.
+     - `arama`: Search text, brand, or model.
+     - `ozellik`: Property type, capacity, DDR, transmission, or room count.
+     - `min_fiyat`, `max_fiyat`: Price bounds in TL.
+     - `sehir`: City filter.
+     - `alarm_adi`: Optional reminder name.
+     - Seamlessly merge legacy `kelime` and `marka_veya_model` internally.
+  5. **Auto-extract hardware facets & clean query text**: DDR, VRAM, and storage capacity terms are resolved into Sahibinden URL facet parameters (`a3347`, `a3329`, `a3332`, `a3350`) and stripped from freeform `query_text` to prevent over-filtering.
+- **Consequences**:
+  - Ultra-clean, uncluttered Discord UI with zero `+10 more` parameter confusion.
+  - Consistent category tree across all 91 Sahibinden categories.
+  - 157/157 tests passing green.

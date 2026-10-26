@@ -177,79 +177,42 @@ WSL veya sunucunuza `warp-cli` kurmanıza **kesinlikle gerek yoktur!** `docker-c
 
 ## 🎮 Discord Komutları ve Detaylı Kullanım Kılavuzu
 
-Bot slash komutlarıyla (`/`) çalışır. Yazmaya başladığınızda Discord otomatik tamamlama ve parametre ipuçları sunar.
+Bot Discord slash komutlarıyla (`/`) çalışır. Yazmaya başladığınızda Discord otomatik tamamlama (autocomplete) ve parametre ipuçları sunar.
 
-### 1. `/alarm <kategori>` (Kategoriye Özel Parametrik ve Seçmeli Dropdown Alarmlar)
-Her ana kategorinin kendine özgü filtreleri ve hazır Discord açılır menü (choices) seçenekleri bulunur:
+### 1. `/alarm-hizli` (Tek Komutta 4 Ana Bölüm ve Parametrik Alarm)
+Sahibinden'in 4 ana bölümündeki (Emlak, Vasıta, Yedek Parça, İkinci El & Alışveriş) dilediğiniz kategoriyi seçip aradığınız modeli, özelliği ve bütçenizi girerek saniyeler içinde alarm kurun:
 
 ```
-# 🚗 Vasıta / Otomobil (Vites & Yakıt açılır menü seçenekli)
-/alarm oto marka: Honda model: Civic vites: Otomatik Vites yakit: Benzin sehir: Ankara min_fiyat: 500000 max_fiyat: 950000
+# 🚗 1. Vasıta / Otomobil & Araçlar
+/alarm-hizli kategori: Otomobil arama: Civic 1.6 ozellik: Otomatik sehir: Ankara min_fiyat: 500000 max_fiyat: 950000
+/alarm-hizli kategori: Elektrikli Araçlar arama: Tesla Model Y ozellik: Long Range max_fiyat: 2400000
+/alarm-hizli kategori: Motosiklet arama: Yamaha R25 ozellik: ABS max_fiyat: 200000
 
-# 🏠 Emlak / Gayrimenkul (Tür & Oda sayısı özel filtreli)
-/alarm emlak tur: Satılık Daire oda_sayisi: 3+1 ilce_veya_semt: Kadıköy sehir: İstanbul max_fiyat: 7500000
+# 🏠 2. Emlak & Gayrimenkul
+/alarm-hizli kategori: Satılık Daire arama: Kadıköy ozellik: 3+1 Kombili sehir: İstanbul max_fiyat: 7500000
+/alarm-hizli kategori: Satılık Arsa arama: İmarlı arsa sehir: İzmir max_fiyat: 1500000
+/alarm-hizli kategori: Satılık Tarla arama: Zeytinlik ozellik: Müstakil parsel sehir: Balıkesir
 
-# 🎮 Ekran Kartı (VRAM & Çipset açılır menü seçenekli)
-/alarm gpu vram: 12 GB VRAM model: RTX 4070 chipset: Nvidia GeForce min_fiyat: 15000 max_fiyat: 25000
+# 🛍️ 3. İkinci El ve Sıfır Alışveriş (Donanım, Telefon, Konsol, Bisiklet vb.)
+/alarm-hizli kategori: Ekran Kartı (GPU) arama: RTX 4070 ozellik: 12 GB min_fiyat: 15000 max_fiyat: 25000
+/alarm-hizli kategori: RAM Bellek (Masaüstü) arama: Corsair ozellik: 16 GB DDR4 max_fiyat: 2500
+/alarm-hizli kategori: Sabit Disk (SSD/HDD) arama: NVMe ozellik: 1 TB max_fiyat: 3500
+/alarm-hizli kategori: Cep Telefonu arama: iPhone 15 Pro ozellik: 128 GB max_fiyat: 60000
+/alarm-hizli kategori: Oyun Konsolları arama: PlayStation 5 ozellik: Slim Digital max_fiyat: 20000
+/alarm-hizli kategori: Bisiklet arama: Carraro ozellik: 29 Jant max_fiyat: 15000
 
-# 🧠 RAM Bellek (Kapasite, DDR Nesli & Tip açılır menü seçenekli)
-/alarm ram kapasite: 16 GB ddr: DDR4 tip: Masaüstü RAM marka: Corsair max_fiyat: 2500
-/alarm ram kapasite: 2x 16 GB (32GB Dual-Kit) ddr: DDR5 tip: Masaüstü RAM marka: G.Skill
+# 🔧 4. Yedek Parça & Tuning
+/alarm-hizli kategori: Jant & Lastik arama: 205 55 R16 ozellik: Kış Lastiği max_fiyat: 10000
+/alarm-hizli kategori: Motosiklet Ekipmanları arama: Shoei kask ozellik: L Beden max_fiyat: 25000
 
-# 📱 Cep Telefonu (Marka & Hafıza açılır menü seçenekli)
-/alarm telefon marka: Apple model: iPhone 15 Pro hafiza: 128 GB max_fiyat: 60000
-
-# 🚲 Bisiklet (Tür & Jant Boyutu açılır menü seçenekli)
-/alarm bisiklet tur: Dağ Bisikleti jant: 29 Jant marka: Carraro max_fiyat: 18000
-
-# 🚜 Traktör & Tarım (Çeker seçeneği: 4x4 / 4x2)
-/alarm traktor marka: New Holland ceker: 4x4 model: T4.75 min_fiyat: 750000
-
-# 🕹️ Oyun Konsolu (Konsol türü hazır menülü)
-/alarm konsol konsol: PlayStation 5 ekstra: Slim Digital max_fiyat: 22000
-
-# 🌐 Tüm Diğer 90+ Kategori (Genel Arama & Akıllı Otomatik Tamamlama)
-/alarm genel kategori: Dizüstü (Notebook) arama_kelimesi: ThinkPad ozellik: 16 GB max_fiyat: 30000
+# 🚜 Tarım & İş Makineleri
+/alarm-hizli kategori: Traktör arama: New Holland T4.75 ozellik: 4x4 min_fiyat: 750000
 ```
 
 ---
 
-### 2. `/alarm-hizli` (Tek Satırda Hızlı Parametrik Alarm)
-Kategori, özellik/birim ve bütçe kriterlerini tek satırda yazarak saniyeler içinde alarm kurun (Tüm kategorilerle uyumlu evrensel parametreler):
-```
-# Vasıta / Otomobil Alarmı
-/alarm-hizli kategori: otomobil marka_veya_model: Civic ozellik: Otomatik sehir: Ankara max_fiyat: 950000
-
-# Emlak / Satılık Daire Alarmı
-/alarm-hizli kategori: satilik-daire marka_veya_model: Kadıköy ozellik: 3+1 sehir: İstanbul max_fiyat: 7500000
-
-# RAM Donanım Alarmı (MB, GB, TB, Dual-Kit)
-/alarm-hizli kategori: ram ozellik: 16 GB DDR4 marka_veya_model: Corsair max_fiyat: 2500
-/alarm-hizli kategori: ram ozellik: 512 MB DDR2 max_fiyat: 300
-/alarm-hizli kategori: ram ozellik: 2x 16 GB DDR5 marka_veya_model: G.Skill
-
-# SSD & Ekran Kartı (VRAM)
-/alarm-hizli kategori: ssd ozellik: 1 TB kelime: NVMe max_fiyat: 3500
-/alarm-hizli kategori: gpu ozellik: 12 GB marka_veya_model: Nvidia kelime: RTX 4070 max_fiyat: 22000
-
-# Tarım / Traktör, Bisiklet & Ev Aletleri
-/alarm-hizli kategori: traktor marka_veya_model: New Holland ozellik: 4x4 max_fiyat: 1200000
-/alarm-hizli kategori: bisiklet marka_veya_model: Carraro ozellik: 28 Jant max_fiyat: 15000
-/alarm-hizli kategori: klima marka_veya_model: Mitsubishi ozellik: 12000 BTU max_fiyat: 35000
-```
-
----
-
-### 3. `/kategoriler` (Kategori ve Birim Rehberi)
-Desteklenen tüm kategorileri, RAM (MB/GB), SSD (GB/TB), Ekran Kartı, Vasıta ve Emlak formatlarını gösterir.
-```
-/kategoriler
-```
-
----
-
-### 4. `/alarm-ara` (Evrensel Serbest Arama)
-Kategori belirtmeden tüm sitede serbest kelime ve bütçe araması:
+### 2. `/alarm-ara` (Evrensel Serbest Arama)
+Kategori seçmeden tüm sitede serbest kelime ve bütçe araması:
 ```
 /alarm-ara kelime: Kadıköy 3+1 satılık daire min_fiyat: 4000000 max_fiyat: 7500000 sehir: İstanbul
 /alarm-ara kelime: playstation 5 konsol max_fiyat: 22000
@@ -258,21 +221,28 @@ Kategori belirtmeden tüm sitede serbest kelime ve bütçe araması:
 
 ---
 
-### 5. `/alarm-url` (Detaylı Sahibinden Linki Takibi)
-Sahibinden web sitesinde seçtiğiniz arama sonucunun URL'sini doğrudan yapıştırın:
+### 3. `/alarm-url` (Doğrudan Sahibinden Linki Dinleme)
+Sahibinden web sitesinde filtrelediğiniz arama linkini doğrudan bota yapıştırın:
 ```
 /alarm-url url: https://www.sahibinden.com/otomobil?sorting=date_desc&price_max=950000 alarm_adi: Civic Arama
 ```
 
 ---
 
-### 6. Yönetim Komutları
+### 4. `/kategoriler` (Kategori ve Birim Rehberi)
+Desteklenen tüm kategorileri, RAM (MB/GB), SSD (GB/TB), Ekran Kartı, Vasıta ve Emlak formatlarını gösterir.
+```
+/kategoriler
+```
+
+---
+
+### 5. Alarm Yönetim Komutları
 
 | Komut | Parametreler | Açıklama |
 |---|---|---|
-| `/alarm <kategori>` | `oto`, `emlak`, `gpu`, `ram`, `telefon`, `bisiklet`, `traktor`, `konsol`, `genel` | Kategoriye özel optimize filtreler ve hazır açılır menülerle nokta atışı alarm kurar. |
-| `/alarm-hizli` | `kategori`, `marka_veya_model`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `kelime` | Tek komutta hızlı evrensel parametrik alarm kurar. |
-| `/alarm-ara` | `kelime`, `min_fiyat`, `max_fiyat`, `sehir` | Tüm Sahibinden sitesinde serbest arama yapar. |
+| `/alarm-hizli` | `kategori`, `arama`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi` | 4 ana bölüm hiyerarşisiyle tek komutta hızlı parametrik alarm kurar. |
+| `/alarm-ara` | `kelime`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi` | Tüm Sahibinden sitesinde kategori bağımsız serbest arama yapar. |
 | `/alarm-url` | `url`, `alarm_adi` | Doğrudan yapıştırılan Sahibinden arama URL'sini dinler. |
 | `/kategoriler` | `-` | Tüm kategorileri, birim türlerini (MB, GB, TB) ve komut örneklerini gösterir. |
 | `/alarmlarim` | `-` | Kurduğunuz tüm alarmları, ID numaralarını ve aktiflik durumlarını listeler. |

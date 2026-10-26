@@ -17,7 +17,7 @@
     },
     "otomobil": {
       "id": "3530",
-      "display_name": "🚗 Vasıta > Otomobil",
+      "display_name": "🚗 Vasıta / Otomobil",
       "slug": "otomobil",
       "breadcrumbs": "Vasıta > Otomobil",
       "example_hint": "Örn: Civic, Megane, BMW, Otomatik",
@@ -72,7 +72,7 @@
     },
     "arazi-suv-pickup": {
       "id": "3531",
-      "display_name": "🚙 Vasıta > Arazi, SUV & Pickup",
+      "display_name": "🚗 Vasıta / Arazi, SUV & Pickup",
       "slug": "arazi-suv-pickup",
       "breadcrumbs": "Vasıta > Arazi, SUV & Pickup",
       "example_hint": "Örn: Qashqai, Duster, Tucson, 4x4",
@@ -92,7 +92,7 @@
     },
     "motosiklet": {
       "id": "3532",
-      "display_name": "🏍️ Vasıta > Motosiklet",
+      "display_name": "🚗 Vasıta / Motosiklet",
       "slug": "motosiklet",
       "breadcrumbs": "Vasıta > Motosiklet",
       "example_hint": "Örn: Yamaha, Honda, Scooter, 250cc",
@@ -109,7 +109,7 @@
     },
     "ticari-araclar": {
       "id": "3533",
-      "display_name": "🚚 Vasıta > Ticari Araçlar",
+      "display_name": "🚗 Vasıta / Ticari Araçlar",
       "slug": "ticari-araclar",
       "breadcrumbs": "Vasıta > Ticari Araçlar",
       "example_hint": "Örn: Caddy, Doblo, Transporter, Minibüs",
@@ -129,7 +129,7 @@
     },
     "satilik-daire": {
       "id": "8388",
-      "display_name": "🏠 Emlak > Konut > Satılık Daire",
+      "display_name": "🏠 Emlak / Satılık Daire",
       "slug": "satilik-daire",
       "breadcrumbs": "Emlak > Konut > Satılık > Daire",
       "example_hint": "Örn: 3+1, 2+1, Kadıköy, Sıfır, Kombili",
@@ -146,7 +146,7 @@
     },
     "kiralik-daire": {
       "id": "8389",
-      "display_name": "🔑 Emlak > Konut > Kiralık Daire",
+      "display_name": "🏠 Emlak / Kiralık Daire",
       "slug": "kiralik-daire",
       "breadcrumbs": "Emlak > Konut > Kiralık > Daire",
       "example_hint": "Örn: 2+1, 1+1, Eşyalı, Merkezde",
@@ -161,7 +161,7 @@
     },
     "satilik-villa": {
       "id": "8394",
-      "display_name": "🏡 Emlak > Konut > Satılık Villa",
+      "display_name": "🏠 Emlak / Satılık Villa",
       "slug": "satilik-villa",
       "breadcrumbs": "Emlak > Konut > Satılık > Villa",
       "example_hint": "Örn: Villa, Müstakil ev, Havuzlu, Yazlık",
@@ -176,7 +176,7 @@
     },
     "satilik-arsa": {
       "id": "8391",
-      "display_name": "🌾 Emlak > Arsa > Satılık",
+      "display_name": "🏠 Emlak / Satılık Arsa",
       "slug": "satilik-arsa",
       "breadcrumbs": "Emlak > Arsa > Satılık",
       "example_hint": "Örn: İmarlı arsa, Tarla, Bağ/Bahçe, 1000m2",
@@ -192,7 +192,7 @@
     },
     "satilik-isyeri": {
       "id": "8392",
-      "display_name": "🏢 Emlak > İş Yeri > Satılık",
+      "display_name": "🏠 Emlak / Satılık İş Yeri",
       "slug": "satilik-isyeri",
       "breadcrumbs": "Emlak > İş Yeri > Satılık",
       "example_hint": "Örn: Dükkan, Ofis, Büro, Mağaza",
@@ -209,7 +209,7 @@
     },
     "cep-telefonu": {
       "id": "111929",
-      "display_name": "📱 İkinci El ve Sıfır > Cep Telefonu",
+      "display_name": "🛍️ Alışveriş / Cep Telefonu",
       "slug": "cep-telefonu",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Cep Telefonu > Modeller",
       "example_hint": "Örn: iPhone 15 Pro, Samsung S24, 128 GB",
@@ -226,7 +226,7 @@
     },
     "akilli-saat": {
       "id": "111930",
-      "display_name": "⌚ İkinci El ve Sıfır > Akıllı Saat & Bileklik",
+      "display_name": "🛍️ Alışveriş / Akıllı Saat",
       "slug": "akilli-saat",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Giyilebilir Teknoloji > Akıllı Saat",
       "example_hint": "Örn: Apple Watch, Galaxy Watch, 44mm",
@@ -242,7 +242,7 @@
     },
     "tablet-bilgisayar": {
       "id": "111931",
-      "display_name": "📱 İkinci El ve Sıfır > Tablet",
+      "display_name": "🛍️ Alışveriş / Tablet",
       "slug": "tablet-bilgisayar",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Tablet",
       "example_hint": "Örn: iPad Pro, iPad Air, Galaxy Tab",
@@ -257,7 +257,7 @@
     },
     "dizustu-bilgisayar": {
       "id": "22856",
-      "display_name": "💻 İkinci El ve Sıfır > Dizüstü (Notebook)",
+      "display_name": "🛍️ Alışveriş / Dizüstü (Laptop)",
       "slug": "dizustu-notebook-bilgisayar",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Dizüstü (Notebook)",
       "example_hint": "Örn: Laptop, MacBook Pro, Gaming notebook, i7",
@@ -272,7 +272,7 @@
     },
     "masaustu-bilgisayar": {
       "id": "22855",
-      "display_name": "🖥️ İkinci El ve Sıfır > Masaüstü PC",
+      "display_name": "🛍️ Alışveriş / Masaüstü PC",
       "slug": "masaustu-bilgisayar",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Masaüstü",
       "example_hint": "Örn: Toplama PC, Gaming hazır sistem, RTX",
@@ -288,7 +288,7 @@
     },
     "ram-bellek-dizustu": {
       "id": "22857",
-      "display_name": "💻 RAM Bellek (Dizüstü/Laptop SODIMM)",
+      "display_name": "🛍️ Alışveriş / RAM Bellek (Laptop)",
       "slug": "ram-bellek",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Dizüstü (Notebook) > Donanım > RAM Bellek",
       "example_hint": "Örn: DDR4, DDR5, 16 GB, 512 MB, 3200mhz SODIMM",
@@ -349,7 +349,7 @@
     },
     "ram-bellek-masaustu": {
       "id": "22858",
-      "display_name": "🧠 RAM Bellek (Masaüstü)",
+      "display_name": "🛍️ Alışveriş / RAM Bellek (Masaüstü)",
       "slug": "ram-bellek-masaustu",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Masaüstü > Donanım > RAM Bellek",
       "example_hint": "Örn: DDR4, DDR5, 16 GB, 512 MB, 2x 16 GB, 3200mhz",
@@ -415,7 +415,7 @@
     },
     "ekran-karti-masaustu": {
       "id": "111925",
-      "display_name": "🎮 Ekran Kartı (Masaüstü)",
+      "display_name": "🛍️ Alışveriş / Ekran Kartı (GPU)",
       "slug": "ekran-karti-masaustu",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Masaüstü > Donanım > Ekran Kartı",
       "example_hint": "Örn: RTX 4070, RX 7800 XT, 8 GB, 12 GB, 16 GB",
@@ -456,7 +456,7 @@
     },
     "islemci-masaustu": {
       "id": "111923",
-      "display_name": "⚡ İşlemci (Masaüstü CPU)",
+      "display_name": "🛍️ Alışveriş / İşlemci (CPU)",
       "slug": "islemci-masaustu",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Masaüstü > Donanım > İşlemci",
       "example_hint": "Örn: Ryzen 5 7600, i7 13700K, AMD, Intel",
@@ -480,7 +480,7 @@
     },
     "anakart-masaustu": {
       "id": "111924",
-      "display_name": "🔌 Anakart (Motherboard)",
+      "display_name": "🛍️ Alışveriş / Anakart",
       "slug": "anakart-masaustu",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Masaüstü > Donanım > Anakart",
       "example_hint": "Örn: AM4, AM5, B650, Z790, B550, LGA1700",
@@ -500,7 +500,7 @@
     },
     "ssd-dahili-sabit-disk": {
       "id": "111926",
-      "display_name": "💾 SSD & Sabit Disk",
+      "display_name": "🛍️ Alışveriş / Sabit Disk (SSD/HDD)",
       "slug": "dahili-sabit-suruculer",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Masaüstü > Donanım > Sabit Diskler (Dahili)",
       "example_hint": "Örn: 1 TB, 2 TB, 500 GB, NVMe M.2, SATA SSD",
@@ -537,7 +537,7 @@
     },
     "monitor-masaustu": {
       "id": "111927",
-      "display_name": "🖥️ Monitör (Masaüstü)",
+      "display_name": "🛍️ Alışveriş / Monitör",
       "slug": "cevre-birimleri-monitor",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Çevre Birimleri > Monitör",
       "example_hint": "Örn: 144hz, 165hz, 240hz, 27 inç, 2K, IPS",
@@ -556,7 +556,7 @@
     },
     "kasa-guc-kaynagi": {
       "id": "111928",
-      "display_name": "⚡ Kasa & Güç Kaynağı (PSU)",
+      "display_name": "🛍️ Alışveriş / Kasa & Güç Kaynağı",
       "slug": "kasa-guc-kaynaklari",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Masaüstü > Donanım > Kasa & Güç Kaynağı",
       "example_hint": "Örn: 750W 80+, Gold PSU, ATX Kasa, Akvaryum",
@@ -572,7 +572,7 @@
     },
     "oyun-konsolu": {
       "id": "111932",
-      "display_name": "🎮 Oyun Konsolları",
+      "display_name": "🛍️ Alışveriş / Oyun Konsolları",
       "slug": "oyun-konsollari",
       "breadcrumbs": "Oyun & Konsol > Konsollar",
       "example_hint": "Örn: PS5 Konsol, Xbox Series X, Nintendo Switch",
@@ -591,7 +591,7 @@
     },
     "televizyon": {
       "id": "111933",
-      "display_name": "📺 Ev Elektroniği > Televizyon",
+      "display_name": "🛍️ Alışveriş / Televizyon",
       "slug": "televizyon",
       "breadcrumbs": "Ev Elektroniği > Televizyon",
       "example_hint": "Örn: 55 inç, 65 inç, 4K, OLED, Smart TV",
@@ -608,7 +608,7 @@
     },
     "kol-saati": {
       "id": "111935",
-      "display_name": "⌚ Giyim & Aksesuar > Kol Saati",
+      "display_name": "🛍️ Alışveriş / Kol Saati",
       "slug": "kol-saati",
       "breadcrumbs": "Saat > Kol Saati",
       "example_hint": "Örn: Seiko, Casio, Tissot, Otomatik, Çelik",
@@ -625,7 +625,7 @@
     },
     "emlak": {
       "id": "3510",
-      "display_name": "🏠 Emlak (Tüm Emlak İlanları)",
+      "display_name": "🏠 Emlak / Tüm Emlak İlanları",
       "slug": "emlak",
       "breadcrumbs": "Emlak",
       "example_hint": "Örn: Satılık daire, arsa, yazlık, dükkan",
@@ -639,7 +639,7 @@
     },
     "emlak-konut": {
       "id": "3511",
-      "display_name": "🏠 Emlak > Konut",
+      "display_name": "🏠 Emlak / Konut (Tümü)",
       "slug": "emlak-konut",
       "breadcrumbs": "Emlak > Konut",
       "example_hint": "Örn: 3+1, 2+1, Dubleks, Sıfır bina, Kombili",
@@ -655,7 +655,7 @@
     },
     "is-yeri": {
       "id": "3512",
-      "display_name": "🏢 Emlak > İş Yeri",
+      "display_name": "🏠 Emlak / İş Yeri (Tümü)",
       "slug": "is-yeri",
       "breadcrumbs": "Emlak > İş Yeri",
       "example_hint": "Örn: Devren dükkan, plazada satılık ofis, depo",
@@ -672,7 +672,7 @@
     },
     "arsa": {
       "id": "3513",
-      "display_name": "🌾 Emlak > Arsa",
+      "display_name": "🏠 Emlak / Arsa (Tümü)",
       "slug": "arsa",
       "breadcrumbs": "Emlak > Arsa",
       "example_hint": "Örn: İmarlı arsa, hisseli tarla, villa arsası",
@@ -688,7 +688,7 @@
     },
     "emlak-projeler": {
       "id": "3514",
-      "display_name": "🏗️ Emlak > Konut Projeleri",
+      "display_name": "🏠 Emlak / Konut Projeleri",
       "slug": "emlak-projeler",
       "breadcrumbs": "Emlak > Konut Projeleri",
       "example_hint": "Örn: Lansman fiyatlı, teslim tarihi 2026, taksitli",
@@ -704,7 +704,7 @@
     },
     "bina": {
       "id": "3515",
-      "display_name": "🏢 Emlak > Bina",
+      "display_name": "🏠 Emlak / Bina",
       "slug": "bina",
       "breadcrumbs": "Emlak > Bina",
       "example_hint": "Örn: 4 katlı komple bina, yatırımlık, kiracılı",
@@ -719,7 +719,7 @@
     },
     "devre-mulk": {
       "id": "3516",
-      "display_name": "🏖️ Emlak > Devre Mülk",
+      "display_name": "🏠 Emlak / Devre Mülk",
       "slug": "devre-mulk",
       "breadcrumbs": "Emlak > Devre Mülk",
       "example_hint": "Örn: Termal tesis, 15 günlük, tapulu, Bodrum",
@@ -733,7 +733,7 @@
     },
     "emlak-turistik-tesis": {
       "id": "3517",
-      "display_name": "🏨 Emlak > Turistik Tesis",
+      "display_name": "🏠 Emlak / Turistik Tesis",
       "slug": "emlak-turistik-tesis",
       "breadcrumbs": "Emlak > Turistik Tesis",
       "example_hint": "Örn: Butik otel, 20 odalı, denize sıfır, faal",
@@ -749,7 +749,7 @@
     },
     "vasita": {
       "id": "3520",
-      "display_name": "🚗 Vasıta (Tüm Vasıta İlanları)",
+      "display_name": "🚗 Vasıta / Tüm Vasıta İlanları",
       "slug": "vasita",
       "breadcrumbs": "Vasıta",
       "example_hint": "Örn: Otomobil, motosiklet, ticari araçlar",
@@ -766,7 +766,7 @@
     },
     "elektrikli-araclar": {
       "id": "3521",
-      "display_name": "⚡ Vasıta > Elektrikli Araçlar",
+      "display_name": "🚗 Vasıta / Elektrikli Araçlar",
       "slug": "elektrikli-araclar",
       "breadcrumbs": "Vasıta > Elektrikli Araçlar",
       "example_hint": "Örn: Tesla Model Y, Togg T10X, BYD Seal, Menzil",
@@ -787,7 +787,7 @@
     },
     "minivan-panelvan": {
       "id": "3522",
-      "display_name": "🚐 Vasıta > Minivan & Panelvan",
+      "display_name": "🚗 Vasıta / Minivan & Panelvan",
       "slug": "minivan-panelvan",
       "breadcrumbs": "Vasıta > Minivan & Panelvan",
       "example_hint": "Örn: Kangoo, Doblo Maxi, Caddy Van, Tourneo",
@@ -805,7 +805,7 @@
     },
     "kiralik-araclar": {
       "id": "3523",
-      "display_name": "🔑 Vasıta > Kiralık Araçlar",
+      "display_name": "🚗 Vasıta / Kiralık Araçlar",
       "slug": "kiralik-araclar",
       "breadcrumbs": "Vasıta > Kiralık Araçlar",
       "example_hint": "Örn: Günlük, aylık, filo kiralık, dizel otomatik",
@@ -821,7 +821,7 @@
     },
     "deniz-araclari": {
       "id": "3524",
-      "display_name": "🚤 Vasıta > Deniz Araçları",
+      "display_name": "🚗 Vasıta / Deniz Araçları",
       "slug": "deniz-araclari",
       "breadcrumbs": "Vasıta > Deniz Araçları",
       "example_hint": "Örn: 7 metre motoryat, Yamaha motorlu, kabinli",
@@ -841,7 +841,7 @@
     },
     "hasarli-araclar": {
       "id": "3525",
-      "display_name": "💥 Vasıta > Hasarlı Araçlar",
+      "display_name": "🚗 Vasıta / Hasarlı Araçlar",
       "slug": "hasarli-araclar",
       "breadcrumbs": "Vasıta > Hasarlı Araçlar",
       "example_hint": "Örn: Çekme belgeli, motor arızalı, hafif hasarlı",
@@ -857,7 +857,7 @@
     },
     "karavan": {
       "id": "3526",
-      "display_name": "🚐 Vasıta > Karavan",
+      "display_name": "🚗 Vasıta / Karavan",
       "slug": "karavan",
       "breadcrumbs": "Vasıta > Karavan",
       "example_hint": "Örn: Çekme karavan 3.90, motokaravan 2+1, güneş panelli",
@@ -873,7 +873,7 @@
     },
     "klasik-araclar": {
       "id": "3527",
-      "display_name": "🏎️ Vasıta > Klasik Araçlar",
+      "display_name": "🚗 Vasıta / Klasik Araçlar",
       "slug": "klasik-araclar",
       "breadcrumbs": "Vasıta > Klasik Araçlar",
       "example_hint": "Örn: 1967 Mustang, Mercedes W123, Vosvos, 1974",
@@ -890,7 +890,7 @@
     },
     "yedek-parca-aksesuar-donanim-tuning": {
       "id": "3540",
-      "display_name": "🔧 Yedek Parça, Aksesuar, Donanım & Tuning",
+      "display_name": "🔧 Yedek Parça / Tüm İlanlar",
       "slug": "yedek-parca-aksesuar-donanim-tuning",
       "breadcrumbs": "Yedek Parça, Aksesuar, Donanım & Tuning",
       "example_hint": "Örn: Çelik jant, coilover, egzoz, bodykit",
@@ -906,7 +906,7 @@
     },
     "otomotiv-ekipmanlari": {
       "id": "3541",
-      "display_name": "🚗 Yedek Parça > Otomotiv Ekipmanları",
+      "display_name": "🔧 Yedek Parça / Otomotiv Ekipmanları",
       "slug": "otomotiv-ekipmanlari",
       "breadcrumbs": "Yedek Parça > Otomotiv Ekipmanları",
       "example_hint": "Örn: 205 55 R16 kışlık lastik, Android multimedya, jant",
@@ -925,7 +925,7 @@
     },
     "motosiklet-ekipmanlari": {
       "id": "3542",
-      "display_name": "🏍️ Yedek Parça > Motosiklet Ekipmanları",
+      "display_name": "🔧 Yedek Parça / Motosiklet Ekipmanları",
       "slug": "motosiklet-ekipmanlari",
       "breadcrumbs": "Yedek Parça > Motosiklet Ekipmanları",
       "example_hint": "Örn: Shoei kask, Alpinestars mont, Dainese eldiven",
@@ -945,7 +945,7 @@
     },
     "deniz-araci-ekipmanlari": {
       "id": "3543",
-      "display_name": "⚓ Yedek Parça > Deniz Aracı Ekipmanları",
+      "display_name": "🔧 Yedek Parça / Deniz Aracı Ekipmanları",
       "slug": "deniz-araci-ekipmanlari",
       "breadcrumbs": "Yedek Parça > Deniz Aracı Ekipmanları",
       "example_hint": "Örn: 15 HP dıştan takma motor, can yeleği, çapa",
@@ -962,7 +962,7 @@
     },
     "ikinci-el-ve-sifir-alisveris": {
       "id": "3550",
-      "display_name": "🛍️ İkinci El ve Sıfır Alışveriş (Tümü)",
+      "display_name": "🛍️ Alışveriş / Tüm İlanlar",
       "slug": "ikinci-el-ve-sifir-alisveris",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş",
       "example_hint": "Örn: Sıfır kutulu ürünler, garantili ikinci el",
@@ -977,7 +977,7 @@
     },
     "bilgisayar": {
       "id": "3551",
-      "display_name": "💻 İkinci El > Bilgisayar (Genel)",
+      "display_name": "🛍️ Alışveriş / Bilgisayar (Tümü)",
       "slug": "bilgisayar",
       "breadcrumbs": "İkinci El ve Sıfır > Bilgisayar",
       "example_hint": "Örn: Hazır sistem, gaming kasa, mekanik klavye, mouse",
@@ -993,7 +993,7 @@
     },
     "cep-telefonu-aksesuar": {
       "id": "3552",
-      "display_name": "📱 İkinci El > Cep Telefonu & Aksesuar",
+      "display_name": "🛍️ Alışveriş / Cep Telefonu & Aksesuar",
       "slug": "cep-telefonu-aksesuar",
       "breadcrumbs": "İkinci El ve Sıfır > Cep Telefonu & Aksesuar",
       "example_hint": "Örn: MagSafe şarj aleti, Apple 20W adaptör, kılıf",
@@ -1009,7 +1009,7 @@
     },
     "fotograf-kamera": {
       "id": "3553",
-      "display_name": "📷 İkinci El > Fotoğraf & Kamera",
+      "display_name": "🛍️ Alışveriş / Fotoğraf & Kamera",
       "slug": "fotograf-kamera",
       "breadcrumbs": "İkinci El ve Sıfır > Fotoğraf & Kamera",
       "example_hint": "Örn: Sony A7 IV, Canon EOS, 50mm f1.8 lens, tripod",
@@ -1027,7 +1027,7 @@
     },
     "ev-dekorasyon": {
       "id": "3554",
-      "display_name": "🛋️ İkinci El > Ev Dekorasyon",
+      "display_name": "🛍️ Alışveriş / Ev Dekorasyon",
       "slug": "ev-dekorasyon",
       "breadcrumbs": "İkinci El ve Sıfır > Ev Dekorasyon",
       "example_hint": "Örn: Köşe koltuk takımı, masif yemek masası, avize",
@@ -1045,7 +1045,7 @@
     },
     "ev-elektronigi": {
       "id": "3555",
-      "display_name": "📺 İkinci El > Ev Elektroniği",
+      "display_name": "🛍️ Alışveriş / Ev Elektroniği",
       "slug": "ev-elektronigi",
       "breadcrumbs": "İkinci El ve Sıfır > Ev Elektroniği",
       "example_hint": "Örn: JBL soundbar, 4K projeksiyon, Dolby Atmos ses sistemi",
@@ -1060,7 +1060,7 @@
     },
     "elektrikli-ev-aletleri": {
       "id": "3556",
-      "display_name": "☕ İkinci El > Elektrikli Ev Aletleri",
+      "display_name": "🛍️ Alışveriş / Elektrikli Ev Aletleri",
       "slug": "elektrikli-ev-aletleri",
       "breadcrumbs": "İkinci El ve Sıfır > Elektrikli Ev Aletleri",
       "example_hint": "Örn: Dyson V15 süpürge, Delonghi kahve makinesi, Airfryer",
@@ -1080,7 +1080,7 @@
     },
     "giyim-aksesuar": {
       "id": "3557",
-      "display_name": "👗 İkinci El > Giyim & Aksesuar",
+      "display_name": "🛍️ Alışveriş / Giyim & Aksesuar",
       "slug": "giyim-aksesuar",
       "breadcrumbs": "İkinci El ve Sıfır > Giyim & Aksesuar",
       "example_hint": "Örn: Nike sneaker 42 numara, deri mont, deri çanta",
@@ -1098,7 +1098,7 @@
     },
     "saat": {
       "id": "3558",
-      "display_name": "⌚ İkinci El > Saat (Tümü)",
+      "display_name": "🛍️ Alışveriş / Saat (Tümü)",
       "slug": "saat",
       "breadcrumbs": "İkinci El ve Sıfır > Saat",
       "example_hint": "Örn: Otomatik kol saati, ahşap sarkaçlı duvar saati",
@@ -1113,7 +1113,7 @@
     },
     "anne-bebek": {
       "id": "3559",
-      "display_name": "👶 İkinci El > Anne & Bebek",
+      "display_name": "🛍️ Alışveriş / Anne & Bebek",
       "slug": "anne-bebek",
       "breadcrumbs": "İkinci El ve Sıfır > Anne & Bebek",
       "example_hint": "Örn: Maxi-Cosi oto koltuğu, Cybex bebek arabası, beşik",
@@ -1129,7 +1129,7 @@
     },
     "kisisel-bakim-kozmetik": {
       "id": "3560",
-      "display_name": "💄 İkinci El > Kişisel Bakım & Kozmetik",
+      "display_name": "🛍️ Alışveriş / Kişisel Bakım & Kozmetik",
       "slug": "kisisel-bakim-kozmetik",
       "breadcrumbs": "İkinci El ve Sıfır > Kişisel Bakım & Kozmetik",
       "example_hint": "Örn: Dyson Airwrap, Braun Series 9 tıraş makinesi, parfüm",
@@ -1146,7 +1146,7 @@
     },
     "hobi-oyuncak": {
       "id": "3561",
-      "display_name": "🧸 İkinci El > Hobi & Oyuncak",
+      "display_name": "🛍️ Alışveriş / Hobi & Oyuncak",
       "slug": "hobi-oyuncak",
       "breadcrumbs": "İkinci El ve Sıfır > Hobi & Oyuncak",
       "example_hint": "Örn: Lego Technic, DJI Mini 3 Pro dron, RC drift arabası",
@@ -1164,7 +1164,7 @@
     },
     "oyunculara-ozel": {
       "id": "3562",
-      "display_name": "🕹️ İkinci El > Oyunculara Özel",
+      "display_name": "🛍️ Alışveriş / Oyunculara Özel",
       "slug": "oyunculara-ozel",
       "breadcrumbs": "İkinci El ve Sıfır > Oyunculara Özel",
       "example_hint": "Örn: Logitech G Pro X, SteelSeries Apex Pro, oyuncu koltuğu",
@@ -1181,7 +1181,7 @@
     },
     "kitap-dergi-film": {
       "id": "3563",
-      "display_name": "📚 İkinci El > Kitap, Dergi & Film",
+      "display_name": "🛍️ Alışveriş / Kitap, Dergi & Film",
       "slug": "kitap-dergi-film",
       "breadcrumbs": "İkinci El ve Sıfır > Kitap, Dergi & Film",
       "example_hint": "Örn: İlk baskı kitap, çizgi roman serisi, Harry Potter ciltli",
@@ -1198,7 +1198,7 @@
     },
     "muzik": {
       "id": "3564",
-      "display_name": "🎸 İkinci El > Müzik & Enstrüman",
+      "display_name": "🛍️ Alışveriş / Müzik & Enstrüman",
       "slug": "muzik",
       "breadcrumbs": "İkinci El ve Sıfır > Müzik",
       "example_hint": "Örn: Fender Stratocaster, Yamaha elektro piyano, taş plak",
@@ -1217,7 +1217,7 @@
     },
     "spor": {
       "id": "3565",
-      "display_name": "⚽ İkinci El > Spor & Outdoor",
+      "display_name": "🛍️ Alışveriş / Spor & Outdoor",
       "slug": "spor",
       "breadcrumbs": "İkinci El ve Sıfır > Spor",
       "example_hint": "Örn: Trek dağ bisikleti, 4 kişilik kamp çadırı, ağırlık seti",
@@ -1236,7 +1236,7 @@
     },
     "taki-mucevher": {
       "id": "3566",
-      "display_name": "💍 İkinci El > Takı & Mücevher",
+      "display_name": "🛍️ Alışveriş / Takı & Mücevher",
       "slug": "taki-mucevher",
       "breadcrumbs": "İkinci El ve Sıfır > Takı & Mücevher",
       "example_hint": "Örn: 22 ayar altın bilezik, 925 ayar gümüş zincir, tektaş",
@@ -1254,7 +1254,7 @@
     },
     "koleksiyon": {
       "id": "3567",
-      "display_name": "🪙 İkinci El > Koleksiyon",
+      "display_name": "🛍️ Alışveriş / Koleksiyon",
       "slug": "koleksiyon",
       "breadcrumbs": "İkinci El ve Sıfır > Koleksiyon",
       "example_hint": "Örn: Osmanlı madeni para, damla kehribar tesbih, nadir pul",
@@ -1272,7 +1272,7 @@
     },
     "antika": {
       "id": "3568",
-      "display_name": "🏺 İkinci El > Antika",
+      "display_name": "🛍️ Alışveriş / Antika",
       "slug": "antika",
       "breadcrumbs": "İkinci El ve Sıfır > Antika",
       "example_hint": "Örn: Çalışır durumda gramofon, el dokuma antika halı",
@@ -1288,7 +1288,7 @@
     },
     "bahce-yapi-market": {
       "id": "3569",
-      "display_name": "🪴 İkinci El > Bahçe & Yapı Market",
+      "display_name": "🛍️ Alışveriş / Bahçe & Yapı Market",
       "slug": "bahce-yapi-market",
       "breadcrumbs": "İkinci El ve Sıfır > Bahçe & Yapı Market",
       "example_hint": "Örn: Bosch kırıcı delici matkap, benzinli çim biçme makinesi",
@@ -1307,7 +1307,7 @@
     },
     "teknik-elektronik": {
       "id": "3570",
-      "display_name": "🔬 İkinci El > Teknik Elektronik",
+      "display_name": "🛍️ Alışveriş / Teknik Elektronik",
       "slug": "teknik-elektronik",
       "breadcrumbs": "İkinci El ve Sıfır > Teknik Elektronik",
       "example_hint": "Örn: Fluke multimetre, Weller lehim istasyonu, Raspberry Pi 5",
@@ -1325,7 +1325,7 @@
     },
     "ofis-kirtasiye": {
       "id": "3571",
-      "display_name": "📎 İkinci El > Ofis & Kırtasiye",
+      "display_name": "🛍️ Alışveriş / Ofis & Kırtasiye",
       "slug": "ofis-kirtasiye",
       "breadcrumbs": "İkinci El ve Sıfır > Ofis & Kırtasiye",
       "example_hint": "Örn: Epson tanklı yazıcı, çalışma koltuğu, Pelikan dolma kalem",
@@ -1342,7 +1342,7 @@
     },
     "yiyecek-icecek": {
       "id": "3572",
-      "display_name": "☕ İkinci El > Yiyecek & İçecek",
+      "display_name": "🛍️ Alışveriş / Yiyecek & İçecek",
       "slug": "yiyecek-icecek",
       "breadcrumbs": "İkinci El ve Sıfır > Yiyecek & İçecek",
       "example_hint": "Örn: Soğuk sıkım zeytinyağı, hakiki karakovan balı",
@@ -1358,7 +1358,7 @@
     },
     "diger-her-sey": {
       "id": "3573",
-      "display_name": "📦 İkinci El > Diğer Her Şey",
+      "display_name": "🛍️ Alışveriş / Diğer Her Şey",
       "slug": "diger-her-sey",
       "breadcrumbs": "İkinci El ve Sıfır > Diğer Her Şey",
       "example_hint": "Örn: Diğer tüm ilanlar ve muhtelif ürünler",
@@ -1449,8 +1449,8 @@
       "facets": {}
     },
     "bisiklet": {
-      "id": "3520",
-      "display_name": "🚲 Spor > Bisiklet",
+      "id": "4001",
+      "display_name": "🛍️ Alışveriş / Bisiklet",
       "slug": "bisiklet",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Spor > Bisiklet",
       "example_hint": "Örn: Dağ bisikleti, Yol/Yarış, Katlanır, Elektrikli, Carraro, Salcano",
@@ -1474,8 +1474,8 @@
       "facets": {}
     },
     "traktor": {
-      "id": "3540",
-      "display_name": "🚜 İş Makineleri > Traktör & Tarım",
+      "id": "4002",
+      "display_name": "🚜 İş Makineleri / Traktör & Tarım",
       "slug": "traktor",
       "breadcrumbs": "İş Makineleri & Sanayi > Tarım Makineleri > Traktör",
       "example_hint": "Örn: New Holland, Massey Ferguson, Tümosan, 4x4, Balya makinesi",
@@ -1498,8 +1498,8 @@
       "facets": {}
     },
     "beyaz-esya": {
-      "id": "3550",
-      "display_name": "🧊 Elektrikli Ev Aletleri > Beyaz Eşya",
+      "id": "3574",
+      "display_name": "🛍️ Alışveriş / Beyaz Eşya",
       "slug": "beyaz-esya",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Elektrikli Ev Aletleri > Beyaz Eşya",
       "example_hint": "Örn: Buzdolabı, Çamaşır makinesi, Bulaşık makinesi, Fırın, Bosch, Arçelik",
@@ -1523,8 +1523,8 @@
       "facets": {}
     },
     "isitma-sogutma-havalandirma": {
-      "id": "3560",
-      "display_name": "❄️ Elektrikli Ev Aletleri > Klima & Isıtma-Soğutma",
+      "id": "3575",
+      "display_name": "🛍️ Alışveriş / Klima & Isıtma-Soğutma",
       "slug": "isitma-sogutma-havalandirma",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Elektrikli Ev Aletleri > Isıtma, Soğutma & Havalandırma",
       "example_hint": "Örn: İnverter klima, 12000 BTU, 18000 BTU, Kombi, Mitsubishi, Daikin",
@@ -1549,8 +1549,8 @@
       "facets": {}
     },
     "satilik-tarla": {
-      "id": "3570",
-      "display_name": "🌾 Emlak > Arsa > Satılık Tarla & Bahçe",
+      "id": "3576",
+      "display_name": "🏠 Emlak / Satılık Tarla & Bahçe",
       "slug": "satilik-tarla",
       "breadcrumbs": "Emlak > Arsa > Satılık Tarla",
       "example_hint": "Örn: Tarla, Bağ, Bahçe, Zeytinlik, Müstakil parsel, Hisseli, Yatırımlık",
@@ -1567,8 +1567,8 @@
       "facets": {}
     },
     "kiralik-villa": {
-      "id": "3580",
-      "display_name": "🏡 Emlak > Konut > Kiralık Villa",
+      "id": "4003",
+      "display_name": "🏠 Emlak / Kiralık Villa",
       "slug": "kiralik-villa",
       "breadcrumbs": "Emlak > Konut > Kiralık Villa",
       "example_hint": "Örn: Havuzlu villa, Sezonluk, Müstakil bahçeli, Yazlık villa, Bodrum",
@@ -1584,7 +1584,7 @@
     },
     "gunluk-kiralik-daire": {
       "id": "3590",
-      "display_name": "🏖️ Emlak > Konut > Günlük Kiralık",
+      "display_name": "🏠 Emlak / Günlük Kiralık Daire",
       "slug": "gunluk-kiralik-daire",
       "breadcrumbs": "Emlak > Konut > Günlük Kiralık Daire",
       "example_hint": "Örn: Günlük kiralık daire, Rezidans, Taksim, Kadıköy, Eşyalı",
@@ -1600,7 +1600,7 @@
     },
     "jant-lastik": {
       "id": "3600",
-      "display_name": "🛞 Yedek Parça > Jant & Lastik",
+      "display_name": "🔧 Yedek Parça / Jant & Lastik",
       "slug": "jant-lastik",
       "breadcrumbs": "Yedek Parça, Aksesuar, Donanım & Tuning > Otomotiv Ekipmanları > Jant & Lastik",
       "example_hint": "Örn: 17 inç jant, Kışlık lastik, 205/55 R16, Çelik jant, Michelin",
@@ -1623,7 +1623,7 @@
     },
     "cevre-birimleri": {
       "id": "3610",
-      "display_name": "⌨️ Donanım > Çevre Birimleri (Klavye, Mouse)",
+      "display_name": "🛍️ Alışveriş / Çevre Birimleri",
       "slug": "cevre-birimleri",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Bilgisayar > Çevre Birimleri",
       "example_hint": "Örn: Mekanik klavye, Kablosuz mouse, Oyuncu kulaklığı, Logitech, Razer",
@@ -1645,7 +1645,7 @@
     },
     "dronlar-multikopter": {
       "id": "3620",
-      "display_name": "🚁 İkinci El > Dronlar & Multikopter",
+      "display_name": "🛍️ Alışveriş / Dronlar & Multikopter",
       "slug": "dronlar-multikopter",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Fotoğraf & Kamera > Dronlar & Multikopter",
       "example_hint": "Örn: DJI Mini 4 Pro, Air 3, Mavic 3, FPV dron, Fly More Combo",
@@ -1663,7 +1663,7 @@
     },
     "kamp-doga-sporlari": {
       "id": "3630",
-      "display_name": "⛺ Spor > Kamp & Doğa Sporları",
+      "display_name": "🛍️ Alışveriş / Kamp & Doğa Sporları",
       "slug": "kamp-doga-sporlari",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Spor > Doğa Sporları & Kamp",
       "example_hint": "Örn: Kamp çadırı, 4 kişilik, Uyku tulumu, Kamp sandalyesi, Mat, Termos",
@@ -1682,7 +1682,7 @@
     },
     "avcilik-balikcilik": {
       "id": "3640",
-      "display_name": "🎣 Spor > Avcılık & Balıkçılık",
+      "display_name": "🛍️ Alışveriş / Avcılık & Balıkçılık",
       "slug": "avcilik-balikcilik",
       "breadcrumbs": "İkinci El ve Sıfır Alışveriş > Spor > Avcılık & Balıkçılık",
       "example_hint": "Örn: Olta takımı, Spin kamış, Makine, Zıpkın, Balıkçılık, Daiwa, Shimano",
@@ -1702,7 +1702,7 @@
     },
     "motosiklet-scooter": {
       "id": "3650",
-      "display_name": "🛵 Vasıta > Motosiklet > Scooter",
+      "display_name": "🚗 Vasıta / Scooter",
       "slug": "scooter",
       "breadcrumbs": "Vasıta > Motosiklet > Scooter",
       "example_hint": "Örn: PCX 125, NMAX 155, Forza 250, XMAX, Vespa, SYM, Kymco",
@@ -1723,7 +1723,7 @@
     },
     "atv-utv": {
       "id": "3660",
-      "display_name": "🚜 Vasıta > ATV & UTV",
+      "display_name": "🚗 Vasıta / ATV & UTV",
       "slug": "atv-utv",
       "breadcrumbs": "Vasıta > ATV & UTV",
       "example_hint": "Örn: 4x4 ATV, Plakalı, Can-Am, Polaris, CFMoto, T3 ruhsatlı",
@@ -1741,7 +1741,7 @@
     },
     "is-makineleri": {
       "id": "3670",
-      "display_name": "🏗️ İş Makineleri > İş Makineleri (Kepçe, Forklift)",
+      "display_name": "🚜 İş Makineleri / İş Makineleri",
       "slug": "is-makineleri",
       "breadcrumbs": "İş Makineleri & Sanayi > İş Makineleri",
       "example_hint": "Örn: JCB kepçe, Beko loder, Mini ekskavatör, Dizel forklift, Vinç, CAT",
@@ -1762,7 +1762,7 @@
     },
     "sanayi": {
       "id": "3680",
-      "display_name": "🏭 Sanayi > Sanayi & İmalat Tezgahları",
+      "display_name": "🏭 Sanayi / Sanayi & İmalat",
       "slug": "sanayi",
       "breadcrumbs": "İş Makineleri & Sanayi > Sanayi",
       "example_hint": "Örn: Torna tezgahı, CNC dik işleme, Vidalı kompresör, Jeneratör",

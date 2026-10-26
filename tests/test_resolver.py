@@ -169,13 +169,12 @@ def test_expanded_categories_resolution():
 
 
 def test_autocomplete_includes_example_hints():
-    """Verify autocomplete choices provide contextual examples next to categories."""
+    """Verify autocomplete choices provide clean 4-department hierarchy."""
     choices = resolver.get_autocomplete_choices("ram")
     assert len(choices) > 0
-    # The label should contain an example hint
     labels = [choice[0] for choice in choices]
-    assert any("Örn:" in label for label in labels)
-    assert any("DDR4" in label or "16 GB" in label for label in labels)
+    assert any("RAM Bellek" in label for label in labels)
+    assert any("Alışveriş" in label for label in labels)
 
 
 def test_normalize_capacity_unit_1000gb_to_1tb():
