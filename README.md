@@ -188,14 +188,22 @@ Desteklenen tüm kategorileri, RAM (MB/GB), SSD (GB/TB), Ekran Kartı, Vasıta v
 ---
 
 ### 2. `/alarm-hizli` (Tek Satırda Parametrik Alarm)
-Kategori, birim ve kriterleri doğrudan yazarak saniyeler içinde alarm kurun:
+Kategori, özellik/birim ve bütçe kriterlerini tek satırda yazarak saniyeler içinde alarm kurun (Tüm kategorilerle uyumlu evrensel parametreler):
 ```
-/alarm-hizli kategori: ram ddr: DDR4 kapasite: 16 GB marka: Corsair max_fiyat: 2500
-/alarm-hizli kategori: ram ddr: DDR2 kapasite: 512 MB max_fiyat: 300
-/alarm-hizli kategori: ram ddr: DDR5 kapasite: 2x 16 GB marka: G.Skill
-/alarm-hizli kategori: ssd kapasite: 1 TB kelime: NVMe max_fiyat: 3500
-/alarm-hizli kategori: gpu kapasite: 12 GB marka: Nvidia kelime: RTX 4070 max_fiyat: 22000
-/alarm-hizli kategori: araba kelime: Civic 1.6 Otomatik sehir: Ankara max_fiyat: 900000
+# Vasıta / Otomobil Alarmı
+/alarm-hizli kategori: otomobil marka_veya_model: Civic ozellik: Otomatik sehir: Ankara max_fiyat: 950000
+
+# Emlak / Satılık Daire Alarmı
+/alarm-hizli kategori: satilik-daire marka_veya_model: Kadıköy ozellik: 3+1 sehir: İstanbul max_fiyat: 7500000
+
+# RAM Donanım Alarmı (MB, GB, TB, Dual-Kit)
+/alarm-hizli kategori: ram ozellik: 16 GB DDR4 marka_veya_model: Corsair max_fiyat: 2500
+/alarm-hizli kategori: ram ozellik: 512 MB DDR2 max_fiyat: 300
+/alarm-hizli kategori: ram ozellik: 2x 16 GB DDR5 marka_veya_model: G.Skill
+
+# SSD & Ekran Kartı (VRAM)
+/alarm-hizli kategori: ssd ozellik: 1 TB kelime: NVMe max_fiyat: 3500
+/alarm-hizli kategori: gpu ozellik: 12 GB marka_veya_model: Nvidia kelime: RTX 4070 max_fiyat: 22000
 ```
 
 ---
@@ -212,6 +220,18 @@ Kategori belirtmeden tüm sitede serbest kelime ve bütçe araması:
 
 ### 4. `/alarm-url` (Detaylı Sahibinden Linki Takibi)
 Sahibinden web sitesinde seçtiğiniz arama sonucunun URL'sini doğrudan yapıştırın:
+```
+/alarm-url url: https://www.sahibinden.com/otomobil?sorting=date_desc&price_max=950000 alarm_adi: Civic Arama
+```
+
+---
+
+### 5. `/alarm-kur` (Hiyerarşik Kategori & Alt Kategori Sihirbazı)
+6 Ana Kategori Grubu (**🏠 Emlak**, **🚗 Vasıta**, **🔧 Yedek Parça**, **💻 Donanım**, **📱 Elektronik**, **🛍️ Yaşam**), dinamik alt kategori seçicisi ve kategoriye duyarlı özel alanlara sahip modal formuyla görsel kurulum:
+```
+/alarm-kur
+/alarm-kur kategori: ram
+/alarm-kur kategori: otomobil
 ```
 /alarm-url url: https://www.sahibinden.com/otomobil/ankara-cankaya?sorting=date_desc&price_max=850000 alarm_adi: Çankaya Araçlar
 ```

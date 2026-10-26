@@ -15,6 +15,8 @@ from src.bot.views import (
     SpecFilterModal,
     DeleteAlarmView,
     UniversalCategorySelectView,
+    CategoryGroupSelectView,
+    SubCategorySelectView,
 )
 from src.services.monitor import AlarmMonitor
 
@@ -243,10 +245,14 @@ class AlarmCog(commands.Cog):
             return
 
         if not kategori:
-            view = UniversalCategorySelectView()
+            view = CategoryGroupSelectView()
             embed = discord.Embed(
-                title="🧭 Sahibinden Alarm Sihirbazı",
-                description="Lütfen takip etmek istediğiniz ana kategoriyi seçin:",
+                title="📂 Sahibinden Kategori & Alt Kategori Sihirbazı",
+                description=(
+                    "Sahibinden üzerindeki tüm başlıklar **6 ana grupta** toplanmıştır.\n"
+                    "Lütfen takip etmek istediğiniz ana grubu seçin;\n"
+                    "ardından o gruba ait spesifik alt kategoriler listelenecektir:"
+                ),
                 color=0x3498DB
             )
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
@@ -274,32 +280,36 @@ class AlarmCog(commands.Cog):
 
     @app_commands.command(
         name="alarm-hizli",
-        description="Tek satırda kategori, birim türleri (MB/GB/TB) ve parametrelerle hızlı alarm oluşturun."
+        description="Tek satırda kategori, özellik/birim ve bütçe ile hızlı alarm oluşturun."
     )
     @app_commands.describe(
-        kategori="Kategori veya takma ad (örn: 'ram', 'gpu', 'ssd', 'telefon', 'araba', 'daire')",
-        ddr="RAM bellek tipi (örn: 'DDR4', 'DDR5', 'DDR3', 'DDR3L', 'DDR2', 'DDR')",
-        kapasite="Kapasite ve birimi (örn: '16 GB', '512 MB', '1 TB', '2x 16 GB', '256 MB')",
-        marka="Marka veya Chipset (örn: 'Corsair', 'Kingston', 'Nvidia', 'AMD', 'Intel', 'Samsung')",
+        kategori="Kategori veya takma ad (örn: 'otomobil', 'daire', 'ram', 'gpu', 'telefon', 'arsa')",
+        ozellik="Özellik / Tip / Birim (örn: '16 GB', 'DDR4', 'Otomatik', '3+1', '1 TB', '512 MB')",
+        marka_veya_model="Marka, Model veya Çipset (örn: 'Civic', 'Nvidia', 'Corsair', 'iPhone', 'BMW')",
         min_fiyat="Minimum Fiyat TL (örn: 500, 2000)",
         max_fiyat="Maksimum Fiyat TL (örn: 5000, 35000)",
         sehir="Şehir filtresi (örn: 'İstanbul', 'Ankara', 'İzmir', 'Bursa')",
-        kelime="Arama kelimesi veya model (örn: 'Civic 1.6', '3200mhz CL16', 'iPhone 15 Pro')",
-        alarm_adi="Alarm için hatırlatıcı isim (örn: '16 GB DDR4 RAM', 'Kadıköy 3+1 Daire')"
+        kelime="Ek arama kelimesi veya detay (örn: 'Boyasız', 'Kombili', 'M.2', 'Kutulu')",
+        alarm_adi="Alarm için hatırlatıcı isim (örn: 'Civic Otomatik', '16GB RAM', 'Kadıköy 3+1')",
+        ddr="[Geriye dönük uyumluluk] RAM bellek tipi (örn: 'DDR4')",
+        kapasite="[Geriye dönük uyumluluk] Kapasite ve birimi (örn: '16 GB')",
+        marka="[Geriye dönük uyumluluk] Marka veya Chipset (örn: 'Corsair')"
     )
     @app_commands.autocomplete(kategori=category_autocomplete)
     async def alarm_hizli(
         self,
         interaction: discord.Interaction,
         kategori: str,
-        ddr: str | None = None,
-        kapasite: str | None = None,
-        marka: str | None = None,
+        ozellik: str | None = None,
+        marka_veya_model: str | None = None,
         min_fiyat: int | None = None,
         max_fiyat: int | None = None,
         sehir: str | None = None,
         kelime: str | None = None,
         alarm_adi: str | None = None,
+        ddr: str | None = None,
+        kapasite: str | None = None,
+        marka: str | None = None,
     ):
         await self._safe_defer(interaction, ephemeral=True)
 
@@ -327,9 +337,13 @@ class AlarmCog(commands.Cog):
         cat_key = cat_data["key"] if cat_data else "genel-arama"
         category_slug = cat_data["slug"] if cat_data else "kelime-ile-arama"
 
-        # Auto-extract embedded specs if user typed e.g. kategori="ddr4 16gb ram"
+        # Backward compatibility: merge legacy parameters into effective spec and brand
+        effective_spec = " ".join(filter(None, [ozellik, ddr, kapasite])).strip() or None
+        effective_brand = (marka_veya_model or marka or "").strip() or None
+
+        # Auto-extract embedded hardware facets if applicable
         extracted = resolver.extract_specs_from_text(
-            f"{kategori} {kelime or ''}",
+            f"{kategori} {effective_spec or ''} {kelime or ''}",
             category_key=cat_key
         )
 
@@ -339,11 +353,34 @@ class AlarmCog(commands.Cog):
         raw_cap = kapasite.strip() if kapasite else (extracted.get("kapasite") or extracted.get("bellek"))
         formatted_cap = resolver.normalize_capacity_unit(raw_cap, category_key=cat_key) if raw_cap else None
 
-        formatted_brand = marka.strip() if marka else (extracted.get("marka") or extracted.get("chipset"))
+        formatted_brand = marka.strip() if marka else (extracted.get("marka") or extracted.get("chipset") or effective_brand)
+
+        # Prepare query parts for non-facet search terms (e.g. "Civic", "Otomatik", "3+1")
+        query_parts: list[str] = []
+        if effective_brand and not (formatted_brand and effective_brand.lower() == formatted_brand.lower() and "ekran-karti" not in category_slug):
+            query_parts.append(effective_brand)
+
+        if effective_spec:
+            import re
+            leftover = effective_spec
+            if formatted_ddr:
+                leftover = re.sub(rf"\b{re.escape(formatted_ddr.lower())}\b", "", leftover, flags=re.I)
+            if formatted_cap:
+                # If capacity facet was recognized (including normalized e.g. 1000 GB -> 1 TB), strip capacity terms
+                leftover = re.sub(r"\b\d+x\s*\d+\s*(?:gb|mb|tb)\b", "", leftover, flags=re.I)
+                leftover = re.sub(r"\b\d+\s*(?:gb|mb|tb)\b", "", leftover, flags=re.I)
+            leftover_clean = leftover.strip()
+            if leftover_clean and leftover_clean not in " ".join(query_parts):
+                query_parts.append(leftover_clean)
+
+        if kelime and kelime.strip() not in " ".join(query_parts):
+            query_parts.append(kelime.strip())
+
+        final_query_text = " ".join(query_parts).strip() or None
 
         target_url = SahibindenURLBuilder.build_url(
             category_slug=category_slug,
-            query_text=kelime,
+            query_text=final_query_text,
             price_min=min_fiyat,
             price_max=max_fiyat,
             city=sehir,
@@ -362,7 +399,9 @@ class AlarmCog(commands.Cog):
             "min_fiyat": min_fiyat,
             "max_fiyat": max_fiyat,
             "sehir": sehir,
-            "kelime": kelime
+            "kelime": final_query_text,
+            "ozellik": effective_spec,
+            "marka_veya_model": effective_brand,
         }
 
         alarm_id = await database.create_alarm(
@@ -395,19 +434,23 @@ class AlarmCog(commands.Cog):
             url=target_url
         )
         embed.add_field(name="🆔 Alarm ID", value=f"`#{alarm_id}`", inline=True)
-        if formatted_ddr:
-            embed.add_field(name="⚡ Tip", value=formatted_ddr, inline=True)
-        if formatted_cap:
-            embed.add_field(name="💾 Kapasite", value=formatted_cap, inline=True)
-        if formatted_brand:
-            embed.add_field(name="🏷️ Marka/Chipset", value=formatted_brand, inline=True)
+        if effective_spec:
+            embed.add_field(name="⚙️ Özellik / Tip", value=effective_spec, inline=True)
+        elif formatted_ddr or formatted_cap:
+            embed.add_field(name="⚡ Tip / Kapasite", value=f"{formatted_ddr or ''} {formatted_cap or ''}".strip(), inline=True)
+
+        if effective_brand:
+            embed.add_field(name="🏷️ Marka / Model", value=effective_brand, inline=True)
+        elif formatted_brand:
+            embed.add_field(name="🏷️ Marka", value=formatted_brand, inline=True)
+
         if min_fiyat or max_fiyat:
             max_str = f"{max_fiyat:,}" if max_fiyat else "Limitsiz"
             embed.add_field(name="💰 Fiyat Aralığı", value=f"{min_fiyat or 0:,} TL - {max_str} TL", inline=True)
         if sehir:
             embed.add_field(name="📍 Şehir", value=sehir.title(), inline=True)
-        if kelime:
-            embed.add_field(name="🔍 Arama Kelimesi", value=f"`{kelime}`", inline=True)
+        if final_query_text:
+            embed.add_field(name="🔍 Arama Metni", value=f"`{final_query_text}`", inline=True)
 
         if primed_immediately:
             baseline_msg = f"Şu an arama sonucundaki **{initial_count}** ilan arşivlendi. Yalnızca yeni gelen veya fiyatı düşen ilanlar bildirilecek."
@@ -440,8 +483,8 @@ class AlarmCog(commands.Cog):
             name="🏠 Emlak Başlıkları",
             value=(
                 "• **Kategoriler**: `emlak`, `emlak-konut`, `satilik-daire`, `kiralik-daire`, `satilik-villa`, `arsa`, `satilik-arsa`, `is-yeri`, `satilik-isyeri`, `emlak-projeler`, `bina`, `devre-mulk`, `emlak-turistik-tesis`\n"
-                "• *Örnek Konut*: `/alarm-ara kelime:Kadıköy 3+1 satılık daire min_fiyat:4000000 max_fiyat:7500000`\n"
-                "• *Örnek Arsa*: `/alarm-hizli kategori:arsa kelime:İmarlı tarla sehir:İzmir max_fiyat:1500000`\n"
+                "• *Örnek Konut*: `/alarm-hizli kategori:satilik-daire marka_veya_model:Kadıköy ozellik:3+1 max_fiyat:7500000`\n"
+                "• *Örnek Arsa*: `/alarm-hizli kategori:arsa ozellik:İmarlı tarla sehir:İzmir max_fiyat:1500000`\n"
                 "• *Örnek İş Yeri*: `/alarm-hizli kategori:isyeri kelime:Devren dükkan sehir:Bursa max_fiyat:800000`"
             ),
             inline=False
@@ -451,9 +494,9 @@ class AlarmCog(commands.Cog):
             name="🚗 Vasıta Başlıkları",
             value=(
                 "• **Kategoriler**: `vasita`, `otomobil`, `arazi-suv-pickup`, `elektrikli-araclar`, `motosiklet`, `minivan-panelvan`, `ticari-araclar`, `kiralik-araclar`, `deniz-araclari`, `hasarli-araclar`, `karavan`, `klasik-araclar`\n"
-                "• *Örnek Otomobil*: `/alarm-hizli kategori:otomobil kelime:Civic 1.6 Otomatik sehir:Ankara max_fiyat:950000`\n"
-                "• *Örnek Elektrikli*: `/alarm-hizli kategori:elektrikli kelime:Tesla Model Y Long Range max_fiyat:2400000`\n"
-                "• *Örnek Motosiklet*: `/alarm-hizli kategori:motor kelime:Yamaha R25 ABS max_fiyat:200000`\n"
+                "• *Örnek Otomobil*: `/alarm-hizli kategori:otomobil marka_veya_model:Civic ozellik:Otomatik sehir:Ankara max_fiyat:950000`\n"
+                "• *Örnek Elektrikli*: `/alarm-hizli kategori:elektrikli marka_veya_model:Tesla Model Y ozellik:Long Range max_fiyat:2400000`\n"
+                "• *Örnek Motosiklet*: `/alarm-hizli kategori:motor marka_veya_model:Yamaha R25 ozellik:ABS max_fiyat:200000`\n"
                 "• *Örnek Karavan*: `/alarm-hizli kategori:karavan kelime:Çekme karavan 3.90 max_fiyat:350000`\n"
                 "• *Örnek Deniz*: `/alarm-hizli kategori:tekne kelime:Motoryat kamaralı max_fiyat:1200000`"
             ),
@@ -476,8 +519,8 @@ class AlarmCog(commands.Cog):
                 "• **Kapasite Birimleri**: `512 MB`, `256 MB`, `128 MB`, `1 GB`, `2 GB`, `4 GB`, `8 GB`, `16 GB`, `32 GB`, `64 GB`\n"
                 "• **Dual Kit Birimleri**: `2x 8 GB` (16GB), `2x 16 GB` (32GB), `2x 32 GB` (64GB)\n"
                 "• **Bellek Nesilleri**: `DDR5`, `DDR4`, `DDR3L`, `DDR3`, `DDR2`, `DDR`\n"
-                "• *Örnek Modern*: `/alarm-hizli kategori:ram ddr:DDR4 kapasite:16 GB marka:Corsair max_fiyat:2500`\n"
-                "• *Örnek Retro*: `/alarm-hizli kategori:ram ddr:DDR2 kapasite:512 MB max_fiyat:300`"
+                "• *Örnek Modern*: `/alarm-hizli kategori:ram ozellik:16 GB DDR4 marka_veya_model:Corsair max_fiyat:2500`\n"
+                "• *Örnek Retro*: `/alarm-hizli kategori:ram ozellik:512 MB DDR2 max_fiyat:300`"
             ),
             inline=False
         )
@@ -487,7 +530,7 @@ class AlarmCog(commands.Cog):
             value=(
                 "• **GB Birimleri**: `120 GB`, `240 GB`, `250 GB`, `256 GB`, `480 GB`, `500 GB`, `512 GB`\n"
                 "• **TB Birimleri**: `1 TB` (1000 GB otomatik normalizasyon), `2 TB`, `4 TB`, `8 TB`\n"
-                "• *Örnek Komut*: `/alarm-hizli kategori:ssd kapasite:1 TB kelime:NVMe max_fiyat:3500`"
+                "• *Örnek Komut*: `/alarm-hizli kategori:ssd ozellik:1 TB kelime:NVMe max_fiyat:3500`"
             ),
             inline=False
         )
@@ -498,7 +541,7 @@ class AlarmCog(commands.Cog):
                 "• **GPU VRAM**: `4 GB`, `6 GB`, `8 GB`, `10 GB`, `12 GB`, `16 GB`, `24 GB`\n"
                 "• **GPU Chipset**: `Nvidia`, `AMD`, `Intel`\n"
                 "• **CPU Marka**: `AMD`, `Intel` (Ryzen 5, i7, AM5, LGA1700)\n"
-                "• *Örnek Komut*: `/alarm-hizli kategori:gpu kapasite:12 GB marka:Nvidia kelime:RTX 4070`"
+                "• *Örnek Komut*: `/alarm-hizli kategori:gpu ozellik:12 GB marka_veya_model:Nvidia kelime:RTX 4070`"
             ),
             inline=False
         )

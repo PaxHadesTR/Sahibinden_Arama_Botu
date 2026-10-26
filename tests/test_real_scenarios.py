@@ -329,6 +329,90 @@ async def test_scenario_alarm_hizli_multi_units_and_specs(test_cog_and_db, monke
 
 
 @pytest.mark.asyncio
+async def test_scenario_alarm_hizli_universal_parameters_vehicle_and_real_estate(test_cog_and_db, monkeypatch):
+    """Verify /alarm-hizli universal parameters (ozellik, marka_veya_model) for vehicles and real estate."""
+    cog, db, _ = test_cog_and_db
+    await db.init_db()
+
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+
+    # 1. Vehicle alarm with universal parameters (no DDR/RAM parameters!)
+    inter_car = MockInteraction(user_id=305)
+    await cog.alarm_hizli.callback(
+        cog,
+        inter_car,
+        kategori="otomobil",
+        marka_veya_model="Honda Civic",
+        ozellik="Otomatik Boyasız",
+        sehir="Antalya",
+        max_fiyat=950000,
+        alarm_adi="Civic Otomatik Alarmı"
+    )
+    car_alarms = await db.get_user_alarms(305)
+    assert len(car_alarms) == 1
+    car_target = car_alarms[0]["target_url"]
+    assert "/otomobil" in car_target
+    assert "address_city=7" in car_target
+    assert "price_max=950000" in car_target
+    assert "Honda+Civic+Otomatik+Boyas%C4%B1z" in car_target or "Civic" in car_target
+
+    # 2. Real estate alarm with universal parameters (3+1, Kadıköy)
+    inter_re = MockInteraction(user_id=306)
+    await cog.alarm_hizli.callback(
+        cog,
+        inter_re,
+        kategori="satilik-daire",
+        marka_veya_model="Kadıköy",
+        ozellik="3+1 Kombili",
+        min_fiyat=4000000,
+        max_fiyat=8000000
+    )
+    re_alarms = await db.get_user_alarms(306)
+    assert len(re_alarms) == 1
+    re_target = re_alarms[0]["target_url"]
+    assert "/satilik-daire" in re_target
+    assert "price_min=4000000" in re_target
+    assert "price_max=8000000" in re_target
+    assert "Kad%C4%B1k%C3%B6y" in re_target or "3%2B1" in re_target
+
+
+@pytest.mark.asyncio
+async def test_scenario_alarm_kur_hierarchical_group_views(test_cog_and_db):
+    """Verify /alarm-kur without category defaults to CategoryGroupSelectView, enabling hierarchical drilldown."""
+    from src.bot.views import CategoryGroupSelectView, SubCategorySelectView, SpecFilterModal
+
+    cog, db, _ = test_cog_and_db
+    await db.init_db()
+    inter = MockInteraction(user_id=501)
+    await cog.alarm_kur.callback(cog, inter)
+
+    call_args = inter.response.send_message.call_args[1]
+    view = call_args.get("view")
+    embed = call_args.get("embed")
+
+    assert isinstance(view, CategoryGroupSelectView)
+    assert "Sahibinden Kategori & Alt Kategori Sihirbazı" in embed.title
+
+    # Test SubCategorySelectView for vasita
+    vasita_sub_view = SubCategorySelectView(group_key="vasita")
+    select_item = vasita_sub_view.children[0]
+    option_values = [opt.value for opt in select_item.options]
+    assert "otomobil" in option_values
+    assert "arazi-suv-pickup" in option_values
+    assert "motosiklet" in option_values
+
+    # Test dynamic SpecFilterModal labels per category
+    car_modal = SpecFilterModal("otomobil")
+    assert car_modal.keywords_input.label == "Model / Vites / Paket / Detay"
+
+    re_modal = SpecFilterModal("satilik-daire")
+    assert re_modal.keywords_input.label == "Oda / Durum / Konum / Detay"
+
+    gpu_modal = SpecFilterModal("ekran-karti-masaustu")
+    assert gpu_modal.keywords_input.label == "Model / VRAM / Chipset"
+
+
+@pytest.mark.asyncio
 async def test_scenario_alarmlarim_empty_normal_and_overflow(test_cog_and_db):
     """Verify /alarmlarim shows empty state, normal list, and pagination footer for >15 alarms."""
     cog, db, _ = test_cog_and_db

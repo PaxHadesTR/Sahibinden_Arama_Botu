@@ -69,11 +69,12 @@
 - [x] WARP TUN Permissions & Interaction Defer Retry Resilience (`ADR-016`):
   - [x] Bound `/dev/net/tun` and `device_cgroup_rules` with `WARP_SLEEP=5` in `docker-compose.yml` to stabilize SOCKS5 WireGuard tunnel.
   - [x] Implemented `_safe_defer` retry loop in `AlarmCog` preventing command failures on momentary proxy reconnects.
-  - [x] Expanded catalog to 75 comprehensive categories covering all Emlak, Vasıta, Yedek Parça & Tuning, Bilgisayar & Donanım, Telefon & Ev Elektroniği, İkinci El, Hobi, Yaşam, İş Makineleri ve Hizmetler başlıkları.
-  - [x] 6-Group Hierarchical Navigation (`CategoryGroupSelectView` & `SubCategorySelectView`) preventing Discord 25-option select limits.
-  - [x] Dynamic context-aware placeholders and default titles across all categories in `SpecFilterModal`.
-  - [x] Updated `/kategoriler` documentation embed with 8 comprehensive sections.
-- [x] Automated Test Suite: 150/150 tests passing green across all suites (unit, integration, and full real-world scenarios in `tests/test_real_scenarios.py`)
+- [x] Hierarchical Category Group Navigation & Universal Parameter Schema (`ADR-017`):
+  - [x] Connected `/alarm-kur` directly to 6-group `CategoryGroupSelectView` and `SubCategorySelectView` for clean drilldown navigation.
+  - [x] Replaced hardware-locked `ddr`/`kapasite` parameters in `/alarm-hizli` with universal `ozellik` and `marka_veya_model` while maintaining backward compatibility.
+  - [x] Implemented context-aware input labels in `SpecFilterModal` tailored per category type (Vehicle, Real Estate, Hardware, Electronics).
+  - [x] Test suite expanded to 153/153 tests passing green.
+- [x] Automated Test Suite: 153/153 tests passing green across all suites (unit, integration, and full real-world scenarios in `tests/test_real_scenarios.py`)
 - [x] Real-World Scenario Testing Suite (`tests/test_real_scenarios.py`):
   - [x] All 75 categories search URL construction and facet mapping verified.
   - [x] Slash command workflows (`/alarm-ara`, `/alarm-url`, `/alarm-hizli`, `/alarmlarim`, `/alarm-durum`, `/alarm-sil`, `/alarm-test`, `/kategoriler`) verified with interaction mocking.

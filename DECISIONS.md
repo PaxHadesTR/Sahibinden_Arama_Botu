@@ -227,6 +227,20 @@
   - Rock-solid SOCKS5 proxy stability for Turkish servers requiring WARP.
   - Zero command crashes on momentary proxy re-handshakes.
 
+## ADR-017: Hierarchical Category Group Navigation & Universal Parameter Schema (2026-10-26)
+
+- **Context**:
+  - Users reported two confusing UI bottlenecks:
+    1. In `/alarm-hizli`, picking non-hardware categories like `🚗 Otomobil` or `🏠 Satılık Daire` displayed RAM-specific parameters (`ddr`, `kapasite`), creating the perception that all categories were executed as hardware subcategories.
+    2. When opening category autocomplete in Discord, a flat 25-item list was presented without hierarchical grouping or drill-down.
+- **Decision**:
+  1. Wire `/alarm-kur` directly to `CategoryGroupSelectView` (6 Sahibinden main groups: Emlak, Vasıta, Yedek Parça, Donanım, Elektronik, Yaşam/Hizmetler), which dynamically transitions to `SubCategorySelectView` showing only the selected group's subcategories.
+  2. Implement context-aware dynamic labels in `SpecFilterModal` (`Model / Vites / Paket / Detay` for vehicles, `Oda / Durum / Konum / Detay` for real estate, `Model / VRAM / Chipset` for GPUs, etc.).
+  3. Transform `/alarm-hizli` parameter schema to universal fields (`ozellik`, `marka_veya_model`, `min_fiyat`, `max_fiyat`, `sehir`, `kelime`, `alarm_adi`) while maintaining complete backward compatibility with `ddr`, `kapasite`, `marka`.
+  4. Expand test suite with vehicle and real-estate universal parameter scenarios and hierarchical view tests (153/153 green tests).
+- **Consequences**:
+  - Natural, category-specific user experience across all 75 Sahibinden categories. Zero RAM terminology clutter on vehicle or real-estate alarms.
+
 
 
 

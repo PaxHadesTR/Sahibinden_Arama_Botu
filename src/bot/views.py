@@ -29,66 +29,87 @@ class SpecFilterModal(Modal):
         # Dynamic placeholder & default name logic tailored with syntax examples
         cat_key_low = self.category_key.lower()
         if "elektrikli" in cat_key_low:
+            kw_label = "Model / Paket / Detay"
             kw_hint = "Örn: Tesla Model Y, Togg T10X, Long Range, Boyasız"
             default_name = "Elektrikli Araç Alarmı"
         elif "motosiklet" in cat_key_low or "motor" in cat_key_low:
+            kw_label = "Model / Motor Hacmi / Detay"
             kw_hint = "Örn: Yamaha R25, Honda Forza 250, ABS, Düşük km"
             default_name = "Motosiklet Alarmı"
         elif "karavan" in cat_key_low:
+            kw_label = "Model / Boyut / Donanım"
             kw_hint = "Örn: Çekme karavan 3.90, motokaravan, güneş paneli"
             default_name = "Karavan Alarmı"
         elif "deniz" in cat_key_low or "tekne" in cat_key_low:
+            kw_label = "Tekne Tipi / Motor / Detay"
             kw_hint = "Örn: 7m motoryat, Yamaha motorlu, kamaralı tekne"
             default_name = "Deniz Aracı Alarmı"
         elif "minivan" in cat_key_low or "panelvan" in cat_key_low or "ticari" in cat_key_low:
+            kw_label = "Model / Kasa / Detay"
             kw_hint = "Örn: Caddy Maxi, Doblo, Transporter, Klimalı"
             default_name = "Ticari Araç Alarmı"
         elif "otomobil" in cat_key_low or "vasita" in cat_key_low or "arazi" in cat_key_low or "suv" in cat_key_low:
+            kw_label = "Model / Vites / Paket / Detay"
             kw_hint = "Örn: Honda Civic 1.6, Otomatik, Boyasız, Tramersiz"
             default_name = "Vasıta Alarmı"
         elif "arsa" in cat_key_low or "tarla" in cat_key_low:
+            kw_label = "İmar / Alan / Konum / Detay"
             kw_hint = "Örn: İmarlı, Müstakil parsel, Villa arsası, Kadastro yollu"
             default_name = "Arsa Alarmı"
         elif "is-yeri" in cat_key_low or "isyeri" in cat_key_low:
+            kw_label = "İş Yeri Türü / Detay"
             kw_hint = "Örn: Devren satılık dükkan, plazada ofis, tabela değeri"
             default_name = "İş Yeri Alarmı"
         elif "daire" in cat_key_low or "emlak" in cat_key_low or "villa" in cat_key_low or "konut" in cat_key_low:
+            kw_label = "Oda / Durum / Konum / Detay"
             kw_hint = "Örn: 3+1, 2+1, Kombili, Balkonlu, Kadıköy, Sıfır"
             default_name = "Emlak Alarmı"
         elif "telefon" in cat_key_low:
+            kw_label = "Model / Kapasite / Durum"
             kw_hint = "Örn: iPhone 15 Pro 128 GB, Kutulu Faturalı, Pil %90"
             default_name = "Telefon Alarmı"
         elif "ram" in cat_key_low:
+            kw_label = "DDR Tipi / Kapasite / Marka"
             kw_hint = "Örn: 16 GB, 512 MB, Corsair, 3200mhz CL16"
             default_name = " ".join(filter(None, ["RAM", tipi, kapasite, "Alarmı"]))
         elif "ssd" in cat_key_low or "sabit" in cat_key_low or "surucu" in cat_key_low:
+            kw_label = "Kapasite / Arabirim / Model"
             kw_hint = "Örn: 1 TB, 2 TB, 500 GB, NVMe M.2, Samsung 980"
             default_name = "SSD Depolama Alarmı"
         elif "ekran" in cat_key_low or "gpu" in cat_key_low:
+            kw_label = "Model / VRAM / Chipset"
             kw_hint = "Örn: RTX 4070 12 GB, RX 7800 XT, Asus Dual"
             default_name = "Ekran Kartı Alarmı"
         elif "islemci" in cat_key_low or "cpu" in cat_key_low:
+            kw_label = "Model / Soket / Seri"
             kw_hint = "Örn: Ryzen 5 7600, i7 13700K, AM5"
             default_name = "İşlemci Alarmı"
         elif "fotograf" in cat_key_low or "kamera" in cat_key_low:
+            kw_label = "Model / Lens / Aksesuar"
             kw_hint = "Örn: Sony A7 IV, Canon EOS, 50mm f1.8 lens, tripod"
             default_name = "Fotoğraf & Kamera Alarmı"
         elif "elektrikli-ev" in cat_key_low or "ev-alet" in cat_key_low:
+            kw_label = "Model / Cihaz / Detay"
             kw_hint = "Örn: Dyson V15 süpürge, Delonghi kahve makinesi, Airfryer"
             default_name = "Elektrikli Ev Aletleri Alarmı"
         elif "oyun" in cat_key_low or "konsol" in cat_key_low:
+            kw_label = "Konsol Modeli / Sürüm"
             kw_hint = "Örn: PS5 Slim, Xbox Series X, Nintendo Switch OLED"
             default_name = "Oyun & Konsol Alarmı"
         elif "muzik" in cat_key_low or "enstruman" in cat_key_low:
+            kw_label = "Enstrüman / Model / Marka"
             kw_hint = "Örn: Fender elektro gitar, Yamaha piyano, ses kartı"
             default_name = "Müzik & Enstrüman Alarmı"
         elif "yedek-parca" in cat_key_low or "ekipman" in cat_key_low or "tuning" in cat_key_low:
+            kw_label = "Parça / Ebat / Detay"
             kw_hint = "Örn: 205 55 R16 kış lastiği, kask, jant, egzoz"
             default_name = "Yedek Parça Alarmı"
         elif "is-makine" in cat_key_low or "sanayi" in cat_key_low:
+            kw_label = "Makine Türü / Model"
             kw_hint = "Örn: JCB kepçe, New Holland traktör, dizel jeneratör"
             default_name = "İş Makineleri Alarmı"
         else:
+            kw_label = "Arama / Detay Kelimeleri"
             kw_hint = "Örn: Model, tür (512 MB, 16 GB, 1 TB), marka veya özellik"
             display_title = cat_info.get("display_name", "Sahibinden")
             default_name = f"{display_title} Takibi"
@@ -127,8 +148,8 @@ class SpecFilterModal(Modal):
         self.add_item(self.city_input)
 
         self.keywords_input = TextInput(
-            label="Arama / Detay Kelimeleri",
-            placeholder=kw_hint,
+            label=kw_label[:45],
+            placeholder=kw_hint[:100],
             required=False,
             max_length=100
         )
