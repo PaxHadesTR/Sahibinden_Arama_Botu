@@ -11,11 +11,15 @@ services:
     container_name: sahibinden-warp
     restart: unless-stopped
     environment:
-      - WARP_SLEEP=2
+      - WARP_SLEEP=5
     cap_add:
       - MKNOD
       - AUDIT_WRITE
       - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    device_cgroup_rules:
+      - 'c 10:200 rwm'
     sysctls:
       - net.ipv6.conf.all.disable_ipv6=0
       - net.ipv4.conf.all.src_valid_mark=1

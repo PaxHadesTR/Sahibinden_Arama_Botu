@@ -1,5 +1,6 @@
 """Discord slash commands for alarm management."""
 
+import asyncio
 import json
 import logging
 import discord
@@ -25,6 +26,18 @@ class AlarmCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    async def _safe_defer(self, interaction: discord.Interaction, ephemeral: bool = True, max_retries: int = 2):
+        """Defers interaction response with retries against momentary proxy or network blips."""
+        for attempt in range(max_retries):
+            try:
+                await interaction.response.defer(ephemeral=ephemeral)
+                return
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise
+                logger.warning(f"Interaction defer attempt {attempt + 1} failed ({e}); retrying in 0.5s...")
+                await asyncio.sleep(0.5)
 
     async def category_autocomplete(
         self,
@@ -62,7 +75,7 @@ class AlarmCog(commands.Cog):
         alarm_adi: str | None = None,
     ):
         """Universal site-wide search with auto-inferred category routing."""
-        await interaction.response.defer(ephemeral=True)
+        await self._safe_defer(interaction, ephemeral=True)
 
         allowed, reason = await database.check_alarm_limits(interaction.user.id)
         if not allowed:
@@ -158,7 +171,7 @@ class AlarmCog(commands.Cog):
     )
     async def alarm_url(self, interaction: discord.Interaction, url: str, alarm_adi: str):
         """Monitors any Sahibinden search results URL verbatim."""
-        await interaction.response.defer(ephemeral=True)
+        await self._safe_defer(interaction, ephemeral=True)
 
         allowed, reason = await database.check_alarm_limits(interaction.user.id)
         if not allowed:
@@ -288,7 +301,7 @@ class AlarmCog(commands.Cog):
         kelime: str | None = None,
         alarm_adi: str | None = None,
     ):
-        await interaction.response.defer(ephemeral=True)
+        await self._safe_defer(interaction, ephemeral=True)
 
         allowed, reason = await database.check_alarm_limits(interaction.user.id)
         if not allowed:
@@ -523,7 +536,7 @@ class AlarmCog(commands.Cog):
         description="Hesabınıza kayıtlı tüm alarmları ve takip durumlarını listeleyin."
     )
     async def alarmlarim(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
+        await self._safe_defer(interaction, ephemeral=True)
         user_alarms = await database.get_user_alarms(interaction.user.id)
 
         if not user_alarms:
@@ -642,7 +655,7 @@ class AlarmCog(commands.Cog):
     )
     @app_commands.describe(alarm_id="Test etmek istediğiniz alarmın ID numarası (örn: 1, 5)")
     async def alarm_test(self, interaction: discord.Interaction, alarm_id: int):
-        await interaction.response.defer(ephemeral=True)
+        await self._safe_defer(interaction, ephemeral=True)
         alarm = await database.get_alarm(alarm_id)
         if not alarm or alarm.get("user_id") != interaction.user.id:
             await interaction.followup.send(

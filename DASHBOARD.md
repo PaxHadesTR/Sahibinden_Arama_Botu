@@ -66,6 +66,9 @@
   - [x] Solved Sahibinden VRAM filter bypass by ensuring GPU capacity is always reinforced into `query_text` search parameters.
   - [x] Implemented client-side defense-in-depth capacity verification in `AlarmMonitor.matches_alarm_filters` blocking listings with conflicting VRAM specifications before dispatching to Discord.
   - [x] Full test coverage: 151/151 unit tests passing.
+- [x] WARP TUN Permissions & Interaction Defer Retry Resilience (`ADR-016`):
+  - [x] Bound `/dev/net/tun` and `device_cgroup_rules` with `WARP_SLEEP=5` in `docker-compose.yml` to stabilize SOCKS5 WireGuard tunnel.
+  - [x] Implemented `_safe_defer` retry loop in `AlarmCog` preventing command failures on momentary proxy reconnects.
   - [x] Expanded catalog to 75 comprehensive categories covering all Emlak, Vasıta, Yedek Parça & Tuning, Bilgisayar & Donanım, Telefon & Ev Elektroniği, İkinci El, Hobi, Yaşam, İş Makineleri ve Hizmetler başlıkları.
   - [x] 6-Group Hierarchical Navigation (`CategoryGroupSelectView` & `SubCategorySelectView`) preventing Discord 25-option select limits.
   - [x] Dynamic context-aware placeholders and default titles across all categories in `SpecFilterModal`.

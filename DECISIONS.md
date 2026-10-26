@@ -213,9 +213,20 @@
 - **Decision**:
   1. **Query-Text Guarantee for GPU Hardware**: In `src/services/url_builder.py`, whenever an alarm targets graphics cards (`ekran-karti`), the specified `kapasite` is always reinforced in `unmatched_specs` so Sahibinden's title/description search engine (`query_text=...`) strictly isolates the specified VRAM size.
   2. **Client-Side Defense-in-Depth Capacity Verification**: In `src/services/monitor.py` (`AlarmMonitor.matches_alarm_filters`), inspect incoming listing titles against the alarm's `kapasite` filter. If the alarm specifies a capacity (e.g., `12 GB`) and the listing title explicitly mentions a conflicting capacity (e.g., `8 GB`, `16GB`) without mentioning the target capacity, the listing is blocked before dispatching to Discord.
+## ADR-016: WARP Sidecar TUN Permissions & Discord Interaction Retry Resilience (2026-10-26)
+
+- **Context**:
+  - In Docker/Coolify deployments running the `caomingjun/warp` sidecar proxy, intermittent `ProxyError: Host unreachable` errors occurred during Discord interaction callbacks (e.g. `/alarmlarim`).
+  - Investigation revealed two root causes:
+    1. The WARP container lacked explicit `/dev/net/tun` device binding and `c 10:200 rwm` cgroup rules, which prevented stable WireGuard tunnel creation on standard Linux kernels. Additionally, `WARP_SLEEP=2` did not provide enough time for Cloudflare edge handshakes to complete during container startup.
+    2. Discord slash commands invoked `await interaction.response.defer(ephemeral=True)` without retries, crashing on momentary SOCKS proxy reconnects or packet drops.
+- **Decision**:
+  1. Add `/dev/net/tun:/dev/net/tun` and `device_cgroup_rules: 'c 10:200 rwm'` to the `warp` service in `docker-compose.yml`, and increase `WARP_SLEEP` from 2 to 5 seconds.
+  2. Implement `_safe_defer` helper in `AlarmCog` (`src/bot/cogs/alarms.py`) wrapping `interaction.response.defer` with automatic retries and 0.5s backoff against transient proxy blips.
 - **Consequences**:
-  - 100% reliable filtering on graphics cards and hardware without false positive alerts.
-  - Protection against Sahibinden dropping unverified facet parameters or showing sponsored/miscategorized items.
+  - Rock-solid SOCKS5 proxy stability for Turkish servers requiring WARP.
+  - Zero command crashes on momentary proxy re-handshakes.
+
 
 
 
