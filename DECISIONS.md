@@ -624,3 +624,72 @@ enk, property features, and motorcycle specs alongside capacity, warranty, condi
   - Full access to all 24 schema profiles' search options.
   - Multi-feature selection works seamlessly via slash command autocomplete, ek_ozellik, or interactive Discord component buttons.
   - Test suite expanded to 277/277 passing green tests (100% pass rate).
+
+## ADR-032: /alarm-hizli Boost, Optimization & Edge-Case Hardening (2026-10-27)
+
+- **Context**:
+  1. A deep architecture analysis of `/alarm-hizli` revealed several critical shortcomings and optimization opportunities:
+     - **Residual Query Loss**: When users typed a model/product name in `kategori` without providing `arama` (e.g. `/alarm-hizli kategori:iPhone 15 Pro ozellik:128 GB`), `resolver.get_category` resolved the category (`cep-telefonu`) via an alias, but the product model (`iPhone 15 Pro`) was discarded because `arama` was None, resulting in broad category-wide alert creation instead of specific product tracking.
+     - **Incomplete Facet Conflict Cleaning**: Conflict cleaning was manually hardcoded for only 9 facets using non-Turkish case-insensitive regex. Other mutually exclusive single-choice properties (`hasar`, `esyali`, `bina_yasi`, `kimden`) were unhandled, risking contradictory search queries like `BMW Boyalı Boyasız` or `2+1 Boş Eşyalı`.
+     - **Over-Aggressive Facet Cleaning**: Additive and multi-feature tags (`alan`, `cihaz`, `hizmet`, `imar_durumu`) were at risk of being treated as conflicting opposites, causing legitimate combined alerts (such as `Bebek Bakıcısı` + `Deneyimli`, or `Zeytinlik` + `Müstakil Parsel`) to drop terms.
+     - **City Name Inconsistencies**: Passing plate codes (e.g. `sehir="34"`) or colloquial synonyms (e.g. `sehir="icel"`) was accepted by URL builder but persisted as raw codes/synonyms in `filters_json` and displayed as `📍 Şehir: 34` in embeds.
+     - **Missing Autocomplete Domain Context**: When users typed into `arama` first while leaving `kategori` blank or generic, `ozellik_autocomplete` and `ek_ozellik_autocomplete` defaulted to generic classified options instead of domain-specific specs.
+     - **DetailFilterSelectView Query Loss**: Editing an alarm in the interactive view that had `kelime` but lacked `raw_query` dropped the search keywords during URL regeneration.
+     - **Discord 100-Char SLA Violations**: Long alarm names could exceed Discord's 100-character Choice/Option limit, triggering HTTP 400 Bad Request errors in autocomplete menus.
+- **Decision**:
+  1. **Residual Model & Query Preservation**:
+     - Evaluated input in `kategori` against canonical slugs, keys, display names, and breadcrumbs. If the user provided a specific product search in `kategori`, preserved it into `effective_query`, preventing loss of user intent.
+  2. **Mutually Exclusive Facet Conflict Cleaning & Additive Tag Isolation**:
+     - Introduced `_clean_conflicting_facet_terms` with Turkish-diacritic-aware regex (`[iıİI]`, `[sşSŞ]`, etc.).
+     - Strictly restricted conflict cleaning to mutually exclusive properties (`vites`, `oda_sayisi`, `socket`, `ceker`, `cekis`, `yakit`, `durum`, `calisma_sekli`, `garanti`, `kasa_tipi`, `hasar`, `esyali`, `bina_yasi`, `kimden`), while protecting additive multi-attribute features (`cihaz`, `alan`, `hizmet`, `imar_durumu`).
+  3. **Canonical City Name Normalization**:
+     - Mapped all plate codes and synonyms to official canonical Turkish names (`"34"` -> `"İstanbul"`, `"icel"` -> `"Mersin"`) across database filters, target URLs, and Discord embeds.
+  4. **Contextual Autocomplete Category Inference**:
+     - Enhanced `ozellik_autocomplete` and `ek_ozellik_autocomplete` to check `interaction.namespace.arama`. If `kategori` is empty or generic, dynamically infer category from `arama` to display relevant specs immediately.
+  5. **Deduplication Across Spec Parameters**:
+     - Sanitized and deduplicated tokens across `ozellik` and `ek_ozellik` to eliminate duplicate components (e.g. `128 GB` and `128 GB, TR Garantili` -> `128 GB, TR Garantili`).
+  6. **DetailFilterSelectView Robustness & Canonical Badges**:
+     - Added `raw_query or kelime` fallback in `on_apply_clicked` to guarantee search terms are never dropped.
+     - Centralized `FACET_LABELS` in `resolver.py` and implemented `resolver.get_facet_label()` for uniform emoji badge formatting.
+  7. **Length & SLA Safety**:
+     - Capped alarm names at 100 characters in `_execute_alarm_creation` and `alarm_hizli`.
+  8. **Automated Verification**:
+     - Added `tests/test_alarm_hizli_boost.py` with 11 targeted unit and integration tests.
+- **Consequences**:
+  - `/alarm-hizli` is significantly faster, more robust, forgiving of user input variations, and prevents zero-result keyword collisions.
+  - Test suite expanded to 288/288 passing green tests (100% pass rate).
+
+## ADR-033: Skeptical Audit & Hardening of `/alarm-hizli` Edge Cases & Conflict Engine
+- **Status**: Accepted
+- **Date**: 2026-10-27
+- **Context**:
+  1. A rigorous review and edge-case attack of ADR-032 revealed subtle but critical bugs:
+     - **Substring Conflict Cleaner Flaw**: The previous `_clean_conflicting_facet_terms` implementation used `if opt_norm in chosen_norm: continue`. When a user requested `Yarı Otomatik` while `clean_q` contained `BMW Otomatik`, `Otomatik` was skipped because `"otomatik"` is a substring of `"yari otomatik"`. Then `_merge_query_and_spec` saw `Otomatik` already in the query and only appended `Yarı`, creating malformed query text `BMW Otomatik Yarı`.
+     - **Missing Mutually Exclusive Facets**: `isitma` (heating), `kat` (floor), `takas` (exchange), and `alisveris` (shopping type) were defined in `EXTRA_CONFLICTS` but omitted from `MUTUALLY_EXCLUSIVE_FACETS`.
+     - **Partial Word Drops in `_merge_query_and_spec`**: Substring containment checks (`norm_q in norm_s`) without word boundaries discarded legitimate user search terms that happened to be substrings of longer spec words (e.g. `Van` dropped when spec was `Cam Tavan`, `Pro` dropped when spec was `Profesyonel`).
+     - **Pure Category Over-Matching**: `norm_k in norm_disp` was checking freeform substrings across entire display names, erroneously treating queries like `Ali` or `Tek` as pure categories and discarding user search terms.
+     - **Turkish Dotted `İ` Casing Defect in Default Naming**: Python's `.lower()` converts `İ` to `i\u0307` (combining dot), failing substring checks and duplicating terms like `iPhone 13 ikinci el İkinci El (Cep Telefonu)`.
+     - **Dotted & Spaced Model Resolution**: Queries like `3.20i 4x4`, `3.20i`, or `c 200` failed car resolution because aliases in catalog were unpunctuated (`320i`, `c200`), causing `3.20i 4x4` to be misclassified as `arazi-suv-pickup` via the `4x4` alias.
+     - **Duplicate Embed Badges**: Redundant `💾 Kapasite` fields were rendered alongside `📱 Dahili Hafıza` when both were present in filters.
+- **Decision**:
+  1. **Tagged Two-Pass Conflict Replacement**:
+     - Upgraded `_clean_conflicting_facet_terms` to sort options by length descending and tag exact matches to `chosen_norm` with `__KEEP_{f_name}__` while tagging conflicting options with `__REMOVE_{f_name}__`. This completely prevents shorter substrings from interfering with multi-word terms while eliminating conflicting options cleanly.
+     - Added `isitma`, `kat`, `takas`, and `alisveris` to `MUTUALLY_EXCLUSIVE_FACETS`.
+  2. **Word-Boundary Whole-Phrase Containment**:
+     - Upgraded `_merge_query_and_spec` to use regex word boundaries `rf"(?:\b|^){re.escape(norm_s)}(?:\b|$)"`, guaranteeing short queries (`Van`, `Pro`) are never dropped.
+  3. **Strict Category & Root Component Matching**:
+     - Refined `is_pure_category` to match against exact keys, slugs, split key/slug segments, breadcrumb items, cleaned display titles, and official root department names.
+  4. **Turkish Dotted `İ` Normalization in Default Alarm Names**:
+     - Normalized strings with `CategoryResolver.normalize_turkish` and word boundary regexes before evaluating `spec_in_query`.
+  5. **Normalized Alphanumeric Model Variant Resolution**:
+     - Added alphanumeric model variant generation in `resolve_category` (`3.20i` -> `320i`, `c 200` / `c.200` -> `c200`, `5.20d` -> `520d`), ensuring BMW 3-series and Mercedes C-class searches resolve to `otomobil` with full facet extraction (`cekis=4x4`).
+  6. **Embed Badge Deduplication**:
+     - Excluded redundant `kapasite` in embed renderers when `hafiza` or `bellek` is present, and formatted canonical Turkish city names uniformly.
+  7. **Comprehensive Test Suite**:
+     - Added 6 new targeted edge case tests in `tests/test_alarm_hizli_boost.py`, bringing the suite to 17 boosted tests and the full project suite to 294 passed tests.
+- **Consequences**:
+  - Zero malformed query concatenations (`BMW Otomatik Yarı` is fully resolved to `BMW Yarı Otomatik`).
+  - Car models with dots and spaces resolve to `otomobil` rather than SUV or generic search.
+  - Test suite passes 100% (294/294 passed, 0 failures across all 14 suites).
+
+

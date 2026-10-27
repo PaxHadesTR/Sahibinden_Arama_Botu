@@ -8,7 +8,7 @@ from typing import Any
 import discord
 from discord import app_commands
 from discord.ext import commands
-from src.catalog.resolver import resolver
+from src.catalog.resolver import resolver, CategoryResolver
 from src.services.url_builder import SahibindenURLBuilder
 from src.db.database import database
 from src.services.scraper import scraper
@@ -66,6 +66,11 @@ class AlarmCog(commands.Cog):
         """Provides dynamic autocomplete choices for category-specific specs (VRAM, DDR, transmission, room count, etc.)."""
         try:
             selected_cat = getattr(interaction.namespace, "kategori", None) or ""
+            arama_val = getattr(interaction.namespace, "arama", None) or ""
+            if (not selected_cat or selected_cat in ("genel-arama", "kelime-ile-arama")) and arama_val:
+                inferred = resolver.infer_category_from_text(arama_val)
+                if inferred:
+                    selected_cat = inferred.get("key", selected_cat)
             suggestions = resolver.get_spec_suggestions(selected_cat, current)
             return [
                 app_commands.Choice(name=s.strip()[:100], value=s.strip()[:100])
@@ -84,6 +89,11 @@ class AlarmCog(commands.Cog):
         """Provides dynamic autocomplete choices for second spec parameter (ek_ozellik), aware of ozellik."""
         try:
             selected_cat = getattr(interaction.namespace, "kategori", None) or ""
+            arama_val = getattr(interaction.namespace, "arama", None) or ""
+            if (not selected_cat or selected_cat in ("genel-arama", "kelime-ile-arama")) and arama_val:
+                inferred = resolver.infer_category_from_text(arama_val)
+                if inferred:
+                    selected_cat = inferred.get("key", selected_cat)
             first_spec = getattr(interaction.namespace, "ozellik", None) or ""
             suggestions = resolver.get_ek_ozellik_suggestions(selected_cat, first_spec, current)
             return [
@@ -348,21 +358,25 @@ class AlarmCog(commands.Cog):
         if not s:
             return q or None
 
-        q_low = q.lower()
-        s_low = s.lower()
-        if s_low in q_low:
+        norm_q = CategoryResolver.normalize_turkish(q)
+        norm_s = CategoryResolver.normalize_turkish(s)
+
+        # Whole-phrase containment with word boundaries to avoid partial-word drops (e.g. 'Van' in 'Cam Tavan')
+        s_pat = rf"(?:\b|^){re.escape(norm_s)}(?:\b|$)"
+        if re.search(s_pat, norm_q):
             return q
-        if q_low in s_low:
+        q_pat = rf"(?:\b|^){re.escape(norm_q)}(?:\b|$)"
+        if re.search(q_pat, norm_s):
             return " ".join(s.replace(",", " ").split())
 
         q_words = q.split()
-        q_words_norm = {w.lower().strip(",.;:") for w in q_words}
+        q_words_norm = {CategoryResolver.normalize_turkish(w).strip(",.;:") for w in q_words}
 
         s_clean = s.replace(",", " ")
         s_tokens = s_clean.split()
         to_add = []
         for token in s_tokens:
-            norm = token.lower().strip(",.;:")
+            norm = CategoryResolver.normalize_turkish(token).strip(",.;:")
             if norm and norm not in q_words_norm:
                 to_add.append(token.strip(",.;:"))
                 q_words_norm.add(norm)
@@ -370,6 +384,96 @@ class AlarmCog(commands.Cog):
         if not to_add:
             return q
         return (q + " " + " ".join(to_add)).strip()
+
+    @classmethod
+    def _clean_conflicting_facet_terms(
+        cls,
+        clean_q: str | None,
+        spec_extracted: dict[str, str],
+        cat_key: str,
+        profile: str | None
+    ) -> str | None:
+        """Removes conflicting facet values from freeform query when explicit specs are provided."""
+        if not clean_q or not spec_extracted:
+            return clean_q
+
+        spec_groups = resolver._get_spec_groups_for_category(cat_key, profile or "")
+        cat_data = resolver.get_category(cat_key)
+        facets = cat_data.get("facets", {}) if cat_data else {}
+
+        MUTUALLY_EXCLUSIVE_FACETS: set[str] = {
+            "vites", "oda_sayisi", "socket", "ceker", "cekis", "yakit",
+            "durum", "calisma_sekli", "garanti", "kasa_tipi", "hasar",
+            "esyali", "bina_yasi", "kimden", "isitma", "kat", "takas", "alisveris"
+        }
+
+        EXTRA_CONFLICTS: dict[str, list[str]] = {
+            "hasar": ["boyasız", "boyasiz", "hatasız", "hatasiz", "değişensiz", "degisensiz", "tramersiz", "boyalı", "hasarlı"],
+            "esyali": ["eşyalı", "esyali", "boş", "bos"],
+            "durum": ["sıfır", "sifir", "ikinci el", "a kalite", "yenilenmiş", "yenilenmis", "sıfır kapalı kutu"],
+            "vites": ["otomatik", "manuel", "yarı otomatik", "yari otomatik"],
+            "oda_sayisi": ["1+0", "1+1", "2+1", "3+1", "4+1", "5+1", "stüdyo", "studyo"],
+            "socket": ["am5", "am4", "lga1700", "lga1200", "lga1151", "tr4", "strx4"],
+            "ceker": ["4x4", "4x2"],
+            "cekis": ["4x4", "4x2"],
+            "yakit": ["benzin", "dizel", "lpg", "hibrit", "elektrik", "benzin & lpg"],
+            "calisma_sekli": ["yatılı", "yatili", "tam zamanlı", "tam zamanli", "yarı zamanlı", "yari zamanli", "home office"],
+            "garanti": ["tr garantili", "ithalatçı garantili", "ithalatci garantili", "garantili", "garantisiz"],
+            "kasa_tipi": ["sedan", "hatchback", "suv", "station wagon", "coupe", "cabrio"],
+            "kimden": ["sahibinden", "galeriden", "yetkili bayiden", "emlak ofisinden"],
+            "isitma": ["kombili", "yerden ısıtma", "merkezi ısıtma", "klimalı", "sobalı"],
+            "kat": ["ara kat", "giriş katı", "en üst kat", "bahçe katı", "çatı dubleks", "yüksek giriş", "bodrum"],
+            "bina_yasi": ["sıfır bina", "sifir bina", "1-5 yaş", "5-10 yaş", "11-15 yaş", "16-20 yaş", "21+ yaş"],
+            "alisveris": ["param güvende", "yüz yüze"],
+            "takas": ["takaslı", "takassız"],
+        }
+
+        result = clean_q
+        for f_name, chosen_val in spec_extracted.items():
+            if f_name not in MUTUALLY_EXCLUSIVE_FACETS:
+                continue
+            chosen_norm = CategoryResolver.normalize_turkish(chosen_val)
+            all_options: set[str] = set()
+            if f_name in spec_groups:
+                all_options.update(spec_groups[f_name])
+            if f_name in facets:
+                all_options.update(facets[f_name].get("options", {}).keys())
+            if f_name in EXTRA_CONFLICTS:
+                all_options.update(EXTRA_CONFLICTS[f_name])
+
+            # Tagged two-pass replacement: longer options evaluated first
+            keep_tag = f"__KEEP_{f_name}__"
+            remove_tag = f"__REMOVE_{f_name}__"
+
+            for opt in sorted(all_options, key=len, reverse=True):
+                opt_norm = CategoryResolver.normalize_turkish(opt)
+                if not opt_norm:
+                    continue
+                opt_words = opt.strip().split()
+                w_patterns = []
+                for w in opt_words:
+                    chars = []
+                    for ch in w:
+                        ch_l = ch.lower()
+                        if ch_l in ("i", "ı", "İ", "I"): chars.append("[iıİI]")
+                        elif ch_l in ("s", "ş", "S", "Ş"): chars.append("[sşSŞ]")
+                        elif ch_l in ("c", "ç", "C", "Ç"): chars.append("[cçCÇ]")
+                        elif ch_l in ("g", "ğ", "G", "Ğ"): chars.append("[gğGĞ]")
+                        elif ch_l in ("u", "ü", "U", "Ü"): chars.append("[uüUÜ]")
+                        elif ch_l in ("o", "ö", "O", "Ö"): chars.append("[oöOÖ]")
+                        else: chars.append(re.escape(ch))
+                    w_patterns.append("".join(chars))
+                pat = rf"(?:\b|^)" + r"\s+".join(w_patterns) + rf"(?:\b|$)"
+
+                if opt_norm == chosen_norm:
+                    result = re.sub(pat, f" {keep_tag} ", result, flags=re.I)
+                else:
+                    result = re.sub(pat, f" {remove_tag} ", result, flags=re.I)
+
+            result = result.replace(remove_tag, " ")
+            result = result.replace(keep_tag, chosen_val)
+
+        return " ".join(result.split()).strip() or None
 
     # =========================================================================
     # ORTAK ALARM OLUŞTURMA YARDIMCISI (_execute_alarm_creation)
@@ -410,26 +514,30 @@ class AlarmCog(commands.Cog):
             await interaction.followup.send("❌ Minimum fiyat maksimum fiyattan büyük olamaz.", ephemeral=True)
             return
 
-        if sehir and not resolver.resolve_city_code(sehir):
-            await interaction.followup.send(
-                f"❌ `{sehir}` geçerli bir Türkiye ili olarak tanınmadı. Lütfen il adını kontrol edin (örn: İstanbul, Ankara).",
-                ephemeral=True
-            )
-            return
+        canonical_city = None
+        if sehir:
+            city_code = resolver.resolve_city_code(sehir)
+            if not city_code:
+                await interaction.followup.send(
+                    f"❌ `{sehir}` geçerli bir Türkiye ili olarak tanınmadı. Lütfen il adını kontrol edin (örn: İstanbul, Ankara).",
+                    ephemeral=True
+                )
+                return
+            canonical_city = resolver.get_city_name(city_code) or sehir.strip().title()
 
         target_url = SahibindenURLBuilder.build_url(
             category_slug=category_slug,
             query_text=query_text,
             price_min=min_fiyat,
             price_max=max_fiyat,
-            city=sehir,
+            city=canonical_city,
             tipi=tipi,
             kapasite=kapasite,
             marka=marka,
             extra_facets=extra_facets,
         )
 
-        name = alarm_adi or f"{display_category_name} Takibi"
+        name = (alarm_adi or f"{display_category_name} Takibi").strip()[:100]
 
         filters = {
             "kategori": category_slug,
@@ -440,7 +548,7 @@ class AlarmCog(commands.Cog):
             "ozellik": ozellik,
             "min_fiyat": min_fiyat,
             "max_fiyat": max_fiyat,
-            "sehir": sehir,
+            "sehir": canonical_city,
             "kelime": query_text,
             "raw_query": raw_query,
             "alarm_adi": name,
@@ -501,59 +609,19 @@ class AlarmCog(commands.Cog):
                     embed.add_field(name=f_name, value=str(f_val), inline=inline)
 
         if extra_facets:
-            facet_labels = {
-                "vites": "🕹️ Vites",
-                "yakit": "⛽ Yakıt",
-                "oda_sayisi": "🚪 Oda Sayısı",
-                "socket": "🔌 Soket",
-                "cache": "⚡ Ön Bellek",
-                "imar_durumu": "📜 İmar Durumu",
-                "durum": "📦 Durum",
-                "calisma_sekli": "⏱️ Çalışma Şekli",
-                "ceker": "🚜 Çeker",
-                "islem_turu": "📝 İşlem Türü",
-                "egitim_durumu": "🎓 Eğitim Durumu",
-                "deneyim": "⏳ Deneyim",
-                "arac_turu": "🚗 Araç Türü",
-                "kasa_tipi": "🚙 Kasa Tipi",
-                "renk": "🎨 Renk",
-                "motor_hacmi": "⚙️ Motor Hacmi",
-                "garanti": "🛡️ Garanti",
-                "tipi": "🧩 Tip",
-                "kapasite": "💾 Kapasite",
-                "bellek": "🧠 Bellek",
-                "hafiza": "📱 Dahili Hafıza",
-                "ram": "🧠 RAM",
-                "marka": "🏷️ Marka",
-                "chipset": "🎮 Chipset",
-                "isitma": "🔥 Isıtma",
-                "kat": "🏢 Bulunduğu Kat",
-                "bulundugu_kat": "🏢 Bulunduğu Kat",
-                "bina_yasi": "🏗️ Bina Yaşı",
-                "esyali": "🛋️ Eşya Durumu",
-                "site_ici": "🏘️ Site İçi",
-                "krediye_uygun": "💳 Kredi Uygunluğu",
-                "hasar": "🛡️ Hasar / Boya",
-                "boya_degisen": "🛡️ Hasar / Boya",
-                "kimden": "👤 Kimden",
-                "ekran_karti": "🎮 Ekran Kartı",
-                "yenileme_hizi": "⚡ Yenileme Hızı",
-                "panel": "🖥️ Panel",
-                "donanim": "🔧 Donanım",
-                "kozmetik": "✨ Kozmetik / Pil",
-                "tapu": "📜 Tapu Durumu",
-            }
             already_shown = {f.name for f in embed.fields}
             for k, v in extra_facets.items():
-                label = facet_labels.get(k, k.replace("_", " ").title())
+                if k == "kapasite" and ("hafiza" in extra_facets or "bellek" in extra_facets):
+                    continue
+                label = resolver.get_facet_label(k)
                 if v and label not in already_shown:
                     embed.add_field(name=label, value=str(v), inline=True)
 
         if min_fiyat or max_fiyat:
             max_str = f"{max_fiyat:,}" if max_fiyat else "Limitsiz"
             embed.add_field(name="💰 Fiyat Aralığı", value=f"{min_fiyat or 0:,} TL - {max_str} TL", inline=True)
-        if sehir:
-            embed.add_field(name="📍 Şehir", value=sehir.title(), inline=True)
+        if canonical_city:
+            embed.add_field(name="📍 Şehir", value=canonical_city, inline=True)
 
         if primed_immediately:
             baseline_msg = f"Şu an arama sonucundaki **{initial_count}** ilan arşivlendi. Yalnızca yeni gelen veya fiyatı düşen ilanlar bildirilecek."
@@ -612,12 +680,36 @@ class AlarmCog(commands.Cog):
 
         # 1. Kategori çözümleme
         cat_data = resolver.get_category(kategori)
+        residual_query = None
         if cat_data:
             cat_key = cat_data["key"]
             category_slug = cat_data["slug"]
             display_name = cat_data.get("display_name", kategori)
             profile = cat_data.get("profile")
             is_generic_fallback = False
+
+            # Check if user typed a specific product/model search in the category field
+            norm_k = CategoryResolver.normalize_turkish(kategori)
+            norm_key = CategoryResolver.normalize_turkish(cat_key)
+            norm_slug = CategoryResolver.normalize_turkish(category_slug)
+            breadcrumbs = [CategoryResolver.normalize_turkish(b.strip()) for b in cat_data.get("breadcrumbs", "").split(" > ") if b.strip()]
+            disp_parts = [CategoryResolver.normalize_turkish(p.strip()) for p in re.sub(r"[^\w\s/]", "", display_name).split("/") if p.strip()]
+            norm_disp_clean = CategoryResolver.normalize_turkish(re.sub(r"[^\w\s/]", "", display_name)).strip()
+            roots = {CategoryResolver.normalize_turkish(r) for r in resolver.root_departments.keys()} | {
+                "vasita", "emlak", "alisveris", "ikinci el", "yedek parca", "is makineleri", "ustalar", "ozel ders", "is ilanlari", "hayvanlar alemi", "yardimci arayanlar"
+            }
+
+            is_pure_category = (
+                norm_k in (norm_key, norm_slug) or
+                norm_k in norm_key.split("-") or
+                norm_k in norm_slug.split("-") or
+                norm_k == norm_disp_clean or
+                norm_k in roots or
+                any(norm_k == b for b in breadcrumbs) or
+                any(norm_k == p for p in disp_parts)
+            )
+            if not is_pure_category:
+                residual_query = kategori.strip()
         else:
             cat_key = "genel-arama"
             category_slug = "kelime-ile-arama"
@@ -626,20 +718,29 @@ class AlarmCog(commands.Cog):
             is_generic_fallback = True
 
         effective_query = arama.strip() if (arama and arama.strip()) else None
+        if residual_query:
+            if effective_query:
+                effective_query = self._merge_query_and_spec(residual_query, effective_query)
+            else:
+                effective_query = residual_query
 
-        # Seamlessly combine ozellik and ek_ozellik
+        # Seamlessly combine ozellik and ek_ozellik with deduplication
         spec_parts = []
-        if ozellik and ozellik.strip():
-            spec_parts.append(ozellik.strip())
-        if ek_ozellik and ek_ozellik.strip():
-            spec_parts.append(ek_ozellik.strip())
+        seen_specs = set()
+        for raw_s in (ozellik, ek_ozellik):
+            if raw_s and raw_s.strip():
+                for part in raw_s.split(","):
+                    p_clean = part.strip()
+                    p_norm = CategoryResolver.normalize_turkish(p_clean)
+                    if p_clean and p_norm not in seen_specs:
+                        spec_parts.append(p_clean)
+                        seen_specs.add(p_norm)
         effective_spec = ", ".join(spec_parts) if spec_parts else None
 
         # Kategori tanınmadıysa (serbest arama terimi girildiyse), arama metnine dahil et
         if is_generic_fallback and display_name:
             if effective_query:
-                if display_name.lower() not in effective_query.lower():
-                    effective_query = f"{display_name} {effective_query}".strip()
+                effective_query = self._merge_query_and_spec(display_name, effective_query)
             else:
                 effective_query = display_name
 
@@ -679,42 +780,7 @@ class AlarmCog(commands.Cog):
                 clean_s = re.sub(cap_single_re, "", clean_s, flags=re.I)
 
         # Kullanıcı 'ozellik' parametresinde açık bir facet belirttiğinde, 'arama' kelimesindeki çelişen eski facet kelimelerini temizle
-        if "vites" in spec_extracted:
-            for v_opt in ("otomatik", "manuel", "yari otomatik", "yarı otomatik"):
-                if v_opt.lower() != spec_extracted["vites"].lower():
-                    clean_q = re.sub(rf"\b{re.escape(v_opt)}\b", "", clean_q, flags=re.I)
-        if "oda_sayisi" in spec_extracted:
-            for r_num in ("1+0", "1+1", "2+1", "3+1", "4+1", "5+1"):
-                if r_num != spec_extracted["oda_sayisi"]:
-                    clean_q = re.sub(rf"\b{re.escape(r_num)}\b", "", clean_q, flags=re.I)
-        if "socket" in spec_extracted:
-            for s_opt in ("am5", "am4", "lga1700", "lga1200", "lga1151", "tr4", "strx4"):
-                if s_opt.lower() != spec_extracted["socket"].lower():
-                    clean_q = re.sub(rf"\b{re.escape(s_opt)}\b", "", clean_q, flags=re.I)
-        if "ceker" in spec_extracted:
-            for c_opt in ("4x4", "4x2"):
-                if c_opt.lower() != spec_extracted["ceker"].lower():
-                    clean_q = re.sub(rf"\b{re.escape(c_opt)}\b", "", clean_q, flags=re.I)
-        if "yakit" in spec_extracted:
-            for y_opt in ("benzin", "dizel", "lpg", "hibrit", "elektrik"):
-                if y_opt.lower() != spec_extracted["yakit"].lower():
-                    clean_q = re.sub(rf"\b{re.escape(y_opt)}\b", "", clean_q, flags=re.I)
-        if "durum" in spec_extracted:
-            for d_opt in ("sifir", "ikinci el", "a kalite", "yenilenmis"):
-                if d_opt.lower() != spec_extracted["durum"].lower():
-                    clean_q = re.sub(rf"\b{re.escape(d_opt)}\b", "", clean_q, flags=re.I)
-        if "calisma_sekli" in spec_extracted:
-            for c_opt in ("yatili", "tam zamanli", "yari zamanli", "home office"):
-                if c_opt.lower() != spec_extracted["calisma_sekli"].lower():
-                    clean_q = re.sub(rf"\b{re.escape(c_opt)}\b", "", clean_q, flags=re.I)
-        if "garanti" in spec_extracted:
-            for g_opt in ("tr garantili", "ithalatci garantili", "garantili", "garantisiz"):
-                if g_opt.lower() != spec_extracted["garanti"].lower():
-                    clean_q = re.sub(rf"\b{re.escape(g_opt)}\b", "", clean_q, flags=re.I)
-        if "kasa_tipi" in spec_extracted:
-            for k_opt in ("sedan", "hatchback", "suv", "station wagon", "coupe", "cabrio"):
-                if k_opt.lower() != spec_extracted["kasa_tipi"].lower():
-                    clean_q = re.sub(rf"\b{re.escape(k_opt)}\b", "", clean_q, flags=re.I)
+        clean_q = self._clean_conflicting_facet_terms(clean_q, spec_extracted, cat_key, profile) or ""
 
         clean_q = " ".join(clean_q.split()).strip() or None
         clean_s = " ".join(clean_s.split()).strip() or None
@@ -725,10 +791,13 @@ class AlarmCog(commands.Cog):
         # 5. Varsayılan alarm adı belirleme
         clean_cat_title = display_name.split("/")[-1].strip()
         if alarm_adi and alarm_adi.strip():
-            final_alarm_name = alarm_adi.strip()
+            final_alarm_name = alarm_adi.strip()[:100]
         else:
             if effective_query and effective_spec:
-                spec_in_query = effective_spec.lower() in effective_query.lower()
+                norm_eq = CategoryResolver.normalize_turkish(effective_query)
+                norm_es = CategoryResolver.normalize_turkish(effective_spec)
+                es_pat = rf"(?:\b|^){re.escape(norm_es)}(?:\b|$)"
+                spec_in_query = bool(re.search(es_pat, norm_eq))
                 if spec_in_query:
                     final_alarm_name = f"{effective_query} ({clean_cat_title})"
                 else:
@@ -739,6 +808,7 @@ class AlarmCog(commands.Cog):
                 final_alarm_name = f"{effective_spec} ({clean_cat_title})"
             else:
                 final_alarm_name = f"{display_name} Takibi"
+            final_alarm_name = final_alarm_name[:100]
 
         # Extra extracted facets (e.g. vites, yakit, oda_sayisi, ceker, socket, cache, imar_durumu, durum, calisma_sekli, hafiza, ram, etc.)
         extra_facets = {k: v for k, v in extracted.items() if k not in ("tipi", "kapasite", "marka", "chipset")}

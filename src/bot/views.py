@@ -882,7 +882,7 @@ class DetailFilterSelectView(View):
             color=0x3498DB
         )
         current_specs = [
-            f"• **{k.replace('_', ' ').title()}**: {v}"
+            f"• **{resolver.get_facet_label(k)}**: {v}"
             for k, v in self.current_filters.items()
             if k not in ("kategori", "profile", "kelime", "raw_query", "min_fiyat", "max_fiyat", "sehir", "alarm_adi") and v
         ]
@@ -956,7 +956,7 @@ class DetailFilterSelectView(View):
         else:
             self.current_filters.pop("ozellik", None)
 
-        base_query = self.current_filters.get("raw_query")
+        base_query = self.current_filters.get("raw_query") or self.current_filters.get("kelime")
 
         new_target_url = SahibindenURLBuilder.build_url(
             category_slug=self.category_slug,
@@ -1003,13 +1003,21 @@ class DetailFilterSelectView(View):
         embed.add_field(name="📂 Kategori", value=self.display_name, inline=True)
         if filters.get("kelime"):
             embed.add_field(name="🔍 Arama / Kelime", value=f"`{filters['kelime']}`", inline=True)
+        elif filters.get("raw_query"):
+            embed.add_field(name="🔍 Arama", value=f"`{filters['raw_query']}`", inline=True)
         if filters.get("ozellik"):
             embed.add_field(name="⚙️ Özellik", value=str(filters["ozellik"]), inline=True)
 
-        excluded = ("kategori", "profile", "kelime", "min_fiyat", "max_fiyat", "sehir", "alarm_adi", "ozellik", "ek_ozellik")
+        excluded = ("kategori", "profile", "kelime", "raw_query", "min_fiyat", "max_fiyat", "sehir", "alarm_adi", "ozellik", "ek_ozellik")
+        if filters.get("hafiza") or filters.get("bellek"):
+            excluded = excluded + ("kapasite",)
+        already_shown = {f.name for f in embed.fields}
         for k, v in filters.items():
             if k not in excluded and v:
-                embed.add_field(name=f"🔧 {k.replace('_', ' ').title()}", value=str(v), inline=True)
+                label = resolver.get_facet_label(k)
+                if label not in already_shown:
+                    embed.add_field(name=label, value=str(v), inline=True)
+                    already_shown.add(label)
 
         min_p = filters.get("min_fiyat")
         max_p = filters.get("max_fiyat")
@@ -1017,7 +1025,8 @@ class DetailFilterSelectView(View):
             max_s = f"{max_p:,}" if max_p else "Limitsiz"
             embed.add_field(name="💰 Fiyat", value=f"{min_p or 0:,} TL - {max_s} TL", inline=True)
         if filters.get("sehir"):
-            embed.add_field(name="📍 Şehir", value=filters["sehir"].title(), inline=True)
+            canonical_city = resolver.get_city_name(filters["sehir"]) or filters["sehir"].title()
+            embed.add_field(name="📍 Şehir", value=canonical_city, inline=True)
 
         embed.add_field(name="🌐 Güncel Link", value=f"[Sahibinden'de Görüntüle]({url})", inline=False)
         return embed

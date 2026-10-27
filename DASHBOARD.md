@@ -160,9 +160,26 @@
   - [x] Interactive AlarmQuickActionView attached to confirmation embeds with a '⚙️ Detaylı Filtreleri Düzenle' button.
   - [x] Paged DetailFilterSelectView rendering category-specific select menus for all schema profile options (Phones, Cars, Housing, CPU socket AMD/Intel split, etc.), persisting updates to SQLite and rebuilding URLs.
   - [x] Non-word punctuation lookaround boundaries (?:^|(?<=\W)) and (?=(?:\W|$)) in spec extraction.
-  - [x] Automated Test Suite expanded to 277/277 passing green tests (tests/test_multi_spec_and_views.py).
-- [x] Automated Test Suite: 277/277 tests passing green across all 13 test suites (unit, integration, 11-branch validation, 24-profile validation, 660-node schema validation, multi-spec chaining, interactive views in tests/test_multi_spec_and_views.py, and full real-world scenarios)
-- [x] Automated Test Suite: 277/277 tests passing green across all 13 test suites (unit, integration, 11-branch validation, 24-profile validation, 660-node schema validation, multi-spec chaining, interactive views in tests/test_multi_spec_and_views.py, and full real-world scenarios)
+  - [x] /alarm-hizli Boost, Optimization & Edge-Case Hardening (ADR-032):
+  - [x] Residual Query Preservation: Fixed critical defect where entering product models in `kategori` without `arama` (e.g. `/alarm-hizli kategori:iPhone 15 Pro ozellik:128 GB`) caused product terms to be dropped; now detects non-pure category inputs and preserves them into `effective_query` and target URL.
+  - [x] Generalized Facet Conflict Cleaning: Replaced hardcoded 9-facet rules with dynamic, Turkish-diacritic-aware conflict cleaner across all mutually exclusive facets (`vites`, `oda_sayisi`, `socket`, `ceker`, `yakit`, `durum`, `calisma_sekli`, `garanti`, `kasa_tipi`, `hasar`, `esyali`, `bina_yasi`, `kimden`).
+  - [x] Additive Domain Facet Protection: Ensured non-conflicting multi-attribute facets (`alan`, `cihaz`, `hizmet`, `imar_durumu`) preserve combinations (e.g. 'Bebek Bakıcısı' + 'Deneyimli', 'Zeytinlik' + 'Müstakil Parsel').
+  - [x] Turkish City Canonicalization: Automatically resolves plate codes (`"34"` -> `"İstanbul"`) and synonyms (`"icel"` -> `"Mersin"`) to official canonical Turkish names across DB, URL, and embed fields.
+  - [x] Contextual Autocomplete Inference: When `kategori` is empty or generic, automatically infers domain from `arama` (e.g. typing `"iPhone 15"` infers `cep-telefonu` and displays storage choices).
+  - [x] Spec & Ek-Ozellik Deduplication: Redundant tokens between `ozellik` and `ek_ozellik` (e.g. `128 GB` and `128 GB, TR Garantili`) are deduplicated seamlessly.
+  - [x] DetailFilterSelectView Search Query Persistence: Prevented query drops when editing alarms lacking `raw_query` by falling back to `kelime`.
+  - [x] Skeptical Audit & Hardening of `/alarm-hizli` Edge Cases & Conflict Engine (`ADR-033`):
+  - [x] Tagged Two-Pass Conflict Replacement: Replaced vulnerable substring checks with tagged `__KEEP__`/`__REMOVE__` replacement, eliminating malformed query concatenations (e.g. `BMW Otomatik` + `Yarı Otomatik` now cleanly outputs `BMW Yarı Otomatik` rather than `BMW Otomatik Yarı`).
+  - [x] Expanded Mutually Exclusive Set: Added `isitma`, `kat`, `takas`, and `alisveris` to prevent opposing heating/floor/trade values from colliding in query text.
+  - [x] Word-Boundary Whole-Phrase Containment: Protected short search queries (`Van`, `Pro`, `Air`) from being dropped by partial substring matches in `_merge_query_and_spec`.
+  - [x] Refined Pure Category Detection: Enforced exact segment/breadcrumb/root matching in `is_pure_category`, preventing short freeform queries (`Ali`, `Tek`) from being misclassified as categories and discarded.
+  - [x] Turkish Dotted `İ` Case Normalization: Corrected default alarm naming to prevent duplicate spec names (`iPhone 13 ikinci el İkinci El`).
+  - [x] Alphanumeric Model Variant Resolution: Handled dotted and spaced models (`3.20i 4x4`, `3.20i`, `c 200`), routing BMW 3-series and Mercedes C-class searches to `otomobil` with `cekis=4x4` rather than generic or SUV search.
+  - [x] Embed Badge Deduplication: Eliminated duplicate `💾 Kapasite` badges alongside `📱 Dahili Hafıza` across creation embeds and interactive detail views.
+  - [x] Automated Test Suite expanded to 294/294 passing green tests (17 targeted boost tests in `tests/test_alarm_hizli_boost.py`).
+- [x] Automated Test Suite: 294/294 tests passing green across all 14 test suites (unit, integration, 11-branch validation, 24-profile validation, 660-node schema validation, multi-spec chaining, interactive views, boosted /alarm-hizli workflow, and full real-world scenarios)
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`) fully updated and synchronized
+
+
 
 

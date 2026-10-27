@@ -27,9 +27,75 @@ TURKISH_PROVINCES: dict[str, str] = {
     "81": "Düzce"
 }
 
+FACET_LABELS: dict[str, str] = {
+    "vites": "🕹️ Vites",
+    "yakit": "⛽ Yakıt",
+    "oda_sayisi": "🚪 Oda Sayısı",
+    "socket": "🔌 Soket",
+    "cache": "⚡ Ön Bellek",
+    "imar_durumu": "📜 İmar Durumu",
+    "durum": "📦 Durum",
+    "calisma_sekli": "⏱️ Çalışma Şekli",
+    "ceker": "🚜 Çeker",
+    "cekis": "🚗 Çekiş",
+    "islem_turu": "📝 İşlem Türü",
+    "egitim_durumu": "🎓 Eğitim Durumu",
+    "egitim": "🎓 Eğitim",
+    "deneyim": "⏳ Deneyim",
+    "arac_turu": "🚗 Araç Türü",
+    "kasa_tipi": "🚙 Kasa Tipi",
+    "renk": "🎨 Renk",
+    "motor_hacmi": "⚙️ Motor Hacmi",
+    "garanti": "🛡️ Garanti",
+    "tipi": "🧩 Tip",
+    "kapasite": "💾 Kapasite",
+    "bellek": "🧠 Bellek",
+    "hafiza": "📱 Dahili Hafıza",
+    "ram": "🧠 RAM",
+    "marka": "🏷️ Marka",
+    "chipset": "🎮 Chipset",
+    "isitma": "🔥 Isıtma",
+    "kat": "🏢 Bulunduğu Kat",
+    "bulundugu_kat": "🏢 Bulunduğu Kat",
+    "bina_yasi": "🏗️ Bina Yaşı",
+    "esyali": "🛋️ Eşya Durumu",
+    "site_ici": "🏘️ Site İçi",
+    "krediye_uygun": "💳 Kredi Uygunluğu",
+    "hasar": "🛡️ Hasar / Boya",
+    "boya_degisen": "🛡️ Hasar / Boya",
+    "kimden": "👤 Kimden",
+    "ekran_karti": "🎮 Ekran Kartı",
+    "yenileme_hizi": "⚡ Yenileme Hızı",
+    "panel": "🖥️ Panel",
+    "donanim": "🔧 Donanım",
+    "kozmetik": "✨ Kozmetik / Pil",
+    "tapu": "📜 Tapu Durumu",
+    "alisveris": "🤝 Alışveriş",
+    "teslimat": "📦 Teslimat",
+    "takas": "🔄 Takas",
+    "isyeri_turu": "🏢 İşyeri Türü",
+    "lastik_jant": "🛞 Jant / Lastik",
+    "depolama": "💾 Depolama",
+    "ekran": "🖥️ Ekran",
+    "ekran_tipi": "🖥️ Ekran Tipi",
+    "cozunurluk": "📐 Çözünürlük",
+    "hizmet": "🛠️ Hizmet",
+    "enstruman": "🎸 Enstrüman",
+    "motor": "⚙️ Motor",
+    "tur": "🏷️ Tür",
+    "malzeme": "🧱 Malzeme",
+    "mekanizma": "⌚ Mekanizma",
+    "guvence": "🛡️ Güvence",
+}
+
 
 class CategoryResolver:
     """Resolves natural language queries and aliases into Sahibinden category & facet filters."""
+
+    @classmethod
+    def get_facet_label(cls, facet_key: str) -> str:
+        """Returns the user-friendly emoji-prefixed label for a facet key."""
+        return FACET_LABELS.get(facet_key, f"🔧 {facet_key.replace('_', ' ').title()}")
 
     def __init__(self, catalog_path: Path = CATALOG_PATH):
         with open(catalog_path, "r", encoding="utf-8") as f:
@@ -268,10 +334,17 @@ class CategoryResolver:
                 return cat_data
 
         # 2. Word-boundary phrase match (most specific / longest alias wins)
+        norm_variants = [normalized]
+        compact_model = re.sub(r"\b([0-9])\.([0-9]{2}[a-z]?)\b", r"\1\2", normalized)
+        compact_model = re.sub(r"\b([a-z])\s*\.?\s*(\d{3}[a-z]?)\b", r"\1\2", compact_model)
+        if compact_model != normalized:
+            norm_variants.append(compact_model)
+
         for norm_alias, _, cat_data in sorted_aliases:
             pattern = rf"(?:^|\b){re.escape(norm_alias)}(?:\b|$)"
-            if re.search(pattern, normalized):
-                return cat_data
+            for var in norm_variants:
+                if re.search(pattern, var):
+                    return cat_data
 
         # 3. Prefix match for attached model numbers (e.g. 'rtx4070', 'ddr4', 'iphone15')
         tokens = re.findall(r"[a-z0-9]+", normalized)
