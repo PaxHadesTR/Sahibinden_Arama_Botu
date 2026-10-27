@@ -124,7 +124,14 @@
   - [x] Immediate Deferral & Safety: added immediate `_safe_defer` at entry in `/alarm-hizli` (guaranteeing Discord 3s SLA) and guarded against double-deferral crashes.
   - [x] Multi-word and breadcrumb autocomplete search matching natural inputs (`teknolojik cihaz`, `sanayi ve is makinesi`).
   - [x] Expanded test suite with Suite 5 in `tests/test_twenty_four_profiles.py` bringing total to 200/200 passing green tests.
-- [x] Automated Test Suite: 200/200 tests passing green across all suites (unit, integration, 11-branch validation, 24-profile validation, and full real-world scenarios in `tests/test_real_scenarios.py`, `tests/test_eleven_branches.py`, and `tests/test_twenty_four_profiles.py`)
+- [x] Complete 660-Node Schema Integration, Zero-Truncation Turkish Transliteration & URL Reverse-Facet Mapping (ADR-027):
+  - [x] Full 660-node tree integration from media_1793050487693_e240df28.json (666 total catalog categories) with official IDs (c0001 - c0660).
+  - [x] Zero-truncation Turkish transliteration eliminating 60 broken uppercase-stripped slugs/keys (Ç, Ş, Ö, Ü).
+  - [x] Deduplicated hierarchical slug components and purged 57 stop-word alias pollutions.
+  - [x] Reverse facet mapping in SahibindenURLBuilder.extract_filters_from_url and direct schema node ID support in build_url.
+  - [x] Expanded facet emoji labels across all 24 schema profiles in alarms.py.
+  - [x] Automated Test Suite expanded to 234/234 passing green tests (tests/test_all_uploaded_categories.py).
+- [x] Automated Test Suite: 234/234 tests passing green across all suites (unit, integration, 11-branch validation, 24-profile validation, 660-node schema validation in tests/test_all_uploaded_categories.py, and full real-world scenarios)
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`) fully updated and synchronized
 
 

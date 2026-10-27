@@ -274,4 +274,20 @@ class SahibindenURLBuilder:
             if city_name:
                 extracted["sehir"] = city_name
 
+        # Extract category, profile, and specific category facets from URL path and query parameters
+        path_slug = parsed.path.strip("/").split("/")[0] if parsed.path else ""
+        if path_slug and path_slug != "kelime-ile-arama":
+            cat_data = resolver.get_category(path_slug)
+            if cat_data:
+                extracted["kategori"] = cat_data.get("key", path_slug)
+                if cat_data.get("profile"):
+                    extracted["profile"] = cat_data.get("profile")
+                for f_name, f_info in cat_data.get("facets", {}).items():
+                    param_name = f_info.get("param_name")
+                    if param_name and param_name in qs:
+                        val_id = qs[param_name][0]
+                        rev_map = {str(opt_id): opt_label for opt_label, opt_id in f_info.get("options", {}).items()}
+                        if val_id in rev_map:
+                            extracted[f_name] = rev_map[val_id]
+
         return extracted

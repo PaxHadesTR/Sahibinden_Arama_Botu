@@ -18,7 +18,10 @@ class CategoryResolver:
         self.cities: dict[str, str] = data.get("cities", {})
         self.profiles: dict[str, Any] = data.get("profiles", {})
         self.root_departments: dict[str, Any] = data.get("root_departments", {})
+        self.category_tree: list[dict[str, Any]] = data.get("category_tree", [])
+        self.tree_stats: dict[str, Any] = data.get("tree_stats", {})
         self._slug_to_key: dict[str, str] = {}
+        self._id_to_key: dict[str, str] = {}
         self.code_to_city: dict[str, str] = {}
 
         for cat_key, cat_data in self.categories.items():
@@ -26,6 +29,13 @@ class CategoryResolver:
             slug = cat_data.get("slug")
             if slug:
                 self._slug_to_key[slug] = cat_key
+                self._slug_to_key[slug.lower().strip()] = cat_key
+            cat_id = cat_data.get("id")
+            if cat_id:
+                self._id_to_key[str(cat_id).lower().strip()] = cat_key
+            node_id = cat_data.get("node_id")
+            if node_id:
+                self._id_to_key[str(node_id).lower().strip()] = cat_key
 
         for name, code in self.cities.items():
             if code not in self.code_to_city:
@@ -39,6 +49,25 @@ class CategoryResolver:
         """Returns the schema profile key associated with the given category."""
         cat_data = self.get_category(identifier)
         return cat_data.get("profile") if cat_data else None
+
+    def get_category_by_id(self, cat_id: str | None) -> dict[str, Any] | None:
+        """Returns category metadata by its internal or schema node ID (e.g. 'c0001')."""
+        if not cat_id:
+            return None
+        key = self._id_to_key.get(str(cat_id).strip().lower())
+        return self.categories.get(key) if key else None
+
+    def get_categories_by_root(self, root_name: str) -> list[dict[str, Any]]:
+        """Returns all categories belonging to a specific root department name."""
+        norm_root = self.normalize_turkish(root_name)
+        return [
+            cat for cat in self.categories.values()
+            if self.normalize_turkish(cat.get("breadcrumbs", "").split(" > ")[0]) == norm_root
+        ]
+
+    def get_categories_by_profile(self, profile_key: str) -> list[dict[str, Any]]:
+        """Returns all categories configured with the given schema profile."""
+        return [cat for cat in self.categories.values() if cat.get("profile") == profile_key]
 
     @staticmethod
     def normalize_turkish(text: str) -> str:
@@ -132,10 +161,17 @@ class CategoryResolver:
         if not identifier:
             return None
         clean = identifier.strip()
+        clean_low = clean.lower()
         if clean in self.categories:
             return self.categories[clean]
+        if clean_low in self.categories:
+            return self.categories[clean_low]
+        if clean_low in self._id_to_key:
+            return self.categories[self._id_to_key[clean_low]]
         if clean in self._slug_to_key:
             return self.categories[self._slug_to_key[clean]]
+        if clean_low in self._slug_to_key:
+            return self.categories[self._slug_to_key[clean_low]]
         return self.resolve_category(clean)
 
     def _collect_sorted_aliases(self, include_generic: bool = True) -> list[tuple[str, str, dict[str, Any]]]:
@@ -160,6 +196,8 @@ class CategoryResolver:
         raw_clean = user_query.strip().lower()
         if raw_clean in self.categories:
             return self.categories[raw_clean]
+        if raw_clean in self._id_to_key:
+            return self.categories[self._id_to_key[raw_clean]]
         if raw_clean in self._slug_to_key:
             return self.categories[self._slug_to_key[raw_clean]]
 

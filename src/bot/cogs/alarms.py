@@ -420,6 +420,20 @@ class AlarmCog(commands.Cog):
                 "durum": "📦 Durum",
                 "calisma_sekli": "⏱️ Çalışma Şekli",
                 "ceker": "🚜 Çeker",
+                "islem_turu": "📝 İşlem Türü",
+                "egitim_durumu": "🎓 Eğitim Durumu",
+                "deneyim": "⏳ Deneyim",
+                "arac_turu": "🚗 Araç Türü",
+                "kasa_tipi": "🚙 Kasa Tipi",
+                "renk": "🎨 Renk",
+                "motor_hacmi": "⚙️ Motor Hacmi",
+                "garanti": "🛡️ Garanti",
+                "tipi": "🧩 Tip",
+                "kapasite": "💾 Kapasite",
+                "bellek": "🧠 Bellek",
+                "hafiza": "📱 Dahili Hafıza",
+                "marka": "🏷️ Marka",
+                "chipset": "🎮 Chipset",
             }
             already_shown = {f.name for f in embed.fields}
             for k, v in extra_facets.items():
@@ -554,6 +568,14 @@ class AlarmCog(commands.Cog):
             for y_opt in ("benzin", "dizel", "lpg", "hibrit", "elektrik"):
                 if y_opt.lower() != spec_extracted["yakit"].lower():
                     clean_q = re.sub(rf"\b{re.escape(y_opt)}\b", "", clean_q, flags=re.I)
+        if "durum" in spec_extracted:
+            for d_opt in ("sifir", "ikinci el", "a kalite"):
+                if d_opt.lower() != spec_extracted["durum"].lower():
+                    clean_q = re.sub(rf"\b{re.escape(d_opt)}\b", "", clean_q, flags=re.I)
+        if "calisma_sekli" in spec_extracted:
+            for c_opt in ("yatili", "tam zamanli", "yari zamanli", "home office"):
+                if c_opt.lower() != spec_extracted["calisma_sekli"].lower():
+                    clean_q = re.sub(rf"\b{re.escape(c_opt)}\b", "", clean_q, flags=re.I)
 
         clean_q = " ".join(clean_q.split()).strip() or None
         clean_s = " ".join(clean_s.split()).strip() or None

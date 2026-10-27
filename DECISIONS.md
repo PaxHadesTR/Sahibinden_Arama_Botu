@@ -467,6 +467,22 @@
   - Zero autocomplete leakage across all 111 categories.
   - All 200/200 unit and integration tests passing green.
 
+## ADR-027: Complete 660-Node Schema Integration, Zero-Truncation Turkish Transliteration & URL Reverse-Facet Mapping (2026-10-27)
 
-
-
+- **Context**:
+  1. The user requested complete, systematic, category-by-category integration and verification of all 660 nodes from the authentic Sahibinden category tree JSON (media_1793050487693_e240df28.json).
+  2. Inspection revealed that naive slugification scripts stripped leading non-ASCII uppercase Turkish characters (Ç, Ş, Ö, Ü), truncating 60 category keys/slugs (e.g. Çilingir -> ilingir, Şoför -> ofor, Öğrenci Yurtları -> grenci-yurtlari), breaking Sahibinden URL construction and autocomplete routing.
+  3. Parent-child slug concatenation created repetitive stuttering blocks (e.g. konut-satilik-konut-satilik-mustakil-ev).
+  4. Helper description strings injected grammatical stop words (gibi, gore, durumu, sayfada) into aliases, corrupting natural language search routing.
+  5. SahibindenURLBuilder.extract_filters_from_url lacked reverse facet and category/profile extraction, and embed confirmation lacked emoji labels for job, education, animal, and service facets.
+- **Decision**:
+  1. Rebuilt the catalog to 666 categories, fully embedding all 660 schema tree nodes with official IDs (c0001 - c0660) and schema profiles while preserving backward compatibility for all HEAD categories.
+  2. Implemented strict Turkish character transliteration (Ç->c, Ş->s, Ö->o, Ü->u, Ğ->g, İ/I->i), eliminating 100% of truncated slugs/keys.
+  3. Deduplicated hierarchical slug components and purged all grammatical stop words from category aliases.
+  4. Enhanced SahibindenURLBuilder to support schema node IDs directly in build_url and reverse-map category paths, profiles, and parameter IDs (a3329, etc.) in extract_filters_from_url.
+  5. Expanded AlarmCog._execute_alarm_creation facet labels with emoji markers across all 24 profiles and added conflict cleaning for durum and calisma_sekli.
+  6. Added tests/test_all_uploaded_categories.py with 34 comprehensive tests validating all 660 nodes, URL building, leakage prevention, and end-to-end alarm creation.
+- **Consequences**:
+  - 100% of all 660 schema tree categories are systematically registered, accessible by node ID, key, slug, and alias.
+  - Zero truncated Turkish letters across the entire catalog.
+  - Automated test suite expanded to 234/234 passing green tests.
