@@ -241,14 +241,14 @@ Desteklenen tüm kategorileri, RAM (MB/GB), SSD (GB/TB), Ekran Kartı, Vasıta v
 
 | Komut | Parametreler | Açıklama |
 |---|---|---|
-| `/alarm-hizli` | `kategori`, `arama`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi` | 4 ana bölüm hiyerarşisiyle tek komutta hızlı parametrik alarm kurar. |
-| `/alarm-ara` | `kelime`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi` | Tüm Sahibinden sitesinde kategori bağımsız serbest arama yapar. |
-| `/alarm-url` | `url`, `alarm_adi` | Doğrudan yapıştırılan Sahibinden arama URL'sini dinler. |
+| `/alarm-hizli` | `kategori`, `arama`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi` | 4 ana bölüm hiyerarşisi, dinamik özellik ve 81 il/plaka/eşanlamlı (İçel, Afyon vb.) otomatik tamamlamasıyla tek komutta hızlı parametrik alarm kurar. |
+| `/alarm-ara` | `kelime`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi` | Tüm Sahibinden sitesinde kategori bağımsız serbest arama yapar (81 il, plaka ve eşanlamlı otomatik tamamlamalı). |
+| `/alarm-url` | `url`, `alarm_adi` | Doğrudan yapıştırılan Sahibinden arama URL'sini dinler ve alt kategorileri otomatik tespit eder. |
 | `/kategoriler` | `-` | Tüm kategorileri, birim türlerini (MB, GB, TB) ve komut örneklerini gösterir. |
 | `/alarmlarim` | `-` | Kurduğunuz tüm alarmları, ID numaralarını ve aktiflik durumlarını listeler. |
-| `/alarm-durum` | `alarm_id: <ID> aktif: <True/False>` | Bir alarmı silmeden geçici olarak duraklatır (`False`) veya yeniden başlatır (`True`). |
-| `/alarm-test` | `alarm_id: <ID>` | Bir alarmın hedef URL'sini anında tarayıp en güncel ilanı kanala test önizlemesi olarak atar. |
-| `/alarm-sil` | `alarm_id: <ID>` | İlgili alarmı ve geçmiş ilan veritabanı kayıtlarını kalıcı olarak siler. |
+| `/alarm-durum` | `alarm_id: <ID> aktif: <True/False>` | Bir alarmı geçici olarak duraklatır veya yeniden başlatır (Alarm ID dinamik otomatik tamamlamalı). |
+| `/alarm-test` | `alarm_id: <ID>` | Bir alarmın hedef URL'sini anında tarayıp en güncel ilanı kanala test önizlemesi olarak atar (Alarm ID dinamik tamamlamalı). |
+| `/alarm-sil` | `alarm_id: <ID>` | İlgili alarmı ve geçmiş ilan veritabanı kayıtlarını kalıcı olarak siler (Alarm ID dinamik tamamlamalı). |
 
 ---
 

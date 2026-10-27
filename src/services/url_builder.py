@@ -60,10 +60,10 @@ class SahibindenURLBuilder:
         extra_facets: dict[str, Any] | None = None,
         extra_params: dict[str, Any] | None = None,
     ) -> str:
-        """Builds a canonical search query URL with date_desc sorting and multi-unit non-lossy fallback."""
-        if price_min is not None and price_max is not None and price_min > 0 and price_max > 0:
-            if price_min > price_max:
-                raise ValueError("Minimum fiyat maksimum fiyattan büyük olamaz.")
+        if (price_min is not None and price_min < 0) or (price_max is not None and price_max < 0):
+            raise ValueError("Fiyat değerleri negatif olamaz.")
+        if price_min is not None and price_max is not None and price_min > price_max:
+            raise ValueError("Minimum fiyat maksimum fiyattan büyük olamaz.")
 
         # Auto-infer specific category key/slug if generic search matches a known category
         target_slug = category_slug
@@ -74,14 +74,18 @@ class SahibindenURLBuilder:
 
         cat_data = resolver.get_category(target_slug)
         actual_slug = cat_data.get("slug", target_slug) if cat_data else target_slug
+        if actual_slug in ("genel-arama", "", None):
+            actual_slug = "kelime-ile-arama"
 
         params: dict[str, Any] = {
             "sorting": "date_desc"  # CRITICAL: Always sort newest first
         }
 
-        # Query text
+        # Query text (commas replaced with whitespace and tokens cleaned)
         if query_text and query_text.strip():
-            params["query_text"] = query_text.strip()
+            clean_initial_q = " ".join(str(query_text).replace(",", " ").split()).strip()
+            if clean_initial_q:
+                params["query_text"] = clean_initial_q
 
         # Price range
         if price_min is not None and price_min > 0:
@@ -96,6 +100,7 @@ class SahibindenURLBuilder:
 
         # Unmatched specs for non-lossy search fallback
         unmatched_specs: list[str] = []
+        matched_facet_values: list[str] = []
 
         # Category metadata lookup for facet parameter IDs
         if cat_data:
@@ -109,6 +114,7 @@ class SahibindenURLBuilder:
                         opt_id = cls._match_facet_option(facets[facet_key]["options"], tipi)
                         if opt_id:
                             params[facets[facet_key]["param_name"]] = opt_id
+                            matched_facet_values.append(str(tipi))
                             matched = True
                             break
                 if not matched:
@@ -122,6 +128,7 @@ class SahibindenURLBuilder:
                         opt_id = cls._match_facet_option(facets[facet_key]["options"], kapasite)
                         if opt_id:
                             params[facets[facet_key]["param_name"]] = opt_id
+                            matched_facet_values.append(str(kapasite))
                             matched = True
                             break
                 # For GPUs: always ensure capacity is reinforced in query_text so that
@@ -138,6 +145,7 @@ class SahibindenURLBuilder:
                         opt_id = cls._match_facet_option(facets[facet_key]["options"], marka)
                         if opt_id:
                             params[facets[facet_key]["param_name"]] = opt_id
+                            matched_facet_values.append(str(marka))
                             matched = True
                             break
                 if not matched:
@@ -145,16 +153,23 @@ class SahibindenURLBuilder:
 
             # Dynamically match all other category facets (vites, yakit, oda_sayisi, socket, cache, ceker, etc.)
             if extra_facets:
+                excluded_facet_keys = (
+                    "profile", "kategori", "min_fiyat", "max_fiyat", "sehir",
+                    "kelime", "alarm_adi", "url", "kaynak", "kapsam", "ozellik"
+                )
                 for f_name, f_val in extra_facets.items():
-                    if not f_val or f_name in ("tipi", "kapasite", "marka", "bellek", "hafiza", "chipset"):
+                    if not f_val or f_name in excluded_facet_keys:
                         continue
                     if f_name in facets:
-                        opt_id = cls._match_facet_option(facets[f_name]["options"], str(f_val))
-                        if opt_id:
-                            params[facets[f_name]["param_name"]] = opt_id
-                        else:
-                            unmatched_specs.append(str(f_val))
-                    else:
+                        param_key = facets[f_name]["param_name"]
+                        if param_key not in params:
+                            opt_id = cls._match_facet_option(facets[f_name]["options"], str(f_val))
+                            if opt_id:
+                                params[param_key] = opt_id
+                                matched_facet_values.append(str(f_val))
+                            else:
+                                unmatched_specs.append(str(f_val))
+                    elif f_name not in ("tipi", "kapasite", "marka", "bellek", "hafiza", "chipset"):
                         unmatched_specs.append(str(f_val))
         else:
             for s in (tipi, kapasite, marka):
@@ -170,15 +185,17 @@ class SahibindenURLBuilder:
             current_q = params.get("query_text", "")
             current_low = f" {current_q.lower()} " if current_q else " "
             to_add = []
+            added_low = set()
             for s in unmatched_specs:
-                s_clean = s.strip()
+                s_clean = " ".join(str(s).replace(",", " ").split()).strip()
                 if not s_clean:
                     continue
                 s_low = s_clean.lower()
                 s_words = s_low.split()
-                if s_low in current_low or (s_words and all(w in current_low for w in s_words)):
+                if s_low in current_low or s_low in added_low or (s_words and all(w in current_low for w in s_words)):
                     continue
                 to_add.append(s_clean)
+                added_low.add(s_low)
 
             if to_add:
                 merged_q = f"{current_q} {' '.join(to_add)}".strip()
@@ -249,16 +266,21 @@ class SahibindenURLBuilder:
 
         def _parse_int(key: str) -> int | None:
             vals = qs.get(key)
-            if vals and str(vals[0]).strip().isdigit():
-                return int(str(vals[0]).strip())
-            return None
+            if not vals:
+                return None
+            val_str = str(vals[0]).strip()
+            try:
+                return int(val_str)
+            except (ValueError, TypeError):
+                return None
 
         min_fiyat = _parse_int("price_min")
         max_fiyat = _parse_int("price_max")
 
-        if min_fiyat is not None and max_fiyat is not None and min_fiyat > 0 and max_fiyat > 0:
-            if min_fiyat > max_fiyat:
-                raise ValueError("URL içindeki minimum fiyat maksimum fiyattan büyük olamaz.")
+        if (min_fiyat is not None and min_fiyat < 0) or (max_fiyat is not None and max_fiyat < 0):
+            raise ValueError("URL içindeki fiyat değerleri negatif olamaz.")
+        if min_fiyat is not None and max_fiyat is not None and min_fiyat > max_fiyat:
+            raise ValueError("URL içindeki minimum fiyat maksimum fiyattan büyük olamaz.")
 
         if min_fiyat is not None:
             extracted["min_fiyat"] = min_fiyat
@@ -275,19 +297,24 @@ class SahibindenURLBuilder:
                 extracted["sehir"] = city_name
 
         # Extract category, profile, and specific category facets from URL path and query parameters
-        path_slug = parsed.path.strip("/").split("/")[0] if parsed.path else ""
-        if path_slug and path_slug != "kelime-ile-arama":
-            cat_data = resolver.get_category(path_slug)
-            if cat_data:
-                extracted["kategori"] = cat_data.get("key", path_slug)
-                if cat_data.get("profile"):
-                    extracted["profile"] = cat_data.get("profile")
-                for f_name, f_info in cat_data.get("facets", {}).items():
-                    param_name = f_info.get("param_name")
-                    if param_name and param_name in qs:
-                        val_id = qs[param_name][0]
-                        rev_map = {str(opt_id): opt_label for opt_label, opt_id in f_info.get("options", {}).items()}
-                        if val_id in rev_map:
-                            extracted[f_name] = rev_map[val_id]
+        path_segments = [s for s in parsed.path.strip("/").split("/") if s]
+        cat_data = None
+        for seg in reversed(path_segments):
+            if seg not in ("kelime-ile-arama", "genel-arama"):
+                cat_data = resolver.get_category(seg)
+                if cat_data:
+                    break
+
+        if cat_data:
+            extracted["kategori"] = cat_data.get("key", cat_data.get("slug"))
+            if cat_data.get("profile"):
+                extracted["profile"] = cat_data.get("profile")
+            for f_name, f_info in cat_data.get("facets", {}).items():
+                param_name = f_info.get("param_name")
+                if param_name and param_name in qs:
+                    val_id = qs[param_name][0]
+                    rev_map = {str(opt_id): opt_label for opt_label, opt_id in f_info.get("options", {}).items()}
+                    if val_id in rev_map:
+                        extracted[f_name] = rev_map[val_id]
 
         return extracted

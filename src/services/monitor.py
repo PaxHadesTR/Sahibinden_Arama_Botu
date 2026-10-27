@@ -22,6 +22,7 @@ class AlarmMonitor:
         self.bot = bot
         self._running = False
         self._task: asyncio.Task | None = None
+        self._last_stale_cleanup: float = 0.0
 
     def start(self):
         """Starts the background monitoring task."""
@@ -44,6 +45,21 @@ class AlarmMonitor:
 
         while self._running:
             try:
+                # Periodic stale seen listings cleanup (runs once every 24 hours)
+                try:
+                    loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    loop = asyncio.get_event_loop()
+                now_mono = loop.time()
+                if self._last_stale_cleanup == 0.0 or (now_mono - self._last_stale_cleanup) > 86400:
+                    try:
+                        deleted = await database.cleanup_stale_seen_listings(days=90)
+                        self._last_stale_cleanup = now_mono
+                        if deleted > 0:
+                            logger.info(f"Cleaned up {deleted} stale seen listing records (> 90 days).")
+                    except Exception as e:
+                        logger.warning(f"Error during periodic stale listings cleanup: {e}")
+
                 active_alarms = await database.get_active_alarms()
                 logger.info(f"Checking {len(active_alarms)} active alarms...")
 
@@ -84,23 +100,54 @@ class AlarmMonitor:
     def matches_alarm_filters(alarm: dict[str, Any], item: ListingItem) -> bool:
         """
         Defense-in-depth client-side filter check.
-        Ensures listings strictly obey min_fiyat and max_fiyat even if Sahibinden redirects or injects promos.
+        Ensures listings strictly obey min_fiyat, max_fiyat, city, and capacity even if Sahibinden redirects or injects promos.
         """
         try:
             filters = json.loads(alarm.get("filters_json") or "{}")
         except Exception:
             filters = {}
 
-        min_price = filters.get("min_fiyat")
-        max_price = filters.get("max_fiyat")
+        def _to_int(val: Any) -> int | None:
+            if val is None:
+                return None
+            try:
+                return int(val)
+            except (ValueError, TypeError):
+                return None
+
+        min_price = _to_int(filters.get("min_fiyat"))
+        max_price = _to_int(filters.get("max_fiyat"))
 
         if item.price_val is not None and item.currency == "TL":
-            if min_price is not None and int(min_price) > 0 and item.price_val < int(min_price):
+            if min_price is not None and min_price > 0 and item.price_val < min_price:
                 return False
-            if max_price is not None and int(max_price) > 0 and item.price_val > int(max_price):
+            if max_price is not None and max_price > 0 and item.price_val > max_price:
                 return False
 
-        # Client-side capacity verification (e.g. 12 GB, 16 GB, 512 MB)
+        # Client-side city verification (blocks promoted/featured ads injected from other cities)
+        sehir = filters.get("sehir")
+        if sehir and item.location:
+            from src.catalog.resolver import resolver, CategoryResolver
+            city_code = resolver.resolve_city_code(str(sehir))
+            target_prov = resolver.get_city_name(city_code) or str(sehir)
+            norm_target_prov = CategoryResolver.normalize_turkish(target_prov)
+
+            # Location in Sahibinden is formatted as "İl / İlçe" or "İl / İlçe / Mahalle"
+            loc_parts = [p.strip() for p in item.location.split("/") if p.strip()]
+            loc_province = loc_parts[0] if loc_parts else item.location
+            item_prov_code = resolver.resolve_city_code(loc_province)
+
+            if city_code and item_prov_code:
+                if city_code != item_prov_code:
+                    return False
+            else:
+                norm_item_prov = CategoryResolver.normalize_turkish(loc_province)
+                if norm_target_prov and norm_item_prov:
+                    if norm_target_prov != norm_item_prov and norm_target_prov not in norm_item_prov.split():
+                        return False
+
+
+        # Client-side capacity verification (e.g. 12 GB, 16 GB, 512 MB, 1 TB)
         kapasite = filters.get("kapasite")
         if kapasite and item.title:
             import re
@@ -112,10 +159,26 @@ class AlarmMonitor:
             if requested_num:
                 req_val = requested_num.group(1)
                 title_caps = re.findall(r"\b(\d+)\s*(?:gb|mb|tb)\b", title_low)
-                title_compact_caps = re.findall(r"\b(\d+)(?:gb|mb|tb)\b", title_low.replace(" ", ""))
+                title_compact_caps = re.findall(r"(\d+)(?:gb|mb|tb)", title_low)
                 all_found = set(title_caps + title_compact_caps)
+
+                # Unit equivalence: 1 TB == 1000 GB == 1024 GB, 2 TB == 2000 GB == 2048 GB
+                allowed_vals = {req_val}
+                if "tb" in cap_clean:
+                    if req_val == "1":
+                        allowed_vals.update(["1", "1000", "1024"])
+                    elif req_val == "2":
+                        allowed_vals.update(["2", "2000", "2048"])
+                    elif req_val == "4":
+                        allowed_vals.update(["4", "4000", "4096"])
+                elif "gb" in cap_clean:
+                    if req_val in ("1000", "1024"):
+                        allowed_vals.update(["1000", "1024", "1"])
+                    elif req_val in ("2000", "2048"):
+                        allowed_vals.update(["2000", "2048", "2"])
+
                 # If title explicitly mentions conflicting capacities, block the item
-                if all_found and req_val not in all_found and cap_compact not in title_low.replace(" ", ""):
+                if all_found and not (all_found & allowed_vals) and cap_compact not in title_low.replace(" ", ""):
                     return False
 
         return True

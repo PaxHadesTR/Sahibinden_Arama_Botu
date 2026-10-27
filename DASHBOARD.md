@@ -3,10 +3,10 @@
 ## Metadata
 - **Mode**: BUILD_AND_ITERATE_MODE
 - **Status**: COMPLETE & HARDENED
-- **Last Sync**: 2026-10-26
+- **Last Sync**: 2026-10-27
 - **Tech Stack**: Python 3.12 / 3.15, `discord.py` 2.7, `aiohttp-socks`, `playwright`, `BeautifulSoup4`, `aiosqlite`, `pydantic`, Docker, Coolify, Xvfb, Cloudflare WARP
 
-## Current Stage: Apex Codebase Audit, Performance Optimization & UI Hardening Complete
+## Current Stage: Apex Codebase Audit, Scoped Facet Heuristics, DB Hygiene & UI Autocomplete Intelligence Complete
 - [x] Initial workspace reconnaissance and dependency check
 - [x] Root mesh artifacts initialized and synchronized (`DASHBOARD.md`, `DECISIONS.md`, `ASSUMPTIONS.md`)
 - [x] Anti-bot reverse engineering & live Sahibinden facet mapping
@@ -130,8 +130,32 @@
   - [x] Deduplicated hierarchical slug components and purged 57 stop-word alias pollutions.
   - [x] Reverse facet mapping in SahibindenURLBuilder.extract_filters_from_url and direct schema node ID support in build_url.
   - [x] Expanded facet emoji labels across all 24 schema profiles in alarms.py.
-  - [x] Automated Test Suite expanded to 234/234 passing green tests (tests/test_all_uploaded_categories.py).
-- [x] Automated Test Suite: 234/234 tests passing green across all suites (unit, integration, 11-branch validation, 24-profile validation, 660-node schema validation in tests/test_all_uploaded_categories.py, and full real-world scenarios)
+- [x] Deep Codebase Audit, Scoped Facet Heuristics, DB Hygiene & UI Autocomplete Intelligence (`ADR-028`):
+  - [x] Canonical 81 Turkish Provinces & Plate Mapping: Built comprehensive `TURKISH_PROVINCES` dictionary supporting plate codes (`"01"`..`"81"`) and canonical names with smart autocomplete in `/alarm-hizli` and `/alarm-ara`.
+  - [x] Domain-Scoped Regex Heuristics: Scoped `extract_specs_from_text` facets (`oda_sayisi`, `ceker`, `socket`, `vites`, `yakit`, `cache`, `imar_durumu`, `calisma_sekli`) by domain profile, preventing cross-domain facet contamination.
+  - [x] Token Numeric Inference Protection: Prevented explicit units (e.g. `64 MB`) from erroneously converting into alternate units (`64 GB`).
+  - [x] URL Builder Sanitization & Reverse-Traversal Subcategory Extraction: Cleanly purged internal metadata keys from `extra_facets` and reversed path segment traversal to select the most specific subcategory (`/vasita/otomobil` -> `otomobil`).
+  - [x] Virtual Category Universal Search: Initialized `"genel-arama"` (mapping to `slug="kelime-ile-arama"`, profile `"classified"`).
+  - [x] Post-Filtering Client-Side Defense: Added `_to_int` safe parser, client-side city verification, and storage unit equivalence (`1 TB` == `1000 GB` == `1024 GB`).
+  - [x] Stale Seen Listings Pruning: Added `cleanup_stale_seen_listings(days=90)` to keep SQLite lean.
+  - [x] Scraper & Bot Resilience: Added Turnstile inline challenge detection, popup page cleanup to prevent memory leaks, proxy retry backoff increase, and self-healing monitor task restarts in `on_ready`.
+  - [x] Dynamic Autocompletes & Modal Safety: Implemented user-specific `alarm_id_autocomplete` for `/alarm-sil`, `/alarm-durum`, and `/alarm-test`, and added negative price validation in modals.
+- [x] Province Substring Isolation, Synonym Intelligence, Universal Search Spec Routing & Daemon Hygiene (`ADR-029`):
+  - [x] City Substring Collision Defense: Eliminated false positives where short province names (`Muş`, `Van`) matched arbitrary substrings inside unrelated locations (`Gümüşhane / Kelkit`, `Bitlis / Tatvan`), by comparing resolved plate numbers of the primary location component (`loc_parts[0]`) with exact boundary fallbacks.
+  - [x] Turkish Province Synonym Support: Populated `self.cities` with canonical names and colloquial/historical synonyms (`İçel` -> Mersin, `Afyon` -> Afyonkarahisar, `Antep` -> Gaziantep, `Urfa` -> Şanlıurfa, `Maraş` -> Kahramanmaraş, `Adapazarı` -> Sakarya, `İzmit` -> Kocaeli, `Dersim` -> Tunceli), powering both O(1) resolution and Discord autocomplete choices.
+  - [x] Universal Search Spec Extraction Deadlock Fix: Resolved mutual-exclusion deadlock in `extract_specs_from_text` where `profile == "classified"` forced all domain booleans True, preventing `vites` and `yakit` from ever being extracted. Added automatic category inference for generic searches.
+  - [x] URL Builder Price Boundary Hardening: Enforced strict negative price rejection and inverted bound validation in `SahibindenURLBuilder.build_url` and `extract_filters_from_url`.
+  - [x] Automated 24/7 Retention Scheduling: Scheduled `cleanup_stale_seen_listings(days=90)` in `AlarmMonitor._run_loop()` to run on startup and every 24 hours, ensuring database hygiene.
+  - [x] Scraper Challenge Fast-Path: Added fast-path exit in `_wait_for_challenge_and_table` when results table or empty result indicator is rendered, avoiding unnecessary 25-second wait loops.
+  - [x] SQLite Concurrency Hardening: Added `PRAGMA busy_timeout = 15000;` and deduplicated `classified_id` batch parameter lists in database queries.
+- [x] Multi-Spec Autocomplete Chaining & Simultaneous Multi-Feature Extraction (ADR-030):
+  - [x] Schema-driven facet groups (PROFILE_SPEC_GROUPS & CATEGORY_SPEC_GROUPS) structured per profile: Phones (Hafıza, Garanti, Durum, RAM, Kozmetik, Renk), Cars (Vites, Yakıt, Hasar, Kasa, Çekiş, Kimden), Housing (Oda, Isıtma, Kat, Bina Yaşı, Eşyalı, Site İçi, Krediye Uygun), CPU (Soket, Ön Bellek, Marka, Durum), etc.
+  - [x] Continuous autocomplete chaining allowing users to seamlessly combine 2, 3, 4+ features (e.g. '128 GB, TR Garantili, Sıfır', 'Otomatik, Benzin, Boyasız') with or without manual commas.
+  - [x] Absolute cross-domain isolation preventing leakage across all 666 categories (pets, driving lessons, repair services never receive car damage or room counts).
+  - [x] Comma sanitization in SahibindenURLBuilder preventing raw %2C encodings in search URLs.
+  - [x] Multi-facet simultaneous extraction in alarms.py storing all selected features in SQLite filters_json and presenting them with dedicated emoji badges in Discord confirmation embeds.
+  - [x] Automated Test Suite expanded to 262/262 passing green tests.
+- [x] Automated Test Suite: 262/262 tests passing green across all 12 test suites (unit, integration, 11-branch validation, 24-profile validation, 660-node schema validation, multi-spec chaining, and full real-world scenarios)
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`) fully updated and synchronized
 
 

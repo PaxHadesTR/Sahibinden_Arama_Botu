@@ -7,6 +7,26 @@ from typing import Any
 
 CATALOG_PATH = Path(__file__).parent / "categories.json"
 
+TURKISH_PROVINCES: dict[str, str] = {
+    "1": "Adana", "2": "Adıyaman", "3": "Afyonkarahisar", "4": "Ağrı", "5": "Amasya",
+    "6": "Ankara", "7": "Antalya", "8": "Artvin", "9": "Aydın", "10": "Balıkesir",
+    "11": "Bilecik", "12": "Bingöl", "13": "Bitlis", "14": "Bolu", "15": "Burdur",
+    "16": "Bursa", "17": "Çanakkale", "18": "Çankırı", "19": "Çorum", "20": "Denizli",
+    "21": "Diyarbakır", "22": "Edirne", "23": "Elazığ", "24": "Erzincan", "25": "Erzurum",
+    "26": "Eskişehir", "27": "Gaziantep", "28": "Giresun", "29": "Gümüşhane", "30": "Hakkari",
+    "31": "Hatay", "32": "Isparta", "33": "Mersin", "34": "İstanbul", "35": "İzmir",
+    "36": "Kars", "37": "Kastamonu", "38": "Kayseri", "39": "Kırklareli", "40": "Kırşehir",
+    "41": "Kocaeli", "42": "Konya", "43": "Kütahya", "44": "Malatya", "45": "Manisa",
+    "46": "Kahramanmaraş", "47": "Mardin", "48": "Muğla", "49": "Muş", "50": "Nevşehir",
+    "51": "Niğde", "52": "Ordu", "53": "Rize", "54": "Sakarya", "55": "Samsun",
+    "56": "Siirt", "57": "Sinop", "58": "Sivas", "59": "Tekirdağ", "60": "Tokat",
+    "61": "Trabzon", "62": "Tunceli", "63": "Şanlıurfa", "64": "Uşak", "65": "Van",
+    "66": "Yozgat", "67": "Zonguldak", "68": "Aksaray", "69": "Bayburt", "70": "Karaman",
+    "71": "Kırıkkale", "72": "Batman", "73": "Şırnak", "74": "Bartın", "75": "Ardahan",
+    "76": "Iğdır", "77": "Yalova", "78": "Karabük", "79": "Kilis", "80": "Osmaniye",
+    "81": "Düzce"
+}
+
 
 class CategoryResolver:
     """Resolves natural language queries and aliases into Sahibinden category & facet filters."""
@@ -15,14 +35,44 @@ class CategoryResolver:
         with open(catalog_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         self.categories: dict[str, Any] = data.get("categories", {})
-        self.cities: dict[str, str] = data.get("cities", {})
         self.profiles: dict[str, Any] = data.get("profiles", {})
         self.root_departments: dict[str, Any] = data.get("root_departments", {})
         self.category_tree: list[dict[str, Any]] = data.get("category_tree", [])
         self.tree_stats: dict[str, Any] = data.get("tree_stats", {})
         self._slug_to_key: dict[str, str] = {}
         self._id_to_key: dict[str, str] = {}
-        self.code_to_city: dict[str, str] = {}
+        self.code_to_city: dict[str, str] = dict(TURKISH_PROVINCES)
+
+        # Standard Turkish province synonyms and canonical mapping
+        self.cities: dict[str, str] = {
+            self.normalize_turkish(name): code for code, name in TURKISH_PROVINCES.items()
+        }
+        synonyms = {
+            "icel": "33",
+            "afyon": "3",
+            "antep": "27",
+            "urfa": "63",
+            "maras": "46",
+            "adapazari": "54",
+            "izmit": "41",
+            "dersim": "62",
+        }
+        self.cities.update(synonyms)
+        if "cities" in data and isinstance(data["cities"], dict):
+            for name, code in data["cities"].items():
+                self.cities[self.normalize_turkish(name)] = str(int(code)) if str(code).isdigit() else str(code)
+
+
+        # Virtual category for universal search
+        if "genel-arama" not in self.categories:
+            self.categories["genel-arama"] = {
+                "key": "genel-arama",
+                "slug": "kelime-ile-arama",
+                "display_name": "🌐 Tüm Sahibinden (Genel Arama)",
+                "profile": "classified",
+                "aliases": ["genel arama", "tum sahibinden", "kelime ile arama", "tum ilanlar", "arama"],
+                "facets": {}
+            }
 
         for cat_key, cat_data in self.categories.items():
             cat_data["key"] = cat_key
@@ -70,10 +120,12 @@ class CategoryResolver:
         return [cat for cat in self.categories.values() if cat.get("profile") == profile_key]
 
     @staticmethod
-    def normalize_turkish(text: str) -> str:
+    def normalize_turkish(text: str | None) -> str:
         """Normalizes Turkish characters to ASCII lowercase safely."""
+        if not text:
+            return ""
         return (
-            text.strip()
+            str(text).strip()
             .replace("İ", "i")
             .replace("I", "i")
             .replace("ı", "i")
@@ -232,23 +284,43 @@ class CategoryResolver:
         return None
 
     def resolve_city_code(self, city_name: str | None) -> str | None:
-        """Converts city name (e.g., 'İstanbul', 'ankara', 'Eskişehir') to Sahibinden city code."""
+        """Converts city name (e.g., 'İstanbul', 'ankara', 'Eskişehir') or plate code to Sahibinden city code."""
         if not city_name:
             return None
         clean = self.normalize_turkish(city_name)
         if clean.isdigit() and 1 <= int(clean) <= 81:
             return str(int(clean))
-        return self.cities.get(clean)
+        if clean in self.cities:
+            return self.cities[clean]
+        for code, p_name in TURKISH_PROVINCES.items():
+            if self.normalize_turkish(p_name) == clean:
+                return code
+        return None
 
     def get_city_name(self, city_code: str | None) -> str | None:
-        """Converts city code (e.g. '34') back to a formatted city name (e.g. 'İstanbul')."""
+        """Converts city code (e.g. '34' or '06') or city name (e.g. 'ankara', 'icel') back to authentic formatted Turkish city name (e.g. 'İstanbul', 'Mersin')."""
         if not city_code:
             return None
-        return self.code_to_city.get(str(city_code).strip())
+        code_str = str(city_code).strip()
+        if code_str.isdigit():
+            code_str = str(int(code_str))
+            return self.code_to_city.get(code_str)
+        # Check if already a formatted/unformatted name or synonym
+        resolved_code = self.resolve_city_code(code_str)
+        if resolved_code:
+            return self.code_to_city.get(resolved_code)
+        return self.code_to_city.get(code_str)
 
     def extract_specs_from_text(self, text: str, category_key: str = "ram-bellek-masaustu") -> dict[str, str]:
         """Extracts recognized facets (like DDR type, capacity, brand, chipset, VRAM) from raw query text."""
         cat_data = self.get_category(category_key)
+        if not cat_data:
+            cat_data = self.infer_category_from_text(text)
+        elif cat_data.get("key") in ("genel-arama", "kelime-ile-arama") or cat_data.get("profile") == "classified":
+            inferred = self.infer_category_from_text(text)
+            if inferred:
+                cat_data = inferred
+
         if not cat_data:
             return {}
 
@@ -300,6 +372,9 @@ class CategoryResolver:
                     if cap_facet_key not in found_facets:
                         for token in tokens:
                             if token.isdigit():
+                                # Do not infer unit if token was already paired with an explicit unit in text
+                                if re.search(rf"\b{token}\s*(?:mb|gb|tb)\b", normalized):
+                                    continue
                                 norm_token = self.normalize_capacity_unit(token, category_key=category_key)
                                 if norm_token and norm_token in facets[cap_facet_key]["options"]:
                                     found_facets[cap_facet_key] = norm_token
@@ -328,76 +403,235 @@ class CategoryResolver:
                     found_facets[facet_name] = opt_label
                     break
 
-        # 5. Regex heuristics for room count, 4x4, CPU socket & cache across all categories
-        if "oda_sayisi" not in found_facets:
-            studyo = re.search(r"\b(studyo|study|1\+0)\b", normalized)
-            oda_m = list(re.finditer(r"\b(\d\+\d)\b", normalized))
-            oda_matches = []
-            if studyo:
-                oda_matches.append((studyo.start(), "1+0 (Stüdyo)"))
-            for m in oda_m:
-                oda_matches.append((m.start(), m.group(1)))
-            if oda_matches:
-                oda_matches.sort(key=lambda x: x[0])
-                found_facets["oda_sayisi"] = oda_matches[0][1]
+        # 5. Regex heuristics scoped by category profile / domain
+        profile = (cat_data.get("profile") if cat_data else "") or ""
+        cat_key = (cat_data.get("key") if cat_data else (category_key or "")).lower()
+        is_property = profile in ("property_home", "property_commercial", "property_misc") or any(k in cat_key for k in ("daire", "konut", "villa", "ev", "emlak", "oda", "gayrimenkul"))
+        is_vehicle = profile in ("vehicle_car", "vehicle_generic", "agri_machine", "industrial_machine") or any(k in cat_key for k in ("arazi", "suv", "pickup", "vasita", "traktor", "otomobil", "kamyonet"))
+        is_pc_hardware = any(k in cat_key for k in ("ram", "bellek", "ssd", "gpu", "ekran-karti", "bilgisayar", "telefon"))
+        is_pc_part = profile in ("desktop_cpu", "laptop_cpu", "desktop_pc", "commerce") or any(k in cat_key for k in ("islemci", "anakart", "cpu", "bilgisayar", "donanim"))
+        is_drivable = profile in ("vehicle_car", "vehicle_generic", "vehicle_motorcycle", "vehicle_marine", "agri_machine") or any(k in cat_key for k in ("vasita", "otomobil", "araba", "motor", "arazi", "suv", "ticari", "karavan", "kamyon", "traktor"))
+        is_cpu = profile in ("desktop_cpu", "laptop_cpu") or any(k in cat_key for k in ("islemci", "cpu"))
+        is_land = profile in ("property_land", "property_commercial", "property_misc") or any(k in cat_key for k in ("arsa", "tarla", "arazi", "parsel", "gayrimenkul", "zeytinlik"))
+        is_job = profile in ("job", "helper", "service") or any(k in cat_key for k in ("is-ilan", "yardimci", "bakici", "is-alani", "hizmet"))
+        is_phone = profile == "phone" or any(k in cat_key for k in ("telefon", "cep", "yenilenmis"))
 
-        if "ceker" not in found_facets:
+        # Contextual domain heuristics for generic or classified categories based on search text
+        if profile == "classified" or cat_key in ("genel-arama", "kelime-ile-arama"):
+            if any(k in normalized for k in ("daire", "konut", "villa", "ev", "emlak", "oda", "kiralik", "satilik")):
+                is_property = True
+            if any(k in normalized for k in ("otomobil", "araba", "vasita", "motor", "suv", "arazi", "traktor", "honda", "civic", "bmw", "mercedes", "renault", "fiat", "volkswagen", "audi", "ford", "opel", "toyota", "hyundai")):
+                is_vehicle = True
+                is_drivable = True
+            if any(k in normalized for k in ("islemci", "cpu", "ryzen", "intel", "anakart", "socket", "lga", "am5", "am4")):
+                is_pc_part = True
+                is_cpu = True
+            if any(k in normalized for k in ("arsa", "tarla", "parsel", "zeytinlik", "imarli")):
+                is_land = True
+            if any(k in normalized for k in ("is ilan", "eleman", "garson", "kurye", "sofor")):
+                is_job = True
+            if any(k in normalized for k in ("telefon", "iphone", "samsung", "xiaomi", "redmi", "pro max")):
+                is_phone = True
+
+        # Property heuristics
+        if is_property:
+            if "oda_sayisi" not in found_facets:
+                studyo = re.search(r"\b(studyo|study|1\+0)\b", normalized)
+                oda_m = list(re.finditer(r"\b(\d\+\d)\b", normalized))
+                oda_matches = []
+                if studyo:
+                    oda_matches.append((studyo.start(), "1+0 (Stüdyo)"))
+                for m in oda_m:
+                    oda_matches.append((m.start(), m.group(1)))
+                if oda_matches:
+                    oda_matches.sort(key=lambda x: x[0])
+                    found_facets["oda_sayisi"] = oda_matches[0][1]
+
+            if "bina_yasi" not in found_facets:
+                if re.search(r"\b(sifir\s*bina|0\s*bina|yeni\s*bina)\b", normalized):
+                    found_facets["bina_yasi"] = "Sıfır Bina"
+                elif re.search(r"\b1\s*[-–]?\s*5\s*yas\b", normalized):
+                    found_facets["bina_yasi"] = "1-5 Yaş"
+                elif re.search(r"\b5\s*[-–]?\s*10\s*yas\b", normalized):
+                    found_facets["bina_yasi"] = "5-10 Yaş"
+
+            if "isitma" not in found_facets:
+                if re.search(r"\b(kombili|kombi|dogalgaz)\b", normalized):
+                    found_facets["isitma"] = "Kombili"
+                elif re.search(r"\byerden\s*isitma\b", normalized):
+                    found_facets["isitma"] = "Yerden Isıtma"
+                elif re.search(r"\bmerkezi(?:\s*isitma)?\b", normalized):
+                    found_facets["isitma"] = "Merkezi Isıtma"
+                elif re.search(r"\bklimali\b", normalized):
+                    found_facets["isitma"] = "Klimalı"
+
+            if "kat" not in found_facets:
+                if re.search(r"\bara\s*kat\b", normalized):
+                    found_facets["kat"] = "Ara Kat"
+                elif re.search(r"\bgiris\s*kat[ıi]?\b", normalized):
+                    found_facets["kat"] = "Giriş Katı"
+                elif re.search(r"\b(en\s*ust\s*kat|son\s*kat)\b", normalized):
+                    found_facets["kat"] = "En Üst Kat"
+                elif re.search(r"\bbahce\s*kat[ıi]?\b", normalized):
+                    found_facets["kat"] = "Bahçe Katı"
+                elif re.search(r"\bcati\s*dubleks\b", normalized):
+                    found_facets["kat"] = "Çatı Dubleks"
+
+            if "esyali" not in found_facets:
+                if re.search(r"\besyali\b", normalized):
+                    found_facets["esyali"] = "Eşyalı"
+                elif re.search(r"\bbos\b", normalized):
+                    found_facets["esyali"] = "Boş"
+
+            if "site_ici" not in found_facets:
+                if re.search(r"\bsite\s*ic(?:i|erisinde)\b", normalized):
+                    found_facets["site_ici"] = "Site İçi"
+
+            if "krediye_uygun" not in found_facets:
+                if re.search(r"\bkrediye\s*uygun\b", normalized):
+                    found_facets["krediye_uygun"] = "Krediye Uygun"
+
+            if "ozellik" not in found_facets:
+                if re.search(r"\bbalkonlu\b", normalized):
+                    found_facets["ozellik"] = "Balkonlu"
+                elif re.search(r"\basansorlu\b", normalized):
+                    found_facets["ozellik"] = "Asansörlü"
+                elif re.search(r"\botoparkli\b", normalized):
+                    found_facets["ozellik"] = "Otoparklı"
+
+        # Vehicle heuristics
+        if is_drivable and not is_property:
+            if "vites" not in found_facets:
+                v_matches = []
+                yari = re.search(r"\byari\s+otomatik\b", normalized)
+                if yari:
+                    v_matches.append((yari.start(), "Yarı Otomatik"))
+                else:
+                    oto = re.search(r"\botomatik\b", normalized)
+                    if oto:
+                        v_matches.append((oto.start(), "Otomatik"))
+                man = re.search(r"\bmanuel\b", normalized)
+                if man:
+                    v_matches.append((man.start(), "Manuel"))
+                if v_matches:
+                    v_matches.sort(key=lambda x: x[0])
+                    found_facets["vites"] = v_matches[0][1]
+
+            if "yakit" not in found_facets:
+                y_patterns = [
+                    (r"\b(benzin\s*&\s*lpg|benzin\s+lpg)\b", "Benzin & LPG"),
+                    (r"\blpg\b", "LPG"),
+                    (r"\bhibrit\b", "Hibrit"),
+                    (r"\belektrik\b", "Elektrik"),
+                    (r"\bdizel\b", "Dizel"),
+                    (r"\bbenzin\b", "Benzin"),
+                ]
+                y_matches = []
+                for pat, val in y_patterns:
+                    m = re.search(pat, normalized)
+                    if m:
+                        y_matches.append((m.start(), val))
+                if y_matches:
+                    y_matches.sort(key=lambda x: x[0])
+                    found_facets["yakit"] = y_matches[0][1]
+
+            if "kasa_tipi" not in found_facets:
+                if re.search(r"\bsedan\b", normalized):
+                    found_facets["kasa_tipi"] = "Sedan"
+                elif re.search(r"\b(hatchback|hb)\b", normalized):
+                    found_facets["kasa_tipi"] = "Hatchback"
+                elif re.search(r"\bsuv\b", normalized):
+                    found_facets["kasa_tipi"] = "SUV"
+                elif re.search(r"\b(station\s*wagon|station)\b", normalized):
+                    found_facets["kasa_tipi"] = "Station Wagon"
+                elif re.search(r"\bcoupe\b", normalized):
+                    found_facets["kasa_tipi"] = "Coupe"
+                elif re.search(r"\bcabrio\b", normalized):
+                    found_facets["kasa_tipi"] = "Cabrio"
+
+            if "hasar" not in found_facets:
+                if re.search(r"\bboyasiz\b", normalized):
+                    found_facets["hasar"] = "Boyasız"
+                elif re.search(r"\bhatasiz\b", normalized):
+                    found_facets["hasar"] = "Hatasız"
+                elif re.search(r"\bdegisensiz\b", normalized):
+                    found_facets["hasar"] = "Değişensiz"
+                elif re.search(r"\btramersiz\b", normalized):
+                    found_facets["hasar"] = "Tramersiz"
+
+        if is_vehicle and not is_pc_hardware and "ceker" not in found_facets:
             if re.search(r"\b4x4\b", normalized) or "cift ceker" in normalized:
                 found_facets["ceker"] = "4x4"
             elif re.search(r"\b4x2\b", normalized) or "tek ceker" in normalized:
                 found_facets["ceker"] = "4x2"
 
-        if "socket" not in found_facets:
+        if is_drivable and not is_property and any(k in cat_key for k in ("motosiklet", "motor", "scooter")):
+            if "motor_hacmi" not in found_facets:
+                cc_m = re.search(r"\b(\d+)\s*cc\b", normalized)
+                if cc_m:
+                    found_facets["motor_hacmi"] = f"{cc_m.group(1)} cc"
+            if "ozellik" not in found_facets and re.search(r"\babs\b", normalized):
+                found_facets["ozellik"] = "ABS"
+
+        if is_pc_part and "socket" not in found_facets:
             socket_m = re.search(r"\b(am5|am4|lga\s*1700|1700\s*intel|lga\s*1200|1200\s*intel|lga\s*1151|1151\s*intel|tr4|strx4)\b", normalized)
             if socket_m:
                 raw_s = socket_m.group(1).upper()
                 found_facets["socket"] = raw_s.replace("LGA ", "LGA").replace(" ", "")
 
-        if "vites" not in found_facets:
-            v_matches = []
-            yari = re.search(r"\byari\s+otomatik\b", normalized)
-            if yari:
-                v_matches.append((yari.start(), "Yarı Otomatik"))
-            else:
-                oto = re.search(r"\botomatik\b", normalized)
-                if oto:
-                    v_matches.append((oto.start(), "Otomatik"))
-            man = re.search(r"\bmanuel\b", normalized)
-            if man:
-                v_matches.append((man.start(), "Manuel"))
-            if v_matches:
-                v_matches.sort(key=lambda x: x[0])
-                found_facets["vites"] = v_matches[0][1]
-
-        if "yakit" not in found_facets:
-            y_patterns = [
-                (r"\b(benzin\s*&\s*lpg|benzin\s+lpg)\b", "Benzin & LPG"),
-                (r"\blpg\b", "LPG"),
-                (r"\bhibrit\b", "Hibrit"),
-                (r"\belektrik\b", "Elektrik"),
-                (r"\bdizel\b", "Dizel"),
-                (r"\bbenzin\b", "Benzin"),
-            ]
-            y_matches = []
-            for pat, val in y_patterns:
-                m = re.search(pat, normalized)
-                if m:
-                    y_matches.append((m.start(), val))
-            if y_matches:
-                y_matches.sort(key=lambda x: x[0])
-                found_facets["yakit"] = y_matches[0][1]
-
-        if "cache" not in found_facets:
+        if is_cpu and "cache" not in found_facets and not any(k in cat_key for k in ("ram", "bellek", "ssd", "harddisk", "sabit-disk")):
             cache_m = re.search(r"\b(16|32|64|96|128)\s*mb\b", normalized)
             if cache_m:
                 found_facets["cache"] = f"{cache_m.group(1)} MB"
 
-        if "imar_durumu" not in found_facets:
+        if is_phone:
+            if "garanti" not in found_facets:
+                if re.search(r"\b(tr\s*garantili|turkiye\s*garantili)\b", normalized):
+                    found_facets["garanti"] = "TR Garantili"
+                elif re.search(r"\b(ithalatci\s*garantili)\b", normalized):
+                    found_facets["garanti"] = "İthalatçı Garantili"
+                elif re.search(r"\bgarantisiz\b", normalized):
+                    found_facets["garanti"] = "Garantisiz"
+                elif re.search(r"\bgarantili\b", normalized):
+                    found_facets["garanti"] = "Garantili"
+
+            if "ram" not in found_facets:
+                ram_m = re.search(r"\b(4|6|8|12|16)\s*gb\s*ram\b", normalized)
+                if ram_m:
+                    found_facets["ram"] = f"{ram_m.group(1)} GB RAM"
+
+            if "kozmetik" not in found_facets:
+                if re.search(r"\bpil\s*%?100\b", normalized):
+                    found_facets["kozmetik"] = "Pil 100"
+                elif re.search(r"\bkozmetik\s*mukemmel\b", normalized):
+                    found_facets["kozmetik"] = "Kozmetik Mükemmel"
+                elif re.search(r"\ba\s*kalite\b", normalized):
+                    found_facets["kozmetik"] = "A Kalite"
+                elif re.search(r"\b(kutulu\s*/?\s*faturali|faturali)\b", normalized):
+                    found_facets["kozmetik"] = "Kutulu / Faturalı"
+                elif re.search(r"\byurt\s*disi\b", normalized):
+                    found_facets["kozmetik"] = "Yurt Dışı"
+
+            if "renk" not in found_facets:
+                color_m = re.search(r"\b(siyah|beyaz|mavi|titanyum|mor|kirmizi|yesil|gold|altin|gumus)\b", normalized)
+                if color_m:
+                    c_key = color_m.group(1)
+                    color_names = {
+                        "siyah": "Siyah", "beyaz": "Beyaz", "mavi": "Mavi", "titanyum": "Titanyum",
+                        "mor": "Mor", "kirmizi": "Kırmızı", "yesil": "Yeşil", "gold": "Gold", "altin": "Gold", "gumus": "Gümüş"
+                    }
+                    found_facets["renk"] = color_names.get(c_key, c_key.title())
+
+        if is_land and "imar_durumu" not in found_facets:
             # Check specific multi-word land types first before generic 'tarla'
             if re.search(r"\b(mustakil\s*parsel)\b", normalized):
                 found_facets["imar_durumu"] = "Müstakil Parsel"
             elif re.search(r"\b(zeytinlik)\b", normalized):
                 found_facets["imar_durumu"] = "Zeytinlik"
+            elif re.search(r"\b(sanayi\s*imarli)\b", normalized):
+                found_facets["imar_durumu"] = "Sanayi İmarlı"
+            elif re.search(r"\b(konut\s*imarli)\b", normalized):
+                found_facets["imar_durumu"] = "Konut İmarlı"
             elif re.search(r"\b(imarli|imar)\b", normalized):
                 found_facets["imar_durumu"] = "İmarlı"
             elif re.search(r"\b(hisseli)\b", normalized):
@@ -405,15 +639,7 @@ class CategoryResolver:
             elif re.search(r"\b(tarla)\b", normalized):
                 found_facets["imar_durumu"] = "Tarla"
 
-        if "durum" not in found_facets:
-            if re.search(r"\b(sifir|sifir\s*kutu|kapali\s*kutu)\b", normalized):
-                found_facets["durum"] = "Sıfır"
-            elif re.search(r"\b(ikinci\s*el|2\.el)\b", normalized):
-                found_facets["durum"] = "İkinci El"
-            elif re.search(r"\ba\s*kalite\b", normalized):
-                found_facets["durum"] = "A Kalite"
-
-        if "calisma_sekli" not in found_facets:
+        if is_job and "calisma_sekli" not in found_facets:
             if re.search(r"\byatili\b", normalized):
                 found_facets["calisma_sekli"] = "Yatılı"
             elif re.search(r"\btam\s*zamanli\b", normalized):
@@ -422,6 +648,41 @@ class CategoryResolver:
                 found_facets["calisma_sekli"] = "Yarı Zamanlı"
             elif re.search(r"\bhome\s*office\b", normalized):
                 found_facets["calisma_sekli"] = "Home Office"
+
+        # General durum, garanti, kimden
+        if "durum" not in found_facets:
+            if is_property and "bina_yasi" in found_facets and found_facets["bina_yasi"] == "Sıfır Bina":
+                pass
+            elif re.search(r"\b(sifir\s*kapali\s*kutu|kapali\s*kutu)\b", normalized):
+                found_facets["durum"] = "Sıfır"
+            elif re.search(r"\b(sifir)\b", normalized) and not (is_property and "sifir bina" in normalized):
+                found_facets["durum"] = "Sıfır"
+            elif re.search(r"\b(ikinci\s*el|2\.el)\b", normalized):
+                found_facets["durum"] = "İkinci El"
+            elif re.search(r"\byenilenmis\b", normalized):
+                found_facets["durum"] = "Yenilenmiş"
+            elif re.search(r"\btray\b", normalized):
+                found_facets["durum"] = "Tray"
+            elif re.search(r"\bkutulu\b", normalized):
+                found_facets["durum"] = "Kutulu"
+            elif re.search(r"\ba\s*kalite\b", normalized):
+                found_facets["durum"] = "A Kalite"
+
+        if "garanti" not in found_facets:
+            if re.search(r"\b(tr\s*garantili|turkiye\s*garantili)\b", normalized):
+                found_facets["garanti"] = "TR Garantili"
+            elif re.search(r"\bgarantili\b", normalized):
+                found_facets["garanti"] = "Garantili"
+
+        if "kimden" not in found_facets:
+            if re.search(r"\bsahibinden\b", normalized):
+                found_facets["kimden"] = "Sahibinden"
+            elif re.search(r"\bgaleriden\b", normalized):
+                found_facets["kimden"] = "Galeriden"
+            elif re.search(r"\byetkili\s*bayi(?:den)?\b", normalized):
+                found_facets["kimden"] = "Yetkili Bayiden"
+            elif re.search(r"\bemlak\s*ofisi(?:nden)?\b", normalized):
+                found_facets["kimden"] = "Emlak Ofisinden"
 
         return found_facets
 
@@ -459,207 +720,504 @@ class CategoryResolver:
         "is-makineleri-sanayi",
     ]
 
+    PROFILE_SPEC_GROUPS: dict[str, dict[str, list[str]]] = {
+        "phone": {
+            "hafiza": ["128 GB", "256 GB", "512 GB", "1 TB", "64 GB"],
+            "garanti": ["TR Garantili", "İthalatçı Garantili", "Garantili", "Garantisiz"],
+            "durum": ["Sıfır", "İkinci El", "Yenilenmiş", "Sıfır Kapalı Kutu"],
+            "ram": ["8 GB RAM", "12 GB RAM", "6 GB RAM", "16 GB RAM", "4 GB RAM"],
+            "kozmetik": ["Pil 100", "A Kalite", "Kozmetik Mükemmel", "Kutulu / Faturalı", "Yurt Dışı"],
+            "renk": ["Siyah", "Beyaz", "Mavi", "Titanyum"],
+        },
+        "vehicle_car": {
+            "vites": ["Otomatik", "Manuel", "Yarı Otomatik"],
+            "yakit": ["Benzin", "Dizel", "Hibrit", "Elektrik", "Benzin & LPG", "LPG"],
+            "kombinasyon": ["Otomatik Benzin", "Otomatik Dizel"],
+            "hasar": ["Boyasız", "Hatasız", "Değişensiz", "Tramersiz"],
+            "kasa_tipi": ["Sedan", "Hatchback", "SUV", "Station Wagon", "Coupe", "Cabrio"],
+            "durum": ["Sıfır", "İkinci El"],
+            "cekis": ["4x4", "4x2"],
+            "kimden": ["Sahibinden", "Galeriden"],
+            "garanti": ["Garantili"],
+        },
+        "property_home": {
+            "oda_sayisi": ["1+1", "2+1", "3+1", "4+1", "5+1", "1+0 (Stüdyo)", "Dubleks", "Villa"],
+            "isitma": ["Kombili", "Yerden Isıtma", "Merkezi Isıtma", "Klimalı"],
+            "kat": ["Ara Kat", "Giriş Katı", "En Üst Kat", "Bahçe Katı", "Çatı Dubleks"],
+            "bina_yasi": ["Sıfır Bina", "1-5 Yaş", "5-10 Yaş"],
+            "esyali": ["Eşyalı", "Boş"],
+            "site_ici": ["Site İçi", "Müstakil"],
+            "krediye_uygun": ["Krediye Uygun"],
+            "ozellik": ["Balkonlu", "Asansörlü", "Otoparklı"],
+            "kimden": ["Sahibinden", "Emlak Ofisinden"],
+        },
+        "property_land": {
+            "imar_durumu": ["İmarlı", "Tarla", "Zeytinlik", "Müstakil Parsel", "Hisseli", "Kat Karşılığı", "Bağ & Bahçe", "Yatırımlık"],
+            "tapu": ["Müstakil Tapulu", "Hisseli Tapulu", "Krediye Uygun"],
+            "kimden": ["Sahibinden", "Emlak Ofisinden"],
+        },
+        "property_commercial": {
+            "isyeri_turu": ["Devren", "Kiralık Dükkan", "Satılık Ofis", "Plaza", "Fabrika", "Depo", "Atölye", "Düz Giriş"],
+            "isitma": ["Kombili", "Klimalı", "Merkezi Isıtma"],
+            "kimden": ["Sahibinden", "Emlak Ofisinden"],
+        },
+        "property_misc": {
+            "tur": ["Komple Bina", "Devre Mülk", "Turistik Tesis", "Butik Otel", "Konut Projesi", "Termal"],
+            "kimden": ["Sahibinden", "Emlak Ofisinden"],
+        },
+        "desktop_cpu": {
+            "socket": ["AM5", "AM4", "LGA1700", "LGA1200", "LGA1151"],
+            "cache": ["32 MB", "64 MB", "96 MB", "128 MB", "16 MB"],
+            "marka": ["AMD", "Intel"],
+            "durum": ["Tray", "Kutulu", "Sıfır", "İkinci El", "Garantili"],
+        },
+        "laptop_cpu": {
+            "seri": ["Intel i7 Mobile", "Intel i5 Mobile", "AMD Ryzen 7", "AMD Ryzen 5", "i9 Mobile", "Ryzen 9 Mobile"],
+            "marka": ["Intel", "AMD"],
+            "durum": ["Sıfır", "İkinci El", "Çıkma"],
+        },
+        "desktop_pc": {
+            "segment": ["Gaming PC", "Hazır Sistem", "İş İstasyonu", "All-in-One"],
+            "cpu": ["i5", "i7", "i9", "Ryzen 5", "Ryzen 7", "Ryzen 9"],
+            "gpu": ["RTX 4060", "RTX 4070", "RTX 4080", "RTX 3060"],
+            "ram": ["16 GB RAM", "32 GB RAM", "64 GB RAM"],
+            "depolama": ["512 GB SSD", "1 TB SSD", "2 TB SSD"],
+            "durum": ["Sıfır", "İkinci El", "Garantili", "Kutulu"],
+        },
+        "vehicle_motorcycle": {
+            "vites": ["Otomatik", "Manuel", "Vitesli"],
+            "tip": ["Scooter", "Naked", "Racing", "Touring", "Enduro", "Chopper"],
+            "motor_hacmi": ["125 cc", "250 cc", "500 cc", "600 cc"],
+            "ozellik": ["ABS", "Çantalı", "Hatasız", "Düşmesi Yok"],
+            "durum": ["Sıfır", "İkinci El"],
+        },
+        "vehicle_generic": {
+            "cekis": ["4x4", "4x2"],
+            "vites": ["Otomatik", "Manuel"],
+            "yakit": ["Dizel", "Benzin"],
+            "tip": ["Karavan", "Panelvan", "Minivan", "Çekme Karavan", "Kamyonet"],
+            "durum": ["Sıfır", "İkinci El"],
+        },
+        "vehicle_marine": {
+            "tur": ["Tekne", "Motoryat", "Dıştan Takma Motor", "Sürat Teknesi", "Kamaralı", "Bot"],
+            "motor": ["15 HP", "50 HP", "100 HP"],
+            "durum": ["Sıfır", "İkinci El", "Römorklu"],
+        },
+        "parts": {
+            "lastik_jant": ["Kış Lastiği", "Yaz Lastiği", "Dört Mevsim", "Çelik Jant", "205/55 R16", "225/45 R17", "Run Flat"],
+            "ekipman": ["Kask", "Egzoz", "Akü", "Orijinal", "Yan Sanayi", "Çıkma", "Sıfır"],
+        },
+        "agri_machine": {
+            "ceker": ["4x4", "4x2", "Çift Çeker", "Tek Çeker"],
+            "donanim": ["Klimalı", "Kabinsiz", "Kabinli", "Levyeli"],
+            "ekipman": ["Balya Makinesi", "Pulluk", "Römork"],
+            "durum": ["Sıfır", "İkinci El", "Saati Az"],
+        },
+        "industrial_machine": {
+            "tur": ["Ekskavatör", "Beko Loder", "Forklift", "Mini Ekskavatör", "Lastikli", "Paletli"],
+            "durum": ["Çalışma Saati Az", "Yengeç Yürüyüşü", "Sıfır", "İkinci El"],
+        },
+        "industrial_generic": {
+            "tur": ["Güneş Paneli", "Jeneratör", "Kompresör", "Trafo", "İnvertör", "Sanayi Tipi"],
+            "voltaj": ["Trifaze", "380V", "220V"],
+            "durum": ["Sıfır", "İkinci El"],
+        },
+        "service": {
+            "hizmet": ["Ev Tadilat", "Evden Eve Nakliyat", "Teknik Servis", "Çilingir", "Boya Badana", "Asansörlü Nakliyat", "Acil", "Garantili İşçilik"],
+        },
+        "lesson": {
+            "seviye": ["İlkokul", "Ortaokul", "Lise", "Üniversite", "LGS Hazırlık", "YKS Hazırlık"],
+            "format": ["Online / Çevrimiçi", "Yüz Yüze", "Birebir", "Grup"],
+        },
+        "job": {
+            "calisma_sekli": ["Tam Zamanlı", "Yarı Zamanlı", "Home Office", "Yatılı", "Dönemsel", "Stajyer", "Freelance"],
+            "deneyim": ["Deneyimli", "Deneyimsiz", "Vasıfsız"],
+        },
+        "animal": {
+            "durum": ["Yavru", "Aşılı", "Çipli", "Safkan", "Karneli"],
+            "aksesuar": ["Akvaryum Seti", "Kafes Dahil"],
+        },
+        "helper": {
+            "calisma_sekli": ["Yatılı", "Tam Zamanlı (Gündüzlü)", "Yarı Zamanlı", "Saatli"],
+            "alan": ["Bebek Bakıcısı", "Hasta Bakımı", "Yaşlı Bakımı", "Ev Temizliği", "Referanslı"],
+        },
+        "commerce": {
+            "durum": ["Sıfır", "İkinci El", "Yenilenmiş", "Sıfır Kapalı Kutu"],
+            "teslimat": ["Param Güvende", "Elden Teslim", "Kargo Dahil"],
+            "guvence": ["Garantili", "TR Garantili", "Kutulu / Faturalı", "A Kalite", "Kozmetik Mükemmel", "Takaslı"],
+        },
+        "commerce_generic": {
+            "durum": ["Sıfır", "İkinci El", "Param Güvende", "Garantili", "Kutulu", "Orijinal", "Koleksiyonluk", "Antika", "Vintage"],
+        },
+        "classified": {
+            "durum": ["Sıfır", "İkinci El", "Param Güvende", "Sahibinden", "Garantili", "Kutulu", "Takaslı"],
+        },
+    }
+
+    CATEGORY_SPEC_GROUPS: dict[str, dict[str, list[str]]] = {
+        "ram": {
+            "kapasite": ["16 GB", "32 GB", "8 GB", "64 GB", "2x 16 GB", "2x 8 GB", "2x 32 GB", "512 MB DDR2"],
+            "tipi": ["DDR4", "DDR5", "DDR3", "SODIMM"],
+            "hiz": ["3200 MHz", "3600 MHz", "6000 MHz", "5600 MHz", "4800 MHz"],
+            "kombinasyon": ["16 GB DDR4", "32 GB DDR5", "16 GB DDR5", "8 GB DDR4", "32 GB DDR4"],
+            "marka": ["Corsair", "Kingston", "G.Skill", "Crucial"],
+            "durum": ["Sıfır", "İkinci El", "Garantili"],
+        },
+        "ekran-karti": {
+            "bellek": ["8 GB", "12 GB", "16 GB", "24 GB", "6 GB"],
+            "chipset": ["Nvidia", "AMD"],
+            "bellek_tipi": ["GDDR6", "GDDR6X"],
+            "durum": ["Sıfır", "İkinci El", "Kutulu", "Garantili"],
+        },
+        "ssd": {
+            "kapasite": ["500 GB", "1 TB", "2 TB", "4 TB", "250 GB", "120 GB"],
+            "tip": ["NVMe M.2", "SATA SSD", "Gen4 NVMe"],
+            "durum": ["Sıfır", "İkinci El", "Garantili", "Kutulu"],
+        },
+        "dizustu": {
+            "gpu": ["RTX 4060", "RTX 4070", "RTX 4050", "RTX 3060", "M1", "M2", "M3"],
+            "cpu": ["i7", "i5", "Ryzen 7", "Ryzen 5"],
+            "ram": ["16 GB RAM", "32 GB RAM"],
+            "depolama": ["1 TB SSD", "512 GB SSD"],
+            "ekran": ["144 Hz", "165 Hz", "OLED"],
+            "durum": ["Sıfır", "İkinci El", "Garantili", "Kutulu"],
+        },
+        "anakart": {
+            "socket": ["AM5", "AM4", "LGA1700", "LGA1200", "B650", "B550", "Z790", "Z690"],
+            "ram": ["DDR5", "DDR4"],
+            "ozellik": ["Wi-Fi", "ATX", "Micro-ATX", "Mini-ITX"],
+            "durum": ["Sıfır", "İkinci El", "Kutulu", "Garantili"],
+        },
+        "monitor": {
+            "hz": ["144 Hz", "165 Hz", "240 Hz"],
+            "boyut": ["27 inç", "24 inç", "32 inç"],
+            "cozunurluk": ["2K (1440p)", "4K (UHD)", "IPS", "OLED", "Curved", "1ms", "Pivot", "G-Sync"],
+        },
+        "kasa": {
+            "guc": ["750W", "850W", "650W", "1000W", "80+ Gold", "80+ Bronze"],
+            "tip": ["Full Modüler", "Modüler", "Mesh", "RGB", "Temperli Cam", "ATX"],
+        },
+        "akilli-saat": {
+            "marka": ["Apple Watch", "Galaxy Watch", "Ultra"],
+            "boyut": ["44 mm", "40 mm", "45 mm", "49 mm"],
+            "ozellik": ["Hücresel", "GPS", "Pil 100", "Kutulu", "Garantili"],
+        },
+        "kol-saati": {
+            "mekanizma": ["Otomatik", "Kinetik", "Quartz (Pilli)", "Kurmalı"],
+            "malzeme": ["Çelik Kasa", "Deri Kordon", "Safir Cam", "Kronometre", "Kutulu", "Orijinal"],
+        },
+        "televizyon": {
+            "ekran_tipi": ["OLED", "QLED", "4K Ultra HD", "Smart TV"],
+            "boyut": ["55 inç", "65 inç", "50 inç", "75 inç", "120 Hz"],
+            "sistem": ["Google TV", "WebOS"],
+        },
+        "beyaz-esya": {
+            "tip": ["Buzdolabı", "Çamaşır", "Bulaşık", "Solo", "Ankastre"],
+            "teknoloji": ["No-Frost", "Inverter", "A+++", "9 kg", "10 kg", "1200 Devir", "1400 Devir"],
+        },
+        "isitma-sogutma": {
+            "tip": ["Klima", "Kombi", "Inverter", "12000 BTU", "18000 BTU", "24000 BTU", "Tam Yoğuşmalı", "A++", "Doğalgaz", "Mobil Klima"],
+        },
+        "fotograf": {
+            "tip": ["Aynasız", "DSLR", "Body", "Kit Lens", "Full Frame", "4K Video", "Shutter Az", "Garantili", "Kutulu", "Tripod"],
+        },
+        "dron": {
+            "paket": ["Fly More Combo", "4K Kamera", "Gimbal", "Yedek Batarya", "GPS", "Engel Sensörü", "Kayıtlı", "Kutulu"],
+        },
+        "muzik": {
+            "enstruman": ["Elektro Gitar", "Akustik Gitar", "Klasik Gitar", "Piyano", "Dijital Piyano", "Bağlama", "Bateri", "Amfi", "Kılıf Dahil"],
+        },
+        "spor": {
+            "ekipman": ["Kondisyon Bisikleti", "Koşu Bandı", "Dambıl Seti", "Kamp Çadırı", "Uyku Tulumu", "Olta Takımı", "Su Geçirmez"],
+        },
+        "bisiklet": {
+            "jant": ["29 Jant", "28 Jant", "27.5 Jant", "26 Jant"],
+            "tip": ["Dağ Bisikleti", "Yol / Yarış", "Elektrikli", "Katlanır", "Hidrolik Disk"],
+        },
+        "konsol": {
+            "cihaz": ["PlayStation 5", "Slim", "Digital Edition", "Diskli", "Xbox Series X", "Xbox Series S", "Nintendo Switch OLED", "Çift Kol"],
+        },
+        "giyim": {
+            "durum": ["Sıfır", "Etiketli", "Kutulu", "Orijinal"],
+            "tur": ["Bebek Arabası", "Oto Koltuğu", "Garantili", "Mama Sandalyesi"],
+        },
+        "antika": {
+            "nitelik": ["Koleksiyonluk", "Antika", "Vintage", "Nadir", "Çil", "Sertifikalı", "Orijinal", "Kutulu"],
+        },
+    }
+
+    def _get_spec_groups_for_category(self, cat_key: str, profile: str) -> dict[str, list[str]]:
+        """Resolves rich structured facet groups for any category key and profile."""
+        cat_low = (cat_key or "").lower()
+
+        # 1. Authentic schema profile match first (protects specialized domains from substring bleed)
+        if profile and profile in self.PROFILE_SPEC_GROUPS and profile not in ("commerce", "commerce_generic", "classified"):
+            return self.PROFILE_SPEC_GROUPS[profile]
+
+        # 2. Specialized subcategories for commerce/hardware/appliances
+        if any(k in cat_low for k in ("ram", "bellek")):
+            return self.CATEGORY_SPEC_GROUPS["ram"]
+        if any(k in cat_low for k in ("ekran-karti", "gpu")):
+            return self.CATEGORY_SPEC_GROUPS["ekran-karti"]
+        if any(k in cat_low for k in ("ssd", "sabit-disk", "harddisk", "surucu")):
+            return self.CATEGORY_SPEC_GROUPS["ssd"]
+        if any(k in cat_low for k in ("dizustu", "laptop", "notebook")) and "islemci" not in cat_low:
+            return self.CATEGORY_SPEC_GROUPS["dizustu"]
+        if "anakart" in cat_low:
+            return self.CATEGORY_SPEC_GROUPS["anakart"]
+        if "monitor" in cat_low:
+            return self.CATEGORY_SPEC_GROUPS["monitor"]
+        if any(k in cat_low for k in ("kasa", "guc-kaynagi", "psu")):
+            return self.CATEGORY_SPEC_GROUPS["kasa"]
+        if "akilli-saat" in cat_low:
+            return self.CATEGORY_SPEC_GROUPS["akilli-saat"]
+        if any(k in cat_low for k in ("kol-saati", "saat")):
+            return self.CATEGORY_SPEC_GROUPS["kol-saati"]
+        if any(k in cat_low for k in ("televizyon", "tv")):
+            return self.CATEGORY_SPEC_GROUPS["televizyon"]
+        if any(k in cat_low for k in ("beyaz-esya", "camasir", "bulasik", "buzdolabi")):
+            return self.CATEGORY_SPEC_GROUPS["beyaz-esya"]
+        if any(k in cat_low for k in ("isitma", "sogutma", "klima", "kombi")):
+            return self.CATEGORY_SPEC_GROUPS["isitma-sogutma"]
+        if any(k in cat_low for k in ("fotograf", "kamera")):
+            return self.CATEGORY_SPEC_GROUPS["fotograf"]
+        if any(k in cat_low for k in ("dron", "multikopter")):
+            return self.CATEGORY_SPEC_GROUPS["dron"]
+        if any(k in cat_low for k in ("muzik", "enstruman", "gitar", "piyano")):
+            return self.CATEGORY_SPEC_GROUPS["muzik"]
+        if any(k in cat_low for k in ("spor", "kamp", "balik")):
+            return self.CATEGORY_SPEC_GROUPS["spor"]
+        if any(k in cat_low for k in ("giyim", "anne-bebek", "kozmetik", "aksesuar")):
+            return self.CATEGORY_SPEC_GROUPS["giyim"]
+        if any(k in cat_low for k in ("antika", "koleksiyon", "hobi", "oyuncak")):
+            return self.CATEGORY_SPEC_GROUPS["antika"]
+        if "bisiklet" in cat_low:
+            return self.CATEGORY_SPEC_GROUPS["bisiklet"]
+        if "konsol" in cat_low:
+            return self.CATEGORY_SPEC_GROUPS["konsol"]
+
+        # 3. Fallback to profile or classified
+        if profile and profile in self.PROFILE_SPEC_GROUPS:
+            return self.PROFILE_SPEC_GROUPS[profile]
+
+        # 4. Keyword heuristics with strict word boundaries for unmapped/generic queries
+        if re.search(r"\b(islemci|cpu)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["desktop_cpu"]
+        if re.search(r"\b(arsa|tarla)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["property_land"]
+        if re.search(r"\b(isyeri|is-yeri|dukkan|ofis)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["property_commercial"]
+        if re.search(r"\b(daire|konut|villa|ev)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["property_home"]
+        if re.search(r"\b(motosiklet|scooter|motor)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["vehicle_motorcycle"]
+        if re.search(r"\b(deniz|tekne|motoryat)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["vehicle_marine"]
+        if re.search(r"\b(otomobil|araba|arazi|suv)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["vehicle_car"]
+        if re.search(r"\b(vasita|karavan|panelvan|minivan|ticari)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["vehicle_generic"]
+        if re.search(r"\b(jant|lastik|parca|ekipman)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["parts"]
+        if re.search(r"\b(telefon|cep)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["phone"]
+        if re.search(r"\b(traktor|tarim)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["agri_machine"]
+        if re.search(r"\b(is-makine|ekskavator|forklift)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["industrial_machine"]
+        if re.search(r"\b(sanayi|enerji|jenerator)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["industrial_generic"]
+        if re.search(r"\b(hizmet|usta|tadilat|servis)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["service"]
+        if re.search(r"\b(ders|ogretmen)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["lesson"]
+        if re.search(r"\b(is-ilan|eleman)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["job"]
+        if re.search(r"\b(hayvan|pet)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["animal"]
+        if re.search(r"\b(yardimci|bakici)\b", cat_low):
+            return self.PROFILE_SPEC_GROUPS["helper"]
+
+        return self.PROFILE_SPEC_GROUPS["classified"]
+
     def get_spec_suggestions(self, category_key: str | None, current: str = "") -> list[str]:
-        """Provides category-aware spec suggestions for Discord autocomplete on /alarm-hizli ozellik across all 24 schema profiles."""
+        """Provides category-aware spec suggestions for Discord autocomplete on /alarm-hizli ozellik across all 24 schema profiles.
+
+        Supports multi-spec chaining: when users pick or type an option (e.g. '128 GB'), suggests
+        remaining compatible specs (e.g. '128 GB, TR Garantili', '128 GB, Sıfır') without offering
+        conflicting values from the same facet group. Supports continuous chaining across 2, 3, 4+ specs.
+        """
         cat_data = self.get_category(category_key) if category_key else None
         cat_key = (cat_data["key"] if cat_data else (category_key or "")).lower()
         profile = (cat_data.get("profile") if cat_data else "") or ""
+        spec_groups = self._get_spec_groups_for_category(cat_key, profile)
+
+        all_specs: list[str] = []
+        spec_to_group: dict[str, str] = {}
+        for g_name, specs in spec_groups.items():
+            for s in specs:
+                if s not in all_specs:
+                    all_specs.append(s)
+                    spec_to_group[self.normalize_turkish(s)] = g_name
+
+        raw_cur = (current or "").strip()
         norm_cur = self.normalize_turkish(current) if current else ""
 
-        suggestions = []
-        # Specific subcategory components first
-        if any(k in cat_key for k in ("ram", "bellek")):
-            suggestions = [
-                "16 GB DDR4", "32 GB DDR5", "16 GB DDR5", "8 GB DDR4", "32 GB DDR4",
-                "2x 16 GB", "2x 8 GB", "DDR4", "DDR5", "512 MB DDR2", "SODIMM"
-            ]
-        elif any(k in cat_key for k in ("ekran-karti", "gpu")):
-            suggestions = [
-                "8 GB", "12 GB", "16 GB", "24 GB", "6 GB", "Nvidia", "AMD", "GDDR6", "GDDR6X"
-            ]
-        elif any(k in cat_key for k in ("ssd", "sabit-disk", "harddisk", "surucu")):
-            suggestions = [
-                "500 GB", "1 TB", "2 TB", "4 TB", "250 GB", "120 GB", "NVMe M.2", "SATA SSD", "Gen4 NVMe"
-            ]
-        elif any(k in cat_key for k in ("dizustu", "laptop", "notebook")) and "islemci" not in cat_key:
-            suggestions = [
-                "RTX 4060", "RTX 4070", "RTX 4050", "RTX 3060", "i7", "i5", "Ryzen 7", "Ryzen 5",
-                "16 GB RAM", "32 GB RAM", "1 TB SSD", "512 GB SSD", "144 Hz", "165 Hz", "M1", "M2", "M3", "OLED"
-            ]
-        elif "anakart" in cat_key:
-            suggestions = [
-                "AM5", "AM4", "LGA1700", "LGA1200", "B650", "B550", "Z790", "Z690",
-                "DDR5", "DDR4", "Wi-Fi", "ATX", "Micro-ATX", "Mini-ITX"
-            ]
-        elif "monitor" in cat_key:
-            suggestions = [
-                "144 Hz", "165 Hz", "240 Hz", "27 inç", "24 inç", "32 inç", "2K (1440p)",
-                "4K (UHD)", "IPS", "OLED", "Curved", "1ms", "Pivot", "G-Sync"
-            ]
-        elif any(k in cat_key for k in ("kasa", "guc-kaynagi", "psu")):
-            suggestions = [
-                "750W", "850W", "650W", "1000W", "80+ Gold", "80+ Bronze", "Modüler", "Full Modüler", "Mesh", "RGB", "Temperli Cam", "ATX"
-            ]
-        elif "akilli-saat" in cat_key:
-            suggestions = [
-                "Apple Watch", "Galaxy Watch", "Ultra", "44 mm", "40 mm", "45 mm", "49 mm", "Hücresel", "GPS", "Kutulu", "Pil 100", "Garantili"
-            ]
-        elif any(k in cat_key for k in ("kol-saati", "saat")):
-            suggestions = [
-                "Otomatik", "Kinetik", "Quartz (Pilli)", "Kurmalı", "Çelik Kasa", "Deri Kordon", "Safir Cam", "Kronometre", "Kutulu", "Orijinal"
-            ]
-        elif any(k in cat_key for k in ("televizyon", "tv")):
-            suggestions = [
-                "OLED", "QLED", "4K Ultra HD", "Smart TV", "55 inç", "65 inç", "50 inç", "75 inç", "120 Hz", "Google TV", "WebOS"
-            ]
-        elif any(k in cat_key for k in ("beyaz-esya", "camasir", "bulasik", "buzdolabi")):
-            suggestions = [
-                "No-Frost", "Inverter", "A+++", "9 kg", "10 kg", "1200 Devir", "1400 Devir", "Solo", "Ankastre", "Buzdolabı", "Çamaşır", "Bulaşık"
-            ]
-        elif any(k in cat_key for k in ("isitma", "sogutma", "klima", "kombi")):
-            suggestions = [
-                "Klima", "Kombi", "Inverter", "12000 BTU", "18000 BTU", "24000 BTU", "Tam Yoğuşmalı", "A++", "Doğalgaz", "Mobil Klima"
-            ]
-        elif any(k in cat_key for k in ("fotograf", "kamera")):
-            suggestions = [
-                "Aynasız", "DSLR", "Body", "Kit Lens", "Full Frame", "4K Video", "Shutter Az", "Garantili", "Kutulu", "Tripod"
-            ]
-        elif any(k in cat_key for k in ("dron", "multikopter")):
-            suggestions = [
-                "Fly More Combo", "4K Kamera", "Gimbal", "Yedek Batarya", "GPS", "Engel Sensörü", "Kayıtlı", "Kutulu"
-            ]
-        elif any(k in cat_key for k in ("muzik", "enstruman", "gitar", "piyano")):
-            suggestions = [
-                "Elektro Gitar", "Akustik Gitar", "Klasik Gitar", "Piyano", "Dijital Piyano", "Bağlama", "Bateri", "Amfi", "Kılıf Dahil"
-            ]
-        elif any(k in cat_key for k in ("spor", "kamp", "balik")):
-            suggestions = [
-                "Kondisyon Bisikleti", "Koşu Bandı", "Dambıl Seti", "Kamp Çadırı", "Uyku Tulumu", "Olta Takımı", "Su Geçirmez"
-            ]
-        elif any(k in cat_key for k in ("giyim", "anne-bebek", "kozmetik", "aksesuar")):
-            suggestions = [
-                "Sıfır", "Etiketli", "Kutulu", "Orijinal", "Bebek Arabası", "Oto Koltuğu", "Garantili", "Mama Sandalyesi"
-            ]
-        elif any(k in cat_key for k in ("antika", "koleksiyon", "hobi", "oyuncak")):
-            suggestions = [
-                "Koleksiyonluk", "Antika", "Vintage", "Nadir", "Çil", "Sertifikalı", "Orijinal", "Kutulu"
-            ]
-        elif "bisiklet" in cat_key:
-            suggestions = [
-                "29 Jant", "28 Jant", "27.5 Jant", "26 Jant", "Dağ Bisikleti", "Yol / Yarış", "Elektrikli", "Katlanır", "Hidrolik Disk"
-            ]
-        elif "konsol" in cat_key:
-            suggestions = [
-                "PlayStation 5", "Slim", "Digital Edition", "Diskli", "Xbox Series X", "Xbox Series S", "Nintendo Switch OLED", "Çift Kol"
-            ]
-        # Profile-driven checks (most specific first)
-        elif profile == "desktop_cpu" or ("islemci" in cat_key and "dizustu" not in cat_key and "laptop" not in cat_key):
-            suggestions = [
-                "AM5", "AM4", "LGA1700", "LGA1200", "LGA1151",
-                "32 MB", "64 MB", "96 MB", "128 MB", "AMD", "Intel", "Tray", "Kutulu"
-            ]
-        elif profile == "laptop_cpu" or ("islemci" in cat_key and any(k in cat_key for k in ("dizustu", "laptop", "notebook"))):
-            suggestions = [
-                "Intel i7 Mobile", "Intel i5 Mobile", "AMD Ryzen 7", "AMD Ryzen 5",
-                "i9 Mobile", "Ryzen 9 Mobile", "Intel", "AMD"
-            ]
-        elif profile == "property_land" or any(k in cat_key for k in ("arsa", "tarla")):
-            suggestions = [
-                "İmarlı", "Tarla", "Zeytinlik", "Müstakil Parsel", "Hisseli", "Kat Karşılığı", "Bağ & Bahçe", "Yatırımlık"
-            ]
-        elif profile == "property_commercial" or any(k in cat_key for k in ("isyeri", "is-yeri")):
-            suggestions = [
-                "Devren", "Kiralık Dükkan", "Satılık Ofis", "Plaza", "Fabrika", "Depo", "Atölye", "Düz Giriş"
-            ]
-        elif profile == "property_misc":
-            suggestions = [
-                "Komple Bina", "Devre Mülk", "Turistik Tesis", "Butik Otel", "Konut Projesi", "Termal"
-            ]
-        elif profile == "property_home" or any(k in cat_key for k in ("daire", "konut", "villa", "ev")):
-            suggestions = [
-                "1+1", "2+1", "3+1", "4+1", "5+1", "1+0 (Stüdyo)", "Dubleks", "Kombili", "Sıfır Bina", "Eşyalı", "Site İçi"
-            ]
-        elif profile == "vehicle_motorcycle" or any(k in cat_key for k in ("motosiklet", "scooter", "motor")):
-            suggestions = [
-                "Otomatik", "Manuel", "Vitesli", "Scooter", "125 cc", "250 cc", "500 cc", "600 cc", "ABS"
-            ]
-        elif profile == "vehicle_marine" or "deniz" in cat_key:
-            suggestions = [
-                "Tekne", "Motoryat", "Dıştan Takma Motor", "Sürat Teknesi", "15 HP", "50 HP", "Kamaralı", "Bot"
-            ]
-        elif profile == "vehicle_car" or any(k in cat_key for k in ("otomobil", "arazi", "suv")):
-            suggestions = [
-                "Otomatik", "Manuel", "Otomatik Benzin", "Otomatik Dizel", "Benzin", "Dizel",
-                "Hibrit", "Elektrik", "Yarı Otomatik", "Boyasız", "Hatasız"
-            ]
-        elif profile == "vehicle_generic" or any(k in cat_key for k in ("vasita", "karavan", "panelvan", "minivan", "ticari")):
-            suggestions = [
-                "4x4", "4x2", "Otomatik", "Manuel", "Dizel", "Benzin", "Karavan", "Panelvan", "Minivan", "Çekme Karavan"
-            ]
-        elif profile == "parts" or any(k in cat_key for k in ("jant", "lastik", "parca", "ekipman")):
-            suggestions = [
-                "Kış Lastiği", "Yaz Lastiği", "Dört Mevsim", "Çelik Jant", "205/55 R16", "225/45 R17", "Run Flat", "Kask", "Egzoz"
-            ]
-        elif profile == "desktop_pc":
-            suggestions = [
-                "Gaming PC", "Hazır Sistem", "i5", "i7", "Ryzen 5", "Ryzen 7", "RTX 4060", "RTX 4070", "16 GB RAM", "32 GB RAM", "1 TB SSD"
-            ]
-        elif profile == "phone" or any(k in cat_key for k in ("telefon", "cep", "yenilenmis")):
-            suggestions = [
-                "128 GB", "256 GB", "512 GB", "1 TB", "64 GB", "A Kalite", "Kozmetik Mükemmel", "Pil 100", "Yurt Dışı", "TR Garantili"
-            ]
-        elif profile == "agri_machine" or any(k in cat_key for k in ("traktor", "tarim")):
-            suggestions = [
-                "4x4", "4x2", "Çift Çeker", "Tek Çeker", "Klimalı", "Kabinsiz", "Levyeli", "Balya Makinesi", "Pulluk"
-            ]
-        elif profile == "industrial_machine" or "is-makine" in cat_key:
-            suggestions = [
-                "Ekskavatör", "Beko Loder", "Forklift", "Çalışma Saati Az", "Yengeç Yürüyüşü", "Lastikli", "Paletli"
-            ]
-        elif profile == "industrial_generic" or any(k in cat_key for k in ("sanayi", "enerji", "elektrik")):
-            suggestions = [
-                "Güneş Paneli", "Jeneratör", "Kompresör", "Trafo", "Invertör", "Sanayi Tipi", "Trifaze", "380V", "220V"
-            ]
-        elif profile == "service" or any(k in cat_key for k in ("hizmet", "usta", "tadilat", "servis")):
-            suggestions = [
-                "Ev Tadilat", "Evden Eve Nakliyat", "Teknik Servis", "Çilingir", "Boya Badana", "Asansörlü Nakliyat", "Acil"
-            ]
-        elif profile == "lesson" or any(k in cat_key for k in ("ders", "ogretmen")):
-            suggestions = [
-                "İlkokul", "Ortaokul", "Lise", "Üniversite", "Online / Çevrimiçi", "Yüz Yüze", "LGS Hazırlık", "YKS Hazırlık"
-            ]
-        elif profile == "job" or any(k in cat_key for k in ("is-ilan", "is-alani")):
-            suggestions = [
-                "Tam Zamanlı", "Yarı Zamanlı", "Freelance", "Dönemsel", "Stajyer", "Home Office", "Deneyimli", "Deneyimsiz"
-            ]
-        elif profile == "animal" or any(k in cat_key for k in ("hayvan", "pet")):
-            suggestions = [
-                "Yavru", "Aşılı", "Çipli", "Safkan", "Akvaryum Seti", "Kafes Dahil"
-            ]
-        elif profile == "helper" or any(k in cat_key for k in ("yardimci", "bakici")):
-            suggestions = [
-                "Yatılı", "Tam Zamanlı (Gündüzlü)", "Yarı Zamanlı", "Saatli", "Bebek Bakıcısı", "Hasta Bakımı", "Ev Temizliği"
-            ]
-        elif profile == "commerce":
-            suggestions = [
-                "Sıfır", "İkinci El", "Param Güvende", "Garantili", "Kutulu / Faturalı", "A Kalite", "Kozmetik Mükemmel", "Takaslı"
-            ]
-        elif profile == "commerce_generic":
-            suggestions = [
-                "Sıfır", "İkinci El", "Param Güvende", "Garantili", "Kutulu", "Orijinal", "Koleksiyonluk", "Antika", "Vintage"
-            ]
+        if not raw_cur:
+            return all_specs[:25]
+
+        canon_spec_map = {self.normalize_turkish(s): s for s in all_specs}
+
+        # Multi-spec chaining token parsing
+        if "," in current:
+            raw_parts = [p.strip() for p in current.split(",") if p.strip()]
+            if current.rstrip().endswith(","):
+                chosen_tokens = raw_parts
+                active_query = ""
+            elif not raw_parts:
+                chosen_tokens = []
+                active_query = ""
+            else:
+                last_norm = self.normalize_turkish(raw_parts[-1])
+                if last_norm in canon_spec_map:
+                    # Last token is already a full, valid spec choice!
+                    chosen_tokens = raw_parts
+                    active_query = ""
+                else:
+                    chosen_tokens = raw_parts[:-1]
+                    active_query = raw_parts[-1]
         else:
-            suggestions = [
-                "Sıfır", "İkinci El", "Param Güvende", "Sahibinden", "Garantili", "Kutulu", "Takaslı"
+            if norm_cur in canon_spec_map:
+                chosen_tokens = [canon_spec_map[norm_cur]]
+                active_query = ""
+            else:
+                # Check greedy matching for space-separated specs (e.g. '128 GB Sıfır' or '128 GB sif')
+                sorted_specs = sorted(all_specs, key=lambda s: len(self.normalize_turkish(s)), reverse=True)
+                rem = norm_cur
+                extracted: list[str] = []
+                while rem:
+                    rem = rem.strip()
+                    matched = False
+                    for s in sorted_specs:
+                        s_norm = self.normalize_turkish(s)
+                        if rem == s_norm:
+                            extracted.append(s)
+                            rem = ""
+                            matched = True
+                            break
+                        elif rem.startswith(s_norm + " "):
+                            extracted.append(s)
+                            rem = rem[len(s_norm) + 1:].strip()
+                            matched = True
+                            break
+                    if not matched:
+                        break
+
+                if extracted:
+                    chosen_tokens = extracted
+                    active_query = rem
+                else:
+                    chosen_tokens = []
+                    active_query = raw_cur
+
+        used_groups: set[str] = set()
+        canonical_chosen: list[str] = []
+        for token in chosen_tokens:
+            norm_tok = self.normalize_turkish(token)
+            found_spec = canon_spec_map.get(norm_tok)
+            canon = found_spec or token
+            canonical_chosen.append(canon)
+            canon_norm = self.normalize_turkish(canon)
+            if canon_norm in spec_to_group:
+                used_groups.add(spec_to_group[canon_norm])
+            else:
+                for norm_s, g in spec_to_group.items():
+                    if norm_tok in norm_s or norm_s in norm_tok:
+                        used_groups.add(g)
+                        break
+
+            # Mark constituent facet groups as used if a compound token was chosen
+            for g_name, g_specs in spec_groups.items():
+                if g_name == "kombinasyon":
+                    continue
+                for gs in g_specs:
+                    gs_norm = self.normalize_turkish(gs)
+                    if len(gs_norm) >= 2 and re.search(rf"(?:^|\b){re.escape(gs_norm)}(?:\b|$)", norm_tok):
+                        used_groups.add(g_name)
+                        break
+
+        # When chaining is active (one or more tokens chosen), suppress redundant compound combinations
+        if canonical_chosen:
+            used_groups.add("kombinasyon")
+
+        # Disallow options from already chosen facet groups
+        compatible_specs = [
+            s for g_name, specs in spec_groups.items()
+            if g_name not in used_groups
+            for s in specs
+            if self.normalize_turkish(s) not in [self.normalize_turkish(c) for c in canonical_chosen]
+        ]
+
+        suggestions: list[str] = []
+        prefix = ", ".join(canonical_chosen)
+        norm_active = self.normalize_turkish(active_query)
+
+        if canonical_chosen:
+            if not active_query:
+                if prefix and prefix not in suggestions:
+                    suggestions.append(prefix[:100])
+                for comp in compatible_specs:
+                    chained = f"{prefix}, {comp}"
+                    if len(chained) <= 100 and chained not in suggestions:
+                        suggestions.append(chained)
+                    if len(suggestions) >= 25:
+                        break
+            else:
+                filtered_comp = [s for s in compatible_specs if norm_active in self.normalize_turkish(s)]
+                for comp in filtered_comp:
+                    chained = f"{prefix}, {comp}"
+                    if len(chained) <= 100 and chained not in suggestions:
+                        suggestions.append(chained)
+                    if len(suggestions) >= 25:
+                        break
+
+                if not suggestions:
+                    fallback_comp = [s for s in all_specs if norm_active in self.normalize_turkish(s) and s not in canonical_chosen]
+                    for comp in fallback_comp:
+                        chained = f"{prefix}, {comp}"
+                        if len(chained) <= 100 and chained not in suggestions:
+                            suggestions.append(chained)
+                        if len(suggestions) >= 25:
+                            break
+
+                if not suggestions:
+                    suggestions = [current[:100]]
+        else:
+            matching_specs = [s for s in all_specs if norm_active in self.normalize_turkish(s)]
+            if not matching_specs:
+                return [current[:100]]
+
+            for s in matching_specs:
+                if s not in suggestions:
+                    suggestions.append(s[:100])
+                if len(suggestions) >= 25:
+                    break
+
+            top_match = matching_specs[0]
+            top_group = spec_to_group.get(self.normalize_turkish(top_match))
+            top_comp = [
+                comp for g_name, specs in spec_groups.items()
+                if g_name != top_group
+                for comp in specs
             ]
+            for comp in top_comp:
+                chained = f"{top_match}, {comp}"
+                if len(chained) <= 100 and chained not in suggestions:
+                    suggestions.append(chained)
+                if len(suggestions) >= 25:
+                    break
 
-        if not norm_cur:
-            return suggestions[:25]
-
-        filtered = [s for s in suggestions if norm_cur in self.normalize_turkish(s)]
-        if not filtered:
-            return [current[:100]]
-        return filtered[:25]
+        return suggestions[:25]
 
     def _format_choice_label(self, cat_key: str, cat_data: dict[str, Any]) -> str:
         display = cat_data.get("display_name", cat_key)

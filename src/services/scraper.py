@@ -183,11 +183,35 @@ class StealthScraper:
     async def _wait_for_challenge_and_table(self, page):
         """Waits for Cloudflare checkLoading interstitial and searchResultsTable."""
         # Turnstile managed challenge resolution
-        start_time = asyncio.get_event_loop().time()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        start_time = loop.time()
         clicked = False
 
-        while "checkLoading" in page.url and (asyncio.get_event_loop().time() - start_time) < 25:
-            elapsed = asyncio.get_event_loop().time() - start_time
+        def _is_challenge_active():
+            if "checkLoading" in page.url:
+                return True
+            for frame in page.frames:
+                f_url = frame.url.lower()
+                if "cloudflare" in f_url or "challenges" in f_url:
+                    return True
+            return False
+
+        async def _is_table_ready() -> bool:
+            try:
+                el = await page.query_selector("tr.searchResultsItem, table#searchResultsTable, div.noResult, div.searchResultsRight")
+                return el is not None
+            except Exception:
+                return False
+
+        while (loop.time() - start_time) < 25:
+            if not _is_challenge_active():
+                break
+            if await _is_table_ready():
+                break
+            elapsed = loop.time() - start_time
             # After 4s of natural PoW computation, if still stuck, attempt gentle single click on Turnstile widget
             if elapsed > 4 and not clicked:
                 for frame in page.frames:
@@ -216,6 +240,13 @@ class StealthScraper:
             for attempt in range(2):
                 try:
                     context = await self._init_context()
+                    # Clean up any extraneous popup pages to prevent memory leaks in 24/7 run
+                    if len(context.pages) > 1:
+                        for extra_page in context.pages[1:]:
+                            try:
+                                await extra_page.close()
+                            except Exception:
+                                pass
                     page = context.pages[0] if context.pages else await context.new_page()
 
                     # Anti-bot jitter

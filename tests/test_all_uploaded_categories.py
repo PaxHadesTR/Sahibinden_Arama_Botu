@@ -66,8 +66,14 @@ class MockInteraction:
 
 @pytest.fixture
 def uploaded_data():
-    with open(UPLOADED_JSON_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    if UPLOADED_JSON_PATH.exists():
+        with open(UPLOADED_JSON_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    # Self-contained fallback when run in CI or Docker without local Gemini brain path
+    with open(CATALOG_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    flat = [{"id": v["node_id"], "name": v["display_name"]} for v in data.get("categories", {}).values() if "node_id" in v]
+    return {"flat": flat, "category_tree": data.get("category_tree", [])}
 
 
 @pytest.fixture

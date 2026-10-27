@@ -21,6 +21,7 @@ class Database:
             await db.execute("PRAGMA journal_mode=WAL;")
             await db.execute("PRAGMA synchronous=NORMAL;")
             await db.execute("PRAGMA foreign_keys=ON;")
+            await db.execute("PRAGMA busy_timeout = 15000;")
 
             # Alarms table
             await db.execute("""
@@ -173,7 +174,9 @@ class Database:
         """Compares incoming listings against seen_listings in batch and returns truly new items."""
         if not listings:
             return []
-        cids = [str(item["classified_id"]) for item in listings]
+        cids = list(dict.fromkeys(str(item["classified_id"]) for item in listings if item.get("classified_id")))
+        if not cids:
+            return []
         placeholders = ",".join("?" for _ in cids)
 
         async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
@@ -183,7 +186,7 @@ class Database:
             ) as cursor:
                 seen_cids = {str(row[0]) for row in await cursor.fetchall()}
 
-        return [item for item in listings if str(item["classified_id"]) not in seen_cids]
+        return [item for item in listings if str(item.get("classified_id")) not in seen_cids]
 
     async def filter_price_drops(self, alarm_id: int, listings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
@@ -193,7 +196,9 @@ class Database:
         if not listings:
             return []
         price_drops: list[dict[str, Any]] = []
-        cids = [str(item["classified_id"]) for item in listings]
+        cids = list(dict.fromkeys(str(item["classified_id"]) for item in listings if item.get("classified_id")))
+        if not cids:
+            return []
         placeholders = ",".join("?" for _ in cids)
 
         async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
@@ -314,6 +319,19 @@ class Database:
                 await db.commit()
                 return True
             return False
+
+    async def cleanup_stale_seen_listings(self, days: int = 90) -> int:
+        """Deletes seen listing records older than the specified number of days to keep database lean."""
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
+            cursor = await db.execute(
+                """
+                DELETE FROM seen_listings
+                WHERE first_seen_at < datetime('now', '-' || ? || ' days')
+                """,
+                (days,)
+            )
+            await db.commit()
+            return cursor.rowcount
 
 
 database = Database()

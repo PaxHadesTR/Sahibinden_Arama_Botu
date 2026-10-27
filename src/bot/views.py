@@ -179,6 +179,10 @@ class SpecFilterModal(Modal):
             await interaction.followup.send(f"❌ Fiyat alanı yalnızca rakam içermelidir ({e}).", ephemeral=True)
             return
 
+        if (min_price is not None and min_price < 0) or (max_price is not None and max_price < 0):
+            await interaction.followup.send("❌ Fiyat değerleri negatif olamaz.", ephemeral=True)
+            return
+
         if min_price is not None and max_price is not None and min_price > max_price:
             await interaction.followup.send("❌ Minimum fiyat maksimum fiyattan büyük olamaz.", ephemeral=True)
             return
@@ -205,8 +209,10 @@ class SpecFilterModal(Modal):
             kapasite=self.kapasite,
         )
 
+        cat_info = resolver.get_category(self.category_key) or {}
         filter_details = {
             "kategori": self.category_key,
+            "profile": cat_info.get("profile"),
             "tipi": self.tipi,
             "kapasite": self.kapasite,
             "min_fiyat": min_price,

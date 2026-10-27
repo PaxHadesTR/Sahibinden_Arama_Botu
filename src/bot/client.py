@@ -58,8 +58,8 @@ class SahibindenBot(commands.Bot):
     async def check_proxy_health(
         proxy_url: str,
         timeout: float = 3.0,
-        retries: int = 4,
-        retry_delay: float = 2.0
+        retries: int = 6,
+        retry_delay: float = 2.5
     ) -> tuple[bool, str | None]:
         """Tests basic TCP connectivity to the proxy before initiating Discord client login."""
         parsed = urlparse(proxy_url)
@@ -73,8 +73,11 @@ class SahibindenBot(commands.Bot):
                     asyncio.open_connection(host, port),
                     timeout=timeout
                 )
-                writer.close()
-                await writer.wait_closed()
+                try:
+                    writer.close()
+                    await writer.wait_closed()
+                except Exception:
+                    pass
                 return True, None
             except Exception as e:
                 last_err = str(e)
@@ -149,7 +152,7 @@ class SahibindenBot(commands.Bot):
 
     async def on_ready(self):
         logger.info(f"Bot connected successfully as {self.user} (ID: {self.user.id})")
-        if self.monitor is None:
+        if self.monitor is None or not self.monitor._running or (self.monitor._task and self.monitor._task.done()):
             self.monitor = AlarmMonitor(self)
             self.monitor.start()
 

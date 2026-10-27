@@ -540,3 +540,434 @@ async def test_safe_defer_idempotency():
     # Should safely return without calling response.defer or raising InteractionResponded
     await cog._safe_defer(inter)
     assert not inter.response.defer.called
+
+
+# =============================================================================
+# SUITE 6: MULTI-SPEC AUTOCOMPLETE CHAINING, EXTRACTION & END-TO-END VERIFICATION
+# =============================================================================
+def test_multi_spec_autocomplete_chaining_and_suppression():
+    """Verify multi-spec chaining, token parsing, and mutually exclusive group suppression."""
+    # 1. Phone chaining
+    phone_initial = resolver.get_spec_suggestions("cep-telefonu", "")
+    assert len(phone_initial) > 0
+    assert "128 GB" in phone_initial
+
+    phone_chained_1 = resolver.get_spec_suggestions("cep-telefonu", "128 GB")
+    assert phone_chained_1[0] == "128 GB"
+    assert any(s == "128 GB, TR Garantili" for s in phone_chained_1)
+    assert any(s == "128 GB, Sıfır" for s in phone_chained_1)
+    # Storage group suppression: 256 GB, 512 GB, 1 TB must NOT be suggested once 128 GB is chosen
+    for s in phone_chained_1:
+        assert "256 GB" not in s
+        assert "512 GB" not in s
+        assert "1 TB" not in s
+        assert len(s) <= 100
+
+    phone_filtered = resolver.get_spec_suggestions("cep-telefonu", "128 GB, tr")
+    assert any("TR Garantili" in s for s in phone_filtered)
+    assert not any("İkinci El" in s for s in phone_filtered)
+
+    phone_chained_2 = resolver.get_spec_suggestions("cep-telefonu", "128 GB, TR Garantili, ")
+    assert any("128 GB, TR Garantili, Sıfır" in s for s in phone_chained_2)
+    for s in phone_chained_2:
+        assert "256 GB" not in s
+        assert "İthalatçı" not in s
+        assert len(s) <= 100
+
+    # Chaining without trailing comma (Discord choice click inserts '128 GB, TR Garantili' without trailing comma)
+    phone_chained_no_comma = resolver.get_spec_suggestions("cep-telefonu", "128 GB, TR Garantili")
+    assert any("128 GB, TR Garantili, Sıfır" in s for s in phone_chained_no_comma)
+    assert any("128 GB, TR Garantili, 8 GB RAM" in s for s in phone_chained_no_comma)
+    assert len(phone_chained_no_comma) > 1
+
+    # Chaining 3 specs into 4th spec
+    phone_chained_3 = resolver.get_spec_suggestions("cep-telefonu", "128 GB, TR Garantili, Sıfır")
+    assert any("128 GB, TR Garantili, Sıfır, 8 GB RAM" in s for s in phone_chained_3)
+
+    # Irregular punctuation: multiple commas and spaces
+    phone_chained_punct = resolver.get_spec_suggestions("cep-telefonu", "128 GB ,,, TR Garantili")
+    assert any("128 GB, TR Garantili, Sıfır" in s for s in phone_chained_punct)
+
+    # Space-separated multi-spec tokens without commas
+    phone_space_chained = resolver.get_spec_suggestions("cep-telefonu", "128 GB Sıfır")
+    assert any("128 GB, Sıfır, TR Garantili" in s for s in phone_space_chained)
+
+    # 2. Car chaining
+    car_chained = resolver.get_spec_suggestions("otomobil", "Otomatik")
+    assert any("Otomatik, Benzin" in s for s in car_chained)
+    assert any("Otomatik, Sedan" in s for s in car_chained)
+    assert any("Otomatik, Boyasız" in s for s in car_chained)
+    # Transmission group suppression: Manuel must NOT be suggested
+    for s in car_chained:
+        assert "Manuel" not in s
+
+    car_filtered = resolver.get_spec_suggestions("otomobil", "Otomatik, ben")
+    assert any("Otomatik, Benzin" in s for s in car_filtered)
+
+    # 3. Home chaining
+    home_chained = resolver.get_spec_suggestions("satilik-daire", "3+1")
+    assert any("3+1, Kombili" in s for s in home_chained)
+    assert any("3+1, Sıfır Bina" in s for s in home_chained)
+    assert any("3+1, Ara Kat" in s for s in home_chained)
+    # Room count group suppression: 2+1, 4+1 must NOT be suggested
+    for s in home_chained:
+        assert "2+1" not in s
+        assert "4+1" not in s
+
+    # 4. CPU chaining
+    cpu_chained = resolver.get_spec_suggestions("islemci-masaustu", "AM5")
+    assert any("AM5, 32 MB" in s for s in cpu_chained)
+    assert any("AM5, AMD" in s for s in cpu_chained)
+    for s in cpu_chained:
+        assert "AM4" not in s
+        assert "LGA1700" not in s
+
+    # 5. RAM chaining
+    ram_chained = resolver.get_spec_suggestions("ram-bellek-masaustu", "32 GB")
+    assert any("32 GB, DDR5" in s for s in ram_chained)
+    assert any("32 GB, 6000 MHz" in s for s in ram_chained)
+    for s in ram_chained:
+        assert "16 GB" not in s
+        assert "64 GB" not in s
+
+
+def test_zero_cross_domain_autocomplete_leakage():
+    """Verify that categories never leak spec groups across domains (pets, driving lessons, repairs)."""
+    # Pet / Animal must NOT leak room count or car specs
+    pet_specs = resolver.get_spec_suggestions("evcil-hayvanlar", "")
+    for s in pet_specs:
+        assert "1+1" not in s
+        assert "3+1" not in s
+        assert "Kombili" not in s
+        assert "Otomatik" not in s
+    assert any("Aşılı" in s or "Yavru" in s or "Safkan" in s for s in pet_specs)
+
+    # Driving lesson must NOT leak car damage or mechanical specs
+    lesson_specs = resolver.get_spec_suggestions("otomobil-direksiyon-dersi", "")
+    for s in lesson_specs:
+        assert "Boyasız" not in s
+        assert "Değişensiz" not in s
+        assert "4x4" not in s
+    assert any("Online" in s or "Yüz Yüze" in s or "Birebir" in s for s in lesson_specs)
+
+    # Mobile phone repair service must NOT leak phone storage or RAM
+    repair_specs = resolver.get_spec_suggestions("cep-telefonu-tamiri", "")
+    for s in repair_specs:
+        assert "128 GB" not in s
+        assert "RAM" not in s
+        assert "Pil 100" not in s
+    assert any("Teknik Servis" in s or "Ev Tadilat" in s or "Çilingir" in s for s in repair_specs)
+
+
+@pytest.mark.asyncio
+async def test_ozellik_autocomplete_choices_integration():
+    """Verify Discord ozellik_autocomplete callback produces valid Choice objects with chained specs."""
+    cog = AlarmCog(MagicMock())
+    inter = MockInteraction(selected_cat="cep-telefonu")
+    choices = await cog.ozellik_autocomplete(inter, "128 GB, ")
+    assert len(choices) > 0
+    assert len(choices) <= 25
+    for c in choices:
+        assert c.name.startswith("128 GB")
+        assert c.value.startswith("128 GB")
+        assert len(c.name) <= 100
+        assert len(c.value) <= 100
+
+
+def test_multi_spec_extraction_cross_domain_isolation():
+    """Verify simultaneous extraction of multiple facets across profiles with strict domain isolation."""
+    # Phone extraction
+    phone_facets = resolver.extract_specs_from_text("iPhone 13 128 GB TR Garantili Sıfır", "cep-telefonu")
+    assert phone_facets.get("hafiza") == "128 GB"
+    assert phone_facets.get("garanti") == "TR Garantili"
+    assert phone_facets.get("durum") == "Sıfır"
+
+    # Car extraction
+    car_facets = resolver.extract_specs_from_text("BMW 320i Otomatik Benzin Sedan Boyasız 4x4", "otomobil")
+    assert car_facets.get("vites") == "Otomatik"
+    assert car_facets.get("yakit") == "Benzin"
+    assert car_facets.get("kasa_tipi") == "Sedan"
+    assert car_facets.get("hasar") == "Boyasız"
+    assert car_facets.get("ceker") == "4x4"
+
+    # Home extraction
+    home_facets = resolver.extract_specs_from_text("Kadıköy 3+1 Kombili Ara Kat Sıfır Bina Eşyalı", "satilik-daire")
+    assert home_facets.get("oda_sayisi") == "3+1"
+    assert home_facets.get("isitma") == "Kombili"
+    assert home_facets.get("kat") == "Ara Kat"
+    assert home_facets.get("bina_yasi") == "Sıfır Bina"
+    assert home_facets.get("esyali") == "Eşyalı"
+
+    # CPU extraction
+    cpu_facets = resolver.extract_specs_from_text("Ryzen 7 7800X3D AM5 96 MB Kutulu", "islemci-masaustu")
+    assert cpu_facets.get("socket") == "AM5"
+    assert cpu_facets.get("cache") == "96 MB"
+    assert cpu_facets.get("durum") == "Kutulu"
+
+    # RAM extraction
+    ram_facets = resolver.extract_specs_from_text("Corsair 32 GB DDR5 6000 MHz Sıfır", "ram-bellek-masaustu")
+    assert ram_facets.get("kapasite") == "32 GB"
+    assert ram_facets.get("tipi") == "DDR5"
+    assert ram_facets.get("durum") == "Sıfır"
+
+    # Cross-domain leak prevention: Car attributes must NOT leak into Phone
+    phone_leak_check = resolver.extract_specs_from_text("iPhone 14 Sedan Dizel 128 GB", "cep-telefonu")
+    assert "kasa_tipi" not in phone_leak_check
+    assert "vites" not in phone_leak_check
+    assert "yakit" not in phone_leak_check
+    assert phone_leak_check.get("hafiza") == "128 GB"
+
+    # Home attributes must NOT leak into Car
+    car_leak_check = resolver.extract_specs_from_text("BMW 320i Kombili 3+1 Otomatik", "otomobil")
+    assert "isitma" not in car_leak_check
+    assert "oda_sayisi" not in car_leak_check
+    assert car_leak_check.get("vites") == "Otomatik"
+
+
+@pytest.mark.asyncio
+async def test_alarm_hizli_multi_spec_end_to_end_phone(test_env, monkeypatch):
+    """Verify /alarm-hizli end-to-end persists multiple phone specs into DB, URL, and embed."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+
+    inter = MockInteraction(user_id=6001)
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="cep-telefonu",
+        arama="iPhone 13",
+        ozellik="128 GB, TR Garantili, Sıfır",
+        max_fiyat=35000,
+        sehir="İstanbul"
+    )
+
+    alarms = await db.get_user_alarms(6001)
+    assert len(alarms) == 1
+    alarm = alarms[0]
+
+    # Verify database persistence of all individual facets
+    filters = json.loads(alarm["filters_json"])
+    assert filters.get("hafiza") == "128 GB"
+    assert filters.get("garanti") == "TR Garantili"
+    assert filters.get("durum") == "Sıfır"
+    assert filters.get("ozellik") == "128 GB, TR Garantili, Sıfır"
+
+    # Verify target URL contains query parameters and clean query text
+    assert "hafiza=128" in alarm["target_url"]
+    assert "cep-telefonu" in alarm["target_url"]
+
+    # Verify embed fields include all formatted emoji labels
+    assert inter.followup.send.called
+    embed = inter.followup.send.call_args[1].get("embed")
+    field_dict = {f.name: f.value for f in embed.fields}
+    assert "📱 Dahili Hafıza" in field_dict
+    assert field_dict["📱 Dahili Hafıza"] == "128 GB"
+    assert "🛡️ Garanti" in field_dict
+    assert field_dict["🛡️ Garanti"] == "TR Garantili"
+    assert "📦 Durum" in field_dict
+    assert field_dict["📦 Durum"] == "Sıfır"
+
+
+@pytest.mark.asyncio
+async def test_alarm_hizli_multi_spec_end_to_end_car(test_env, monkeypatch):
+    """Verify /alarm-hizli end-to-end persists multiple car specs into DB, URL, and embed."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+
+    inter = MockInteraction(user_id=6002)
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="otomobil",
+        arama="BMW 320i",
+        ozellik="Otomatik, Benzin, Sedan, Boyasız",
+        min_fiyat=1000000,
+        max_fiyat=2500000
+    )
+
+    alarms = await db.get_user_alarms(6002)
+    assert len(alarms) == 1
+    alarm = alarms[0]
+
+    filters = json.loads(alarm["filters_json"])
+    assert filters.get("vites") == "Otomatik"
+    assert filters.get("yakit") == "Benzin"
+    assert filters.get("kasa_tipi") == "Sedan"
+    assert filters.get("hasar") == "Boyasız"
+
+    assert "vites=Otomatik" in alarm["target_url"]
+    assert "yakit=Benzin" in alarm["target_url"]
+
+    embed = inter.followup.send.call_args[1].get("embed")
+    field_dict = {f.name: f.value for f in embed.fields}
+    assert "🕹️ Vites" in field_dict
+    assert field_dict["🕹️ Vites"] == "Otomatik"
+    assert "⛽ Yakıt" in field_dict
+    assert field_dict["⛽ Yakıt"] == "Benzin"
+    assert "🚙 Kasa Tipi" in field_dict
+    assert field_dict["🚙 Kasa Tipi"] == "Sedan"
+    assert "🛡️ Hasar / Boya" in field_dict
+    assert field_dict["🛡️ Hasar / Boya"] == "Boyasız"
+
+
+@pytest.mark.asyncio
+async def test_alarm_hizli_multi_spec_end_to_end_property(test_env, monkeypatch):
+    """Verify /alarm-hizli end-to-end persists multiple property specs into DB and embed."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+
+    inter = MockInteraction(user_id=6003)
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="satilik-daire",
+        arama="Kadıköy",
+        ozellik="3+1, Kombili, Ara Kat, Sıfır Bina",
+        max_fiyat=7500000
+    )
+
+    alarms = await db.get_user_alarms(6003)
+    assert len(alarms) == 1
+    alarm = alarms[0]
+
+    filters = json.loads(alarm["filters_json"])
+    assert filters.get("oda_sayisi") == "3+1"
+    assert filters.get("isitma") == "Kombili"
+    assert filters.get("kat") == "Ara Kat"
+    assert filters.get("bina_yasi") == "Sıfır Bina"
+
+    embed = inter.followup.send.call_args[1].get("embed")
+    field_dict = {f.name: f.value for f in embed.fields}
+    assert "🚪 Oda Sayısı" in field_dict
+    assert field_dict["🚪 Oda Sayısı"] == "3+1"
+    assert "🔥 Isıtma" in field_dict
+    assert field_dict["🔥 Isıtma"] == "Kombili"
+    assert "🏢 Bulunduğu Kat" in field_dict
+    assert field_dict["🏢 Bulunduğu Kat"] == "Ara Kat"
+    assert "🏗️ Bina Yaşı" in field_dict
+    assert field_dict["🏗️ Bina Yaşı"] == "Sıfır Bina"
+
+
+def test_url_builder_multi_spec_clean_sanitization():
+    """Verify URL builder cleans comma-separated multi-spec strings without trailing, double, or encoded commas."""
+    from urllib.parse import urlparse, parse_qs
+
+    built_url = SahibindenURLBuilder.build_url(
+        category_slug="cep-telefonu",
+        query_text="iPhone 13, 128 GB, TR Garantili",
+        extra_facets={"hafiza": "128 GB", "garanti": "TR Garantili"}
+    )
+    assert "hafiza=128" in built_url
+    assert ",," not in built_url
+    assert "%2C" not in built_url
+    assert "query_text=iPhone+13" in built_url
+
+    # Strict query param inspection: query text must have all commas and punctuation cleaned
+    parsed = parse_qs(urlparse(built_url).query)
+    assert parsed.get("query_text") == ["iPhone 13 128 GB TR Garantili"]
+
+
+@pytest.mark.asyncio
+async def test_alarm_hizli_multi_spec_four_facets_end_to_end(test_env, monkeypatch):
+    """Verify /alarm-hizli end-to-end persists 4 phone specs simultaneously into DB, URL, and embed."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+
+    inter = MockInteraction(user_id=7001)
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="cep-telefonu",
+        arama="iPhone 15",
+        ozellik="128 GB, TR Garantili, Sıfır, Siyah",
+        max_fiyat=55000,
+        sehir="Ankara"
+    )
+
+    alarms = await db.get_user_alarms(7001)
+    assert len(alarms) == 1
+    alarm = alarms[0]
+
+    filters = json.loads(alarm["filters_json"])
+    assert filters.get("hafiza") == "128 GB"
+    assert filters.get("garanti") == "TR Garantili"
+    assert filters.get("durum") == "Sıfır"
+    assert filters.get("renk") == "Siyah"
+    assert filters.get("ozellik") == "128 GB, TR Garantili, Sıfır, Siyah"
+
+    # URL has hafiza=128 and zero raw/encoded commas
+    assert "hafiza=128" in alarm["target_url"]
+    assert "%2C" not in alarm["target_url"]
+    assert ",," not in alarm["target_url"]
+
+    # Embed fields formatted with authentic emoji labels
+    embed = inter.followup.send.call_args[1].get("embed")
+    field_dict = {f.name: f.value for f in embed.fields}
+    assert "📱 Dahili Hafıza" in field_dict
+    assert field_dict["📱 Dahili Hafıza"] == "128 GB"
+    assert "🛡️ Garanti" in field_dict
+    assert field_dict["🛡️ Garanti"] == "TR Garantili"
+    assert "📦 Durum" in field_dict
+    assert field_dict["📦 Durum"] == "Sıfır"
+    assert "🎨 Renk" in field_dict
+    assert field_dict["🎨 Renk"] == "Siyah"
+
+
+@pytest.mark.asyncio
+async def test_alarm_hizli_motorcycle_multi_spec_end_to_end(test_env, monkeypatch):
+    """Verify /alarm-hizli end-to-end persists motorcycle specs (transmission, displacement, ABS)."""
+    cog, db, _ = test_env
+    await db.init_db()
+    monkeypatch.setattr("src.bot.cogs.alarms.scraper.fetch_listings", AsyncMock(return_value=[]))
+
+    inter = MockInteraction(user_id=7002)
+    await cog.alarm_hizli.callback(
+        cog,
+        inter,
+        kategori="motosiklet",
+        arama="Yamaha XMAX",
+        ozellik="Otomatik, 250 cc, ABS",
+        max_fiyat=280000
+    )
+
+    alarms = await db.get_user_alarms(7002)
+    assert len(alarms) == 1
+    alarm = alarms[0]
+
+    filters = json.loads(alarm["filters_json"])
+    assert filters.get("vites") == "Otomatik"
+    assert filters.get("motor_hacmi") == "250 cc"
+    assert filters.get("ozellik") == "Otomatik, 250 cc, ABS"
+
+    embed = inter.followup.send.call_args[1].get("embed")
+    field_dict = {f.name: f.value for f in embed.fields}
+    assert "🕹️ Vites" in field_dict
+    assert field_dict["🕹️ Vites"] == "Otomatik"
+    assert "⚙️ Motor Hacmi" in field_dict
+    assert field_dict["⚙️ Motor Hacmi"] == "250 cc"
+
+
+def test_all_666_categories_zero_spec_leakage():
+    """Verify across all catalog categories that domain boundaries are strictly isolated."""
+    for cat_key, cat_data in resolver.categories.items():
+        profile = cat_data.get("profile", "")
+        grps = resolver._get_spec_groups_for_category(cat_key, profile)
+        all_specs_in_cat = [s for g in grps.values() for s in g]
+
+        # Non-property categories must NEVER receive housing room counts
+        if profile not in ("property_home", "property_commercial", "property_misc"):
+            assert "1+1" not in all_specs_in_cat, f"Leaked 1+1 into {cat_key} ({profile})"
+            assert "3+1" not in all_specs_in_cat, f"Leaked 3+1 into {cat_key} ({profile})"
+
+        # Non-car categories must NEVER receive car damage specs
+        if profile not in ("vehicle_car", "vehicle_generic"):
+            assert "Boyasız" not in all_specs_in_cat, f"Leaked Boyasız into {cat_key} ({profile})"
+            assert "Değişensiz" not in all_specs_in_cat, f"Leaked Değişensiz into {cat_key} ({profile})"
+
+
+
+

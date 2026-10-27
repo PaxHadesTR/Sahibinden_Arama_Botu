@@ -76,6 +76,73 @@ class AlarmCog(commands.Cog):
             logger.error(f"Error in ozellik_autocomplete: {e}", exc_info=True)
             return []
 
+    async def sehir_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str
+    ) -> list[app_commands.Choice[str]]:
+        """Provides dynamic autocomplete choices for Turkish cities with plate numbers."""
+        try:
+            from src.catalog.resolver import TURKISH_PROVINCES
+            norm_cur = resolver.normalize_turkish(current) if current else ""
+            choices = []
+            if not norm_cur:
+                major_provinces = ["34", "6", "35", "16", "7", "1", "42", "27", "41", "33", "26", "55", "54", "38", "10"]
+                for p_code in major_provinces:
+                    p_name = TURKISH_PROVINCES.get(p_code)
+                    if p_name:
+                        label = f"{p_name} ({p_code.zfill(2)})"
+                        choices.append(app_commands.Choice(name=label[:100], value=p_name[:100]))
+                return choices[:25]
+
+            added_codes = set()
+            for p_code, p_name in sorted(TURKISH_PROVINCES.items(), key=lambda x: int(x[0])):
+                norm_p = resolver.normalize_turkish(p_name)
+                if norm_cur in norm_p or norm_cur == p_code or norm_cur == p_code.zfill(2):
+                    label = f"{p_name} ({p_code.zfill(2)})"
+                    choices.append(app_commands.Choice(name=label[:100], value=p_name[:100]))
+                    added_codes.add(p_code)
+                if len(choices) >= 25:
+                    break
+
+            if len(choices) < 25:
+                for syn_name, p_code in resolver.cities.items():
+                    if p_code not in added_codes and norm_cur in syn_name:
+                        p_name = TURKISH_PROVINCES.get(p_code)
+                        if p_name:
+                            label = f"{p_name} ({p_code.zfill(2)})"
+                            choices.append(app_commands.Choice(name=label[:100], value=p_name[:100]))
+                            added_codes.add(p_code)
+                    if len(choices) >= 25:
+                        break
+
+            return choices
+        except Exception as e:
+            logger.error(f"Error in sehir_autocomplete: {e}", exc_info=True)
+            return []
+
+    async def alarm_id_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str
+    ) -> list[app_commands.Choice[int]]:
+        """Provides dynamic autocomplete choices for user's configured alarms."""
+        try:
+            alarms = await database.get_user_alarms(interaction.user.id)
+            choices = []
+            curr_low = (current or "").lower().strip()
+            for a in alarms:
+                status_symbol = "🟢" if a.get("is_active") else "⏸️"
+                label = f"{status_symbol} #{a['id']} - {a['name']}"[:100]
+                if not curr_low or curr_low in str(a['id']) or curr_low in a['name'].lower():
+                    choices.append(app_commands.Choice(name=label, value=a['id']))
+                if len(choices) >= 25:
+                    break
+            return choices
+        except Exception as e:
+            logger.error(f"Error in alarm_id_autocomplete: {e}", exc_info=True)
+            return []
+
     # =========================================================================
     # YÖNTEM 1: EVRENSEL SERBEST ARAMA (/alarm-ara)
     # =========================================================================
@@ -90,6 +157,7 @@ class AlarmCog(commands.Cog):
         sehir="Şehir filtresi (örn: 'İstanbul', 'Ankara', 'İzmir')",
         alarm_adi="Alarmınız için isim (örn: 'Civic Takip', 'Kadıköy Ev') (opsiyonel)"
     )
+    @app_commands.autocomplete(sehir=sehir_autocomplete)
     async def alarm_ara(
         self,
         interaction: discord.Interaction,
@@ -255,7 +323,9 @@ class AlarmCog(commands.Cog):
         q = (query or "").strip()
         s = (spec or "").strip()
         if not q:
-            return s or None
+            if not s:
+                return None
+            return " ".join(s.replace(",", " ").split())
         if not s:
             return q or None
 
@@ -264,17 +334,18 @@ class AlarmCog(commands.Cog):
         if s_low in q_low:
             return q
         if q_low in s_low:
-            return s
+            return " ".join(s.replace(",", " ").split())
 
         q_words = q.split()
         q_words_norm = {w.lower().strip(",.;:") for w in q_words}
 
-        s_tokens = s.split()
+        s_clean = s.replace(",", " ")
+        s_tokens = s_clean.split()
         to_add = []
         for token in s_tokens:
             norm = token.lower().strip(",.;:")
-            if norm not in q_words_norm:
-                to_add.append(token)
+            if norm and norm not in q_words_norm:
+                to_add.append(token.strip(",.;:"))
                 q_words_norm.add(norm)
 
         if not to_add:
@@ -432,8 +503,25 @@ class AlarmCog(commands.Cog):
                 "kapasite": "💾 Kapasite",
                 "bellek": "🧠 Bellek",
                 "hafiza": "📱 Dahili Hafıza",
+                "ram": "🧠 RAM",
                 "marka": "🏷️ Marka",
                 "chipset": "🎮 Chipset",
+                "isitma": "🔥 Isıtma",
+                "kat": "🏢 Bulunduğu Kat",
+                "bulundugu_kat": "🏢 Bulunduğu Kat",
+                "bina_yasi": "🏗️ Bina Yaşı",
+                "esyali": "🛋️ Eşya Durumu",
+                "site_ici": "🏘️ Site İçi",
+                "krediye_uygun": "💳 Kredi Uygunluğu",
+                "hasar": "🛡️ Hasar / Boya",
+                "boya_degisen": "🛡️ Hasar / Boya",
+                "kimden": "👤 Kimden",
+                "ekran_karti": "🎮 Ekran Kartı",
+                "yenileme_hizi": "⚡ Yenileme Hızı",
+                "panel": "🖥️ Panel",
+                "donanim": "🔧 Donanım",
+                "kozmetik": "✨ Kozmetik / Pil",
+                "tapu": "📜 Tapu Durumu",
             }
             already_shown = {f.name for f in embed.fields}
             for k, v in extra_facets.items():
@@ -471,7 +559,7 @@ class AlarmCog(commands.Cog):
         sehir="Şehir filtresi (örn: 'İstanbul', 'Ankara', 'İzmir')",
         alarm_adi="Alarm için hatırlatıcı isim (opsiyonel)"
     )
-    @app_commands.autocomplete(kategori=category_autocomplete, ozellik=ozellik_autocomplete)
+    @app_commands.autocomplete(kategori=category_autocomplete, ozellik=ozellik_autocomplete, sehir=sehir_autocomplete)
     async def alarm_hizli(
         self,
         interaction: discord.Interaction,
@@ -569,13 +657,21 @@ class AlarmCog(commands.Cog):
                 if y_opt.lower() != spec_extracted["yakit"].lower():
                     clean_q = re.sub(rf"\b{re.escape(y_opt)}\b", "", clean_q, flags=re.I)
         if "durum" in spec_extracted:
-            for d_opt in ("sifir", "ikinci el", "a kalite"):
+            for d_opt in ("sifir", "ikinci el", "a kalite", "yenilenmis"):
                 if d_opt.lower() != spec_extracted["durum"].lower():
                     clean_q = re.sub(rf"\b{re.escape(d_opt)}\b", "", clean_q, flags=re.I)
         if "calisma_sekli" in spec_extracted:
             for c_opt in ("yatili", "tam zamanli", "yari zamanli", "home office"):
                 if c_opt.lower() != spec_extracted["calisma_sekli"].lower():
                     clean_q = re.sub(rf"\b{re.escape(c_opt)}\b", "", clean_q, flags=re.I)
+        if "garanti" in spec_extracted:
+            for g_opt in ("tr garantili", "ithalatci garantili", "garantili", "garantisiz"):
+                if g_opt.lower() != spec_extracted["garanti"].lower():
+                    clean_q = re.sub(rf"\b{re.escape(g_opt)}\b", "", clean_q, flags=re.I)
+        if "kasa_tipi" in spec_extracted:
+            for k_opt in ("sedan", "hatchback", "suv", "station wagon", "coupe", "cabrio"):
+                if k_opt.lower() != spec_extracted["kasa_tipi"].lower():
+                    clean_q = re.sub(rf"\b{re.escape(k_opt)}\b", "", clean_q, flags=re.I)
 
         clean_q = " ".join(clean_q.split()).strip() or None
         clean_s = " ".join(clean_s.split()).strip() or None
@@ -601,8 +697,8 @@ class AlarmCog(commands.Cog):
             else:
                 final_alarm_name = f"{display_name} Takibi"
 
-        # Extra extracted facets (e.g. vites, yakit, oda_sayisi, ceker, socket, cache, imar_durumu, durum, calisma_sekli)
-        extra_facets = {k: v for k, v in extracted.items() if k not in ("tipi", "kapasite", "bellek", "hafiza", "marka", "chipset")}
+        # Extra extracted facets (e.g. vites, yakit, oda_sayisi, ceker, socket, cache, imar_durumu, durum, calisma_sekli, hafiza, ram, etc.)
+        extra_facets = {k: v for k, v in extracted.items() if k not in ("tipi", "kapasite", "marka", "chipset")}
 
         await self._execute_alarm_creation(
             interaction,
@@ -821,6 +917,7 @@ class AlarmCog(commands.Cog):
         alarm_id="Durumunu değiştirmek istediğiniz alarmın ID numarası (örn: 1, 5)",
         aktif="True: Aktifleştir (Devam Et), False: Duraklat"
     )
+    @app_commands.autocomplete(alarm_id=alarm_id_autocomplete)
     async def alarm_durum(self, interaction: discord.Interaction, alarm_id: int, aktif: bool):
         updated = await database.set_alarm_active(alarm_id, user_id=interaction.user.id, is_active=aktif)
         if not updated:
@@ -846,6 +943,7 @@ class AlarmCog(commands.Cog):
         description="Mevcut bir alarmı silin."
     )
     @app_commands.describe(alarm_id="Silmek istediğiniz alarmın ID numarası (örn: 1, 5 - boş bırakırsanız liste açılır)")
+    @app_commands.autocomplete(alarm_id=alarm_id_autocomplete)
     async def alarm_sil(self, interaction: discord.Interaction, alarm_id: int | None = None):
         if alarm_id is not None:
             deleted = await database.delete_alarm(alarm_id, user_id=interaction.user.id)
@@ -862,13 +960,17 @@ class AlarmCog(commands.Cog):
             return
 
         view = DeleteAlarmView(alarms)
-        await interaction.response.send_message("Lütfen silmek istediğiniz alarmı seçin:", view=view, ephemeral=True)
+        msg_text = "Lütfen silmek istediğiniz alarmı seçin:"
+        if len(alarms) > 25:
+            msg_text += " (İlk 25 alarm listeleniyor. Diğer alarmları ID belirterek silebilirsiniz: `/alarm-sil alarm_id:ID`)"
+        await interaction.response.send_message(msg_text, view=view, ephemeral=True)
 
     @app_commands.command(
         name="alarm-test",
         description="Bir alarmı anında test edin ve en güncel ilanı önizleyin."
     )
     @app_commands.describe(alarm_id="Test etmek istediğiniz alarmın ID numarası (örn: 1, 5)")
+    @app_commands.autocomplete(alarm_id=alarm_id_autocomplete)
     async def alarm_test(self, interaction: discord.Interaction, alarm_id: int):
         await self._safe_defer(interaction, ephemeral=True)
         alarm = await database.get_alarm(alarm_id)
