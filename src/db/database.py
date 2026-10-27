@@ -306,6 +306,30 @@ class Database:
                 row = await cursor.fetchone()
                 return dict(row) if row else None
 
+    async def update_alarm_filters(
+        self,
+        alarm_id: int,
+        user_id: int,
+        target_url: str,
+        filters: dict[str, Any],
+        name: str | None = None
+    ) -> bool:
+        """Updates target_url, filters_json and optionally name for an existing alarm."""
+        filters_str = json.dumps(filters or {}, ensure_ascii=False)
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
+            if name:
+                cursor = await db.execute(
+                    "UPDATE alarms SET target_url = ?, filters_json = ?, name = ? WHERE id = ? AND user_id = ?",
+                    (target_url, filters_str, name, alarm_id, user_id)
+                )
+            else:
+                cursor = await db.execute(
+                    "UPDATE alarms SET target_url = ?, filters_json = ? WHERE id = ? AND user_id = ?",
+                    (target_url, filters_str, alarm_id, user_id)
+                )
+            await db.commit()
+            return cursor.rowcount > 0
+
     async def delete_alarm(self, alarm_id: int, user_id: int | None = None) -> bool:
         """Deletes an alarm (and cascading seen_listings). Returns True if deleted."""
         async with aiosqlite.connect(self.db_path, timeout=15.0) as db:

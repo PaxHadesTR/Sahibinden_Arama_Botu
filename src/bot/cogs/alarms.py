@@ -12,7 +12,7 @@ from src.catalog.resolver import resolver
 from src.services.url_builder import SahibindenURLBuilder
 from src.db.database import database
 from src.services.scraper import scraper
-from src.bot.views import DeleteAlarmView
+from src.bot.views import DeleteAlarmView, AlarmQuickActionView, DetailFilterSelectView
 from src.services.monitor import AlarmMonitor
 
 logger = logging.getLogger("sahibinden_bot.cogs.alarms")
@@ -74,6 +74,25 @@ class AlarmCog(commands.Cog):
             ][:25]
         except Exception as e:
             logger.error(f"Error in ozellik_autocomplete: {e}", exc_info=True)
+            return []
+
+    async def ek_ozellik_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str
+    ) -> list[app_commands.Choice[str]]:
+        """Provides dynamic autocomplete choices for second spec parameter (ek_ozellik), aware of ozellik."""
+        try:
+            selected_cat = getattr(interaction.namespace, "kategori", None) or ""
+            first_spec = getattr(interaction.namespace, "ozellik", None) or ""
+            suggestions = resolver.get_ek_ozellik_suggestions(selected_cat, first_spec, current)
+            return [
+                app_commands.Choice(name=s.strip()[:100], value=s.strip()[:100])
+                for s in suggestions
+                if s and s.strip()
+            ][:25]
+        except Exception as e:
+            logger.error(f"Error in ek_ozellik_autocomplete: {e}", exc_info=True)
             return []
 
     async def sehir_autocomplete(
@@ -423,6 +442,7 @@ class AlarmCog(commands.Cog):
             "max_fiyat": max_fiyat,
             "sehir": sehir,
             "kelime": query_text,
+            "raw_query": raw_query,
             "alarm_adi": name,
         }
         if extra_facets:
@@ -541,7 +561,16 @@ class AlarmCog(commands.Cog):
             baseline_msg = "İlk baz liste arka plan döngüsünde otomatik arşivlenecek ve geçmiş ilanlar spam yapılmayacaktır."
 
         embed.add_field(name="📊 Başlangıç Durumu", value=baseline_msg, inline=False)
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        action_view = AlarmQuickActionView(
+            alarm_id=alarm_id,
+            category_slug=category_slug,
+            display_name=display_category_name,
+            profile=profile,
+            current_filters=filters,
+            user_id=interaction.user.id,
+            target_url=target_url,
+        )
+        await interaction.followup.send(embed=embed, view=action_view, ephemeral=True)
 
     # =========================================================================
     # HIZLI PARAMETRİK ALARM (/alarm-hizli)
@@ -554,18 +583,25 @@ class AlarmCog(commands.Cog):
         kategori="Kategori seçin veya arayın (11 ana dal: Emlak, Vasıta, Donanım, Telefon, Traktör vb.)",
         arama="Arama kelimesi, marka veya model (örn: 'Civic 1.6', 'Kadıköy', 'RTX 4070', 'iPhone 15 Pro')",
         ozellik="Özellik, kapasite, vites, oda, soket veya birim (örn: 'Otomatik', '3+1', '12 GB', '16 GB DDR4', 'AM5', '4x4')",
+        ek_ozellik="İkinci özellik / spec zinciri (örn: 'Nvidia', 'Benzin', 'Kombili', 'Sıfır', 'TR Garantili', 'Kutulu')",
         min_fiyat="Minimum Fiyat TL (opsiyonel)",
         max_fiyat="Maksimum Fiyat TL (opsiyonel)",
         sehir="Şehir filtresi (örn: 'İstanbul', 'Ankara', 'İzmir')",
         alarm_adi="Alarm için hatırlatıcı isim (opsiyonel)"
     )
-    @app_commands.autocomplete(kategori=category_autocomplete, ozellik=ozellik_autocomplete, sehir=sehir_autocomplete)
+    @app_commands.autocomplete(
+        kategori=category_autocomplete,
+        ozellik=ozellik_autocomplete,
+        ek_ozellik=ek_ozellik_autocomplete,
+        sehir=sehir_autocomplete
+    )
     async def alarm_hizli(
         self,
         interaction: discord.Interaction,
         kategori: str,
         arama: str | None = None,
         ozellik: str | None = None,
+        ek_ozellik: str | None = None,
         min_fiyat: int | None = None,
         max_fiyat: int | None = None,
         sehir: str | None = None,
@@ -590,7 +626,14 @@ class AlarmCog(commands.Cog):
             is_generic_fallback = True
 
         effective_query = arama.strip() if (arama and arama.strip()) else None
-        effective_spec = ozellik.strip() if (ozellik and ozellik.strip()) else None
+
+        # Seamlessly combine ozellik and ek_ozellik
+        spec_parts = []
+        if ozellik and ozellik.strip():
+            spec_parts.append(ozellik.strip())
+        if ek_ozellik and ek_ozellik.strip():
+            spec_parts.append(ek_ozellik.strip())
+        effective_spec = ", ".join(spec_parts) if spec_parts else None
 
         # Kategori tanınmadıysa (serbest arama terimi girildiyse), arama metnine dahil et
         if is_generic_fallback and display_name:

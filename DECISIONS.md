@@ -600,3 +600,27 @@ enk, property features, and motorcycle specs alongside capacity, warranty, condi
   - Users can now select and combine 2, 3, 4+ features seamlessly in Discord slash commands.
   - Zero cross-domain leakage across all 666 categories.
   - Automated test suite expanded to 262/262 passing green tests.
+
+## ADR-031: Dual-Vector Multi-Spec UX: ek_ozellik Chaining & Interactive DetailFilterSelectView Integration (2026-10-27)
+
+- **Context**:
+  1. In the Discord desktop/mobile client, selecting any autocomplete suggestion (e.g. '12 GB' or '128 GB') locks the parameter input chip and automatically advances focus to the next slash command option (e.g. 'sehir'). Consequently, users were blocked from selecting a second or third spec unless they manually navigated backward in the text cursor.
+  2. The user requested full access to all verified search options from the schema, intuitive chaining, and a complete multi-feature configuration mechanism.
+  3. Non-word punctuation lookaround boundaries (?:^|(?<=\W)) and (?=(?:\W|$)) were required to prevent regex failure on specs like '1+0 (Stüdyo)'.
+- **Decision**:
+  1. **Pre-combined Multi-Spec Autocomplete Choices**:
+     - Pre-populated curated multi-spec combinations in initial autocomplete (e.g. '12 GB, Nvidia', '12 GB, Nvidia, Sıfır', '128 GB, TR Garantili, Sıfır', 'Otomatik, Benzin', 'AM5, 32 MB, Kutulu') so users can select multiple specs with a single click.
+  2. **Dedicated Second Spec Parameter (ek_ozellik)**:
+     - Added an optional ek_ozellik parameter with its own dynamic autocomplete (ek_ozellik_autocomplete) to /alarm-hizli. Users who select a single spec in ozellik can immediately choose a complementary spec in ek_ozellik without text editing. Both are merged seamlessly into filters and URL parameters.
+  3. **Interactive Filter Configuration UI (DetailFilterSelectView)**:
+     - Attached AlarmQuickActionView with a ⚙️ Detaylı Filtreleri Düzenle button to the /alarm-hizli response embed.
+     - When clicked, opens DetailFilterSelectView rendering category-specific select menus matching the schema profile (e.g. for phone: Hafıza, Garanti, Durum, Renk, Kozmetik; for car: Vites, Yakıt, Hasar, Kasa; for CPU: 42 socket options split into AMD and Intel menus, Ön Bellek, etc.).
+     - Allows users to select/clear options, updates the database via database.update_alarm_filters, rebuilds the canonical Sahibinden search URL, and refreshes the embed.
+  4. **Punctuation & Profile-Aware Regex Boundaries**:
+     - Fixed spec extraction boundaries with (?:^|(?<=\W)) and (?=(?:\W|$)), and added synthetic category fallback when profile keys are queried directly.
+  5. **Automated Test Suite**:
+     - Added 	ests/test_multi_spec_and_views.py with 15 tests covering pre-combined suggestions, ek_ozellik, interactive view select/apply/back callbacks, and permission isolation.
+- **Consequences**:
+  - Full access to all 24 schema profiles' search options.
+  - Multi-feature selection works seamlessly via slash command autocomplete, ek_ozellik, or interactive Discord component buttons.
+  - Test suite expanded to 277/277 passing green tests (100% pass rate).

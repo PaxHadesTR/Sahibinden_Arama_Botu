@@ -154,8 +154,15 @@
   - [x] Absolute cross-domain isolation preventing leakage across all 666 categories (pets, driving lessons, repair services never receive car damage or room counts).
   - [x] Comma sanitization in SahibindenURLBuilder preventing raw %2C encodings in search URLs.
   - [x] Multi-facet simultaneous extraction in alarms.py storing all selected features in SQLite filters_json and presenting them with dedicated emoji badges in Discord confirmation embeds.
-  - [x] Automated Test Suite expanded to 262/262 passing green tests.
-- [x] Automated Test Suite: 262/262 tests passing green across all 12 test suites (unit, integration, 11-branch validation, 24-profile validation, 660-node schema validation, multi-spec chaining, and full real-world scenarios)
+- [x] Dual-Vector Multi-Spec UX & Interactive DetailFilterSelectView Integration (ADR-031):
+  - [x] Curated multi-spec combinations in initial autocomplete (e.g. '12 GB, Nvidia', '128 GB, TR Garantili, Sıfır', 'Otomatik, Benzin', 'AM5, 32 MB, Kutulu') for 1-click multi-spec selection.
+  - [x] Dedicated optional second spec parameter (ek_ozellik) with dynamic autocomplete in /alarm-hizli.
+  - [x] Interactive AlarmQuickActionView attached to confirmation embeds with a '⚙️ Detaylı Filtreleri Düzenle' button.
+  - [x] Paged DetailFilterSelectView rendering category-specific select menus for all schema profile options (Phones, Cars, Housing, CPU socket AMD/Intel split, etc.), persisting updates to SQLite and rebuilding URLs.
+  - [x] Non-word punctuation lookaround boundaries (?:^|(?<=\W)) and (?=(?:\W|$)) in spec extraction.
+  - [x] Automated Test Suite expanded to 277/277 passing green tests (tests/test_multi_spec_and_views.py).
+- [x] Automated Test Suite: 277/277 tests passing green across all 13 test suites (unit, integration, 11-branch validation, 24-profile validation, 660-node schema validation, multi-spec chaining, interactive views in tests/test_multi_spec_and_views.py, and full real-world scenarios)
+- [x] Automated Test Suite: 277/277 tests passing green across all 13 test suites (unit, integration, 11-branch validation, 24-profile validation, 660-node schema validation, multi-spec chaining, interactive views in tests/test_multi_spec_and_views.py, and full real-world scenarios)
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`) fully updated and synchronized
 
 

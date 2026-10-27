@@ -89,6 +89,36 @@
             "Hibrit": "Hibrit",
             "Elektrik": "Elektrik"
           }
+        },
+        "hasar": {
+          "param_name": "hasar",
+          "label": "Hasar Durumu",
+          "options": {
+            "Boyasız": "Boyasız",
+            "Hatasız": "Hatasız",
+            "Değişensiz": "Değişensiz",
+            "Tramersiz": "Tramersiz"
+          }
+        },
+        "kasa_tipi": {
+          "param_name": "kasa_tipi",
+          "label": "Kasa Tipi",
+          "options": {
+            "Sedan": "Sedan",
+            "Hatchback": "Hatchback",
+            "SUV": "SUV",
+            "Station Wagon": "Station Wagon",
+            "Coupe": "Coupe",
+            "Cabrio": "Cabrio"
+          }
+        },
+        "cekis": {
+          "param_name": "cekis",
+          "label": "Çekiş",
+          "options": {
+            "4x4": "4x4",
+            "4x2": "4x2"
+          }
         }
       },
       "profile": "vehicle_car",
@@ -204,7 +234,10 @@
             "3+1": "3+1",
             "4+1": "4+1",
             "5+1": "5+1",
-            "Dubleks": "Dubleks"
+            "Dubleks": "Dubleks",
+            "Stüdyo": "Stüdyo",
+            "1+0": "1+0",
+            "Villa": "Villa"
           }
         }
       },
@@ -320,7 +353,29 @@
             "128 GB": "128",
             "256 GB": "256",
             "512 GB": "512",
-            "1 TB": "1024"
+            "1 TB": "1024",
+            "16 GB": "16",
+            "32 GB": "32"
+          }
+        },
+        "garanti": {
+          "param_name": "garanti",
+          "label": "Garanti",
+          "options": {
+            "TR Garantili": "TR Garantili",
+            "İthalatçı Garantili": "İthalatçı Garantili",
+            "Garantisiz": "Garantisiz",
+            "Garantili": "Garantili"
+          }
+        },
+        "durum": {
+          "param_name": "durum",
+          "label": "Durum",
+          "options": {
+            "Sıfır Kapalı Kutu": "Sıfır Kapalı Kutu",
+            "Sıfır": "Sıfır",
+            "İkinci El": "İkinci El",
+            "Yenilenmiş": "Yenilenmiş"
           }
         }
       },
@@ -627,7 +682,43 @@
             "AM3": "AM3",
             "FM2": "FM2",
             "TR4": "SP3r2 (TR4)",
-            "sTRX4": "SP3r3 (sTRX4)"
+            "sTRX4": "SP3r3 (sTRX4)",
+            "462 AMD": "462 AMD",
+            "486 AMD": "486 AMD",
+            "563 AMD": "563 AMD",
+            "638 AMD": "638 AMD",
+            "754 AMD": "754 AMD",
+            "938 AMD": "938 AMD",
+            "939 AMD": "939 AMD",
+            "940 AMD": "940 AMD",
+            "941 AMD": "941 AMD",
+            "1207 AMD": "1207 AMD",
+            "1700 AMD": "1700 AMD",
+            "1974 AMD": "1974 AMD",
+            "AM2": "AM2",
+            "AM2+": "AM2+",
+            "SP3": "SP3",
+            "SP3r2 (TR4)": "SP3r2 (TR4)",
+            "SP3r3 (sTRX4)": "SP3r3 (sTRX4)",
+            "SP3r4 (sWRX8)": "SP3r4 (sWRX8)",
+            "296 Intel": "296 Intel",
+            "370 Intel": "370 Intel",
+            "423 Intel": "423 Intel",
+            "468 Intel": "468 Intel",
+            "478 Intel": "478 Intel",
+            "771 Intel": "771 Intel",
+            "775 Intel": "775 Intel",
+            "1156 Intel": "1156 Intel",
+            "1166 Intel": "1166 Intel",
+            "1366 Intel": "1366 Intel",
+            "1851 Intel": "1851 Intel",
+            "Slot": "Slot",
+            "LGA775": "775 Intel",
+            "LGA1156": "1156 Intel",
+            "LGA1366": "1366 Intel",
+            "LGA1851": "1851 Intel",
+            "LGA2011": "2011 Intel",
+            "LGA2066": "2066 Intel"
           }
         },
         "cache": {
@@ -639,7 +730,40 @@
             "36 MB": "36 MB",
             "64 MB": "64 MB",
             "96 MB": "96 MB",
-            "128 MB": "128 MB"
+            "128 MB": "128 MB",
+            "128 KB": "128 KB",
+            "256 KB": "256 KB",
+            "512 KB": "512 KB",
+            "1 MB": "1 MB",
+            "2 MB": "2 MB",
+            "3 MB": "3 MB",
+            "4 MB": "4 MB",
+            "6 MB": "6 MB",
+            "8 MB": "8 MB",
+            "9 MB": "9 MB",
+            "10 MB": "10 MB",
+            "12 MB": "12 MB",
+            "14 MB": "14 MB",
+            "15 MB": "15 MB",
+            "20 MB": "20 MB"
+          }
+        },
+        "durum": {
+          "param_name": "durum",
+          "label": "Durumu",
+          "options": {
+            "Sıfır": "Sıfır",
+            "İkinci El": "İkinci El",
+            "Tray": "Tray",
+            "Kutulu": "Kutulu"
+          }
+        },
+        "takas": {
+          "param_name": "takas",
+          "label": "Takaslı",
+          "options": {
+            "Evet": "Evet",
+            "Hayır": "Hayır"
           }
         }
       },

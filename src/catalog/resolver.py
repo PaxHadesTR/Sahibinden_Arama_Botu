@@ -322,7 +322,13 @@ class CategoryResolver:
                 cat_data = inferred
 
         if not cat_data:
-            return {}
+            cat_clean = str(category_key).strip().lower() if category_key else ""
+            if cat_clean and cat_clean in self.PROFILE_SPEC_GROUPS:
+                cat_data = {"key": cat_clean, "profile": cat_clean, "facets": {}}
+            elif cat_clean and cat_clean in self.CATEGORY_SPEC_GROUPS:
+                cat_data = {"key": cat_clean, "profile": "commerce", "facets": {}}
+            else:
+                return {}
 
         found_facets: dict[str, str] = {}
         normalized = self.normalize_turkish(text).replace("-", " ")
@@ -574,15 +580,96 @@ class CategoryResolver:
                 found_facets["ozellik"] = "ABS"
 
         if is_pc_part and "socket" not in found_facets:
-            socket_m = re.search(r"\b(am5|am4|lga\s*1700|1700\s*intel|lga\s*1200|1200\s*intel|lga\s*1151|1151\s*intel|tr4|strx4)\b", normalized)
+            socket_m = re.search(
+                r"\b(am5|am4|am3\+|am3|am2\+|am2|fm2|lga\s*1700|1700\s*intel|lga\s*1200|1200\s*intel|"
+                r"lga\s*1151|1151\s*intel|lga\s*1155|1155\s*intel|lga\s*1150|1150\s*intel|lga\s*775|775\s*intel|"
+                r"lga\s*1156|1156\s*intel|lga\s*1366|1366\s*intel|lga\s*1851|1851\s*intel|2011\s*intel|2011|lga\s*2011|"
+                r"2066\s*intel|2066|lga\s*2066|tr4|strx4|swrx8|sp3|462\s*amd|486\s*amd|563\s*amd|638\s*amd|754\s*amd|"
+                r"938\s*amd|939\s*amd|940\s*amd|941\s*amd|1207\s*amd|1700\s*amd|1974\s*amd|296\s*intel|370\s*intel|"
+                r"423\s*intel|468\s*intel|478\s*intel|771\s*intel|1166\s*intel|sp3r2\s*\(tr4\)|sp3r3\s*\(strx4\)|sp3r4\s*\(swrx8\)|slot)\b",
+                normalized
+            )
             if socket_m:
                 raw_s = socket_m.group(1).upper()
-                found_facets["socket"] = raw_s.replace("LGA ", "LGA").replace(" ", "")
+                if "1700" in raw_s and "AMD" not in raw_s:
+                    found_facets["socket"] = "LGA1700"
+                elif "1200" in raw_s and "AMD" not in raw_s:
+                    found_facets["socket"] = "LGA1200"
+                elif "1151" in raw_s and "AMD" not in raw_s:
+                    found_facets["socket"] = "LGA1151"
+                elif "1155" in raw_s and "AMD" not in raw_s:
+                    found_facets["socket"] = "LGA1155"
+                elif "1150" in raw_s and "AMD" not in raw_s:
+                    found_facets["socket"] = "LGA1150"
+                elif "775" in raw_s and "AMD" not in raw_s:
+                    found_facets["socket"] = "LGA775"
+                elif "2011" in raw_s:
+                    found_facets["socket"] = "2011 Intel"
+                elif "2066" in raw_s:
+                    found_facets["socket"] = "2066 Intel"
+                elif "1851" in raw_s:
+                    found_facets["socket"] = "1851 Intel"
+                elif "1366" in raw_s:
+                    found_facets["socket"] = "1366 Intel"
+                elif "1156" in raw_s:
+                    found_facets["socket"] = "1156 Intel"
+                elif "1166" in raw_s:
+                    found_facets["socket"] = "1166 Intel"
+                elif "AM3+" in raw_s:
+                    found_facets["socket"] = "AM3+"
+                elif "AM3" in raw_s:
+                    found_facets["socket"] = "AM3"
+                elif "AM2+" in raw_s:
+                    found_facets["socket"] = "AM2+"
+                elif "AM2" in raw_s:
+                    found_facets["socket"] = "AM2"
+                elif "FM2" in raw_s:
+                    found_facets["socket"] = "FM2"
+                elif "478" in raw_s:
+                    found_facets["socket"] = "478 Intel"
+                elif "771" in raw_s:
+                    found_facets["socket"] = "771 Intel"
+                elif "370" in raw_s:
+                    found_facets["socket"] = "370 Intel"
+                elif "423" in raw_s:
+                    found_facets["socket"] = "423 Intel"
+                elif "468" in raw_s:
+                    found_facets["socket"] = "468 Intel"
+                elif "296" in raw_s:
+                    found_facets["socket"] = "296 Intel"
+                elif "486" in raw_s:
+                    found_facets["socket"] = "486 AMD"
+                elif "563" in raw_s:
+                    found_facets["socket"] = "563 AMD"
+                elif "638" in raw_s:
+                    found_facets["socket"] = "638 AMD"
+                elif "754" in raw_s:
+                    found_facets["socket"] = "754 AMD"
+                elif "938" in raw_s:
+                    found_facets["socket"] = "938 AMD"
+                elif "939" in raw_s:
+                    found_facets["socket"] = "939 AMD"
+                elif "940" in raw_s:
+                    found_facets["socket"] = "940 AMD"
+                elif "941" in raw_s:
+                    found_facets["socket"] = "941 AMD"
+                elif "1207" in raw_s:
+                    found_facets["socket"] = "1207 AMD"
+                elif "1700" in raw_s and "AMD" in raw_s:
+                    found_facets["socket"] = "1700 AMD"
+                elif "1974" in raw_s:
+                    found_facets["socket"] = "1974 AMD"
+                else:
+                    found_facets["socket"] = raw_s.replace("LGA ", "LGA").replace(" ", "")
 
         if is_cpu and "cache" not in found_facets and not any(k in cat_key for k in ("ram", "bellek", "ssd", "harddisk", "sabit-disk")):
-            cache_m = re.search(r"\b(16|32|64|96|128)\s*mb\b", normalized)
-            if cache_m:
-                found_facets["cache"] = f"{cache_m.group(1)} MB"
+            cache_kb_m = re.search(r"\b(128|256|512)\s*kb\b", normalized)
+            if cache_kb_m:
+                found_facets["cache"] = f"{cache_kb_m.group(1)} KB"
+            else:
+                cache_mb_m = re.search(r"\b(1|2|3|4|6|8|9|10|12|14|15|16|20|32|36|64|96|128)\s*mb\b", normalized)
+                if cache_mb_m:
+                    found_facets["cache"] = f"{cache_mb_m.group(1)} MB"
 
         if is_phone:
             if "garanti" not in found_facets:
@@ -622,22 +709,43 @@ class CategoryResolver:
                     }
                     found_facets["renk"] = color_names.get(c_key, c_key.title())
 
-        if is_land and "imar_durumu" not in found_facets:
-            # Check specific multi-word land types first before generic 'tarla'
-            if re.search(r"\b(mustakil\s*parsel)\b", normalized):
-                found_facets["imar_durumu"] = "Müstakil Parsel"
-            elif re.search(r"\b(zeytinlik)\b", normalized):
-                found_facets["imar_durumu"] = "Zeytinlik"
-            elif re.search(r"\b(sanayi\s*imarli)\b", normalized):
-                found_facets["imar_durumu"] = "Sanayi İmarlı"
-            elif re.search(r"\b(konut\s*imarli)\b", normalized):
-                found_facets["imar_durumu"] = "Konut İmarlı"
-            elif re.search(r"\b(imarli|imar)\b", normalized):
-                found_facets["imar_durumu"] = "İmarlı"
-            elif re.search(r"\b(hisseli)\b", normalized):
-                found_facets["imar_durumu"] = "Hisseli"
-            elif re.search(r"\b(tarla)\b", normalized):
-                found_facets["imar_durumu"] = "Tarla"
+        if is_land:
+            if "imar_durumu" not in found_facets:
+                # Check specific multi-word land types first before generic 'tarla'
+                if re.search(r"\b(mustakil\s*parsel)\b", normalized):
+                    found_facets["imar_durumu"] = "Müstakil Parsel"
+                elif re.search(r"\b(zeytinlik)\b", normalized):
+                    found_facets["imar_durumu"] = "Zeytinlik"
+                elif re.search(r"\b(sanayi\s*imarli)\b", normalized):
+                    found_facets["imar_durumu"] = "Sanayi İmarlı"
+                elif re.search(r"\b(konut\s*imarli)\b", normalized):
+                    found_facets["imar_durumu"] = "Konut İmarlı"
+                elif re.search(r"\b(ticari\s*imarli)\b", normalized):
+                    found_facets["imar_durumu"] = "Ticari İmarlı"
+                elif re.search(r"\b(turizm\s*imarli)\b", normalized):
+                    found_facets["imar_durumu"] = "Turizm İmarlı"
+                elif re.search(r"\b(bag\s*(&|ve)?\s*bahce)\b", normalized):
+                    found_facets["imar_durumu"] = "Bağ & Bahçe"
+                elif re.search(r"\b(kat\s*karsiligi)\b", normalized):
+                    found_facets["imar_durumu"] = "Kat Karşılığı"
+                elif re.search(r"\b(imarli|imar)\b", normalized):
+                    found_facets["imar_durumu"] = "İmarlı"
+                elif re.search(r"\b(hisseli)\b", normalized):
+                    found_facets["imar_durumu"] = "Hisseli"
+                elif re.search(r"\b(tarla)\b", normalized):
+                    found_facets["imar_durumu"] = "Tarla"
+                elif re.search(r"\byatirimlik\b", normalized):
+                    found_facets["imar_durumu"] = "Yatırımlık"
+            if "tapu" not in found_facets:
+                if re.search(r"\bmustakil\s*tapulu\b", normalized):
+                    found_facets["tapu"] = "Müstakil Tapulu"
+                elif re.search(r"\bhisseli\s*tapulu\b", normalized):
+                    found_facets["tapu"] = "Hisseli Tapulu"
+            if "krediye_uygun" not in found_facets and re.search(r"\bkrediye\s*uygun\b", normalized):
+                found_facets["krediye_uygun"] = "Krediye Uygun"
+            if "takas" not in found_facets and re.search(r"\btakasli\b", normalized):
+                found_facets["takas"] = "Takaslı"
+
 
         if is_job and "calisma_sekli" not in found_facets:
             if re.search(r"\byatili\b", normalized):
@@ -684,6 +792,38 @@ class CategoryResolver:
             elif re.search(r"\bemlak\s*ofisi(?:nden)?\b", normalized):
                 found_facets["kimden"] = "Emlak Ofisinden"
 
+        if "alisveris" not in found_facets and "teslimat" not in found_facets:
+            if re.search(r"\bparam\s*guvende\b", normalized):
+                found_facets["alisveris"] = "Param Güvende"
+                found_facets["teslimat"] = "Param Güvende"
+            elif re.search(r"\byuz\s*yuze\b", normalized):
+                found_facets["alisveris"] = "Yüz Yüze"
+                found_facets["teslimat"] = "Yüz Yüze"
+            elif re.search(r"\bkargo\s*dahil\b", normalized):
+                found_facets["teslimat"] = "Kargo Dahil"
+
+        if "takas" not in found_facets:
+            if re.search(r"\b(takasli|takas\s*var|takas\s*:\s*evet)\b", normalized):
+                found_facets["takas"] = "Takaslı"
+            elif re.search(r"\b(takassiz|takas\s*yok|takas\s*:\s*hayir)\b", normalized):
+                found_facets["takas"] = "Takassız"
+
+        # Category-scoped profile spec extraction for rich domain facets (lesson, animal, helper, service, industrial, parts, etc.)
+        scoped_profile = profile
+        if not scoped_profile and category_key and str(category_key).strip().lower() in self.PROFILE_SPEC_GROUPS:
+            scoped_profile = str(category_key).strip().lower()
+        scoped_spec_groups = self._get_spec_groups_for_category(cat_key, scoped_profile)
+        for g_name, specs in scoped_spec_groups.items():
+            if g_name in ("kombinasyon",) or g_name in found_facets:
+                continue
+            for s in sorted(specs, key=lambda x: len(self.normalize_turkish(x)), reverse=True):
+                s_norm = self.normalize_turkish(s)
+                if len(s_norm) < 2:
+                    continue
+                if re.search(rf"(?:^|(?<=\W)){re.escape(s_norm)}(?=(?:\W|$))", normalized):
+                    found_facets[g_name] = s
+                    break
+
         return found_facets
 
     FLAGSHIP_CATEGORIES = [
@@ -722,62 +862,135 @@ class CategoryResolver:
 
     PROFILE_SPEC_GROUPS: dict[str, dict[str, list[str]]] = {
         "phone": {
-            "hafiza": ["128 GB", "256 GB", "512 GB", "1 TB", "64 GB"],
+            "hafiza": ["128 GB", "256 GB", "512 GB", "1 TB", "64 GB", "32 GB", "16 GB"],
+            "kombinasyon": [
+                "128 GB, TR Garantili",
+                "128 GB, TR Garantili, Sıfır",
+                "256 GB, TR Garantili",
+                "128 GB, Pil 100",
+                "256 GB, Sıfır Kapalı Kutu",
+                "512 GB, Titanyum",
+                "128 GB, 8 GB RAM",
+                "256 GB, 8 GB RAM",
+            ],
             "garanti": ["TR Garantili", "İthalatçı Garantili", "Garantili", "Garantisiz"],
             "durum": ["Sıfır", "İkinci El", "Yenilenmiş", "Sıfır Kapalı Kutu"],
             "ram": ["8 GB RAM", "12 GB RAM", "6 GB RAM", "16 GB RAM", "4 GB RAM"],
             "kozmetik": ["Pil 100", "A Kalite", "Kozmetik Mükemmel", "Kutulu / Faturalı", "Yurt Dışı"],
-            "renk": ["Siyah", "Beyaz", "Mavi", "Titanyum"],
+            "renk": ["Siyah", "Beyaz", "Mavi", "Titanyum", "Mor", "Kırmızı", "Yeşil", "Gold", "Gümüş"],
+            "alisveris": ["Param Güvende", "Yüz Yüze"],
         },
         "vehicle_car": {
             "vites": ["Otomatik", "Manuel", "Yarı Otomatik"],
+            "kombinasyon": [
+                "Otomatik, Benzin",
+                "Otomatik, Benzin, Boyasız",
+                "Otomatik, Dizel",
+                "Manuel, Benzin",
+                "Otomatik, Sedan",
+                "Otomatik, SUV",
+                "Otomatik, Hibrit",
+                "Otomatik, Boyasız",
+            ],
             "yakit": ["Benzin", "Dizel", "Hibrit", "Elektrik", "Benzin & LPG", "LPG"],
-            "kombinasyon": ["Otomatik Benzin", "Otomatik Dizel"],
             "hasar": ["Boyasız", "Hatasız", "Değişensiz", "Tramersiz"],
             "kasa_tipi": ["Sedan", "Hatchback", "SUV", "Station Wagon", "Coupe", "Cabrio"],
             "durum": ["Sıfır", "İkinci El"],
             "cekis": ["4x4", "4x2"],
-            "kimden": ["Sahibinden", "Galeriden"],
+            "kimden": ["Sahibinden", "Galeriden", "Yetkili Bayiden"],
             "garanti": ["Garantili"],
         },
         "property_home": {
-            "oda_sayisi": ["1+1", "2+1", "3+1", "4+1", "5+1", "1+0 (Stüdyo)", "Dubleks", "Villa"],
-            "isitma": ["Kombili", "Yerden Isıtma", "Merkezi Isıtma", "Klimalı"],
-            "kat": ["Ara Kat", "Giriş Katı", "En Üst Kat", "Bahçe Katı", "Çatı Dubleks"],
-            "bina_yasi": ["Sıfır Bina", "1-5 Yaş", "5-10 Yaş"],
+            "oda_sayisi": ["1+1", "2+1", "3+1", "4+1", "5+1", "1+0 (Stüdyo)", "Stüdyo", "1+0", "Dubleks", "Villa"],
+            "kombinasyon": [
+                "3+1, Kombili",
+                "3+1, Kombili, Sıfır Bina",
+                "2+1, Kombili",
+                "1+1, Kombili",
+                "3+1, Ara Kat",
+                "2+1, Sıfır Bina",
+                "3+1, Balkonlu",
+                "3+1, Site İçi",
+            ],
+            "isitma": ["Kombili", "Yerden Isıtma", "Merkezi Isıtma", "Klimalı", "Sobalı"],
+            "kat": ["Ara Kat", "Giriş Katı", "En Üst Kat", "Bahçe Katı", "Çatı Dubleks", "Yüksek Giriş", "Bodrum"],
+            "bina_yasi": ["Sıfır Bina", "1-5 Yaş", "5-10 Yaş", "11-15 Yaş", "16-20 Yaş", "21+ Yaş"],
             "esyali": ["Eşyalı", "Boş"],
             "site_ici": ["Site İçi", "Müstakil"],
             "krediye_uygun": ["Krediye Uygun"],
+            "tapu": ["Kat Mülkiyeti", "Kat İrtifakı", "Hisseli"],
             "ozellik": ["Balkonlu", "Asansörlü", "Otoparklı"],
             "kimden": ["Sahibinden", "Emlak Ofisinden"],
         },
         "property_land": {
-            "imar_durumu": ["İmarlı", "Tarla", "Zeytinlik", "Müstakil Parsel", "Hisseli", "Kat Karşılığı", "Bağ & Bahçe", "Yatırımlık"],
-            "tapu": ["Müstakil Tapulu", "Hisseli Tapulu", "Krediye Uygun"],
+            "imar_durumu": [
+                "Konut İmarlı", "Ticari İmarlı", "Sanayi İmarlı", "Tarla", "Bağ & Bahçe",
+                "Zeytinlik", "Müstakil Parsel", "Hisseli", "Kat Karşılığı", "Turizm İmarlı",
+                "İmarlı", "Yatırımlık"
+            ],
+            "kombinasyon": [
+                "Müstakil Parsel, Tarla",
+                "Konut İmarlı, Müstakil Tapulu",
+                "Zeytinlik, Müstakil Parsel",
+                "Tarla, Müstakil Tapulu",
+            ],
+            "tapu": ["Müstakil Tapulu", "Hisseli Tapulu"],
+            "krediye_uygun": ["Krediye Uygun"],
+            "takas": ["Takaslı"],
             "kimden": ["Sahibinden", "Emlak Ofisinden"],
         },
         "property_commercial": {
             "isyeri_turu": ["Devren", "Kiralık Dükkan", "Satılık Ofis", "Plaza", "Fabrika", "Depo", "Atölye", "Düz Giriş"],
-            "isitma": ["Kombili", "Klimalı", "Merkezi Isıtma"],
+            "kombinasyon": ["Kiralık Dükkan, Düz Giriş", "Satılık Ofis, Plaza", "Devren, Dükkan"],
+            "isitma": ["Kombili", "Klimalı", "Merkezi Isıtma", "Yerden Isıtma"],
             "kimden": ["Sahibinden", "Emlak Ofisinden"],
         },
         "property_misc": {
             "tur": ["Komple Bina", "Devre Mülk", "Turistik Tesis", "Butik Otel", "Konut Projesi", "Termal"],
+            "kombinasyon": ["Komple Bina, Sahibinden", "Devre Mülk, Termal"],
             "kimden": ["Sahibinden", "Emlak Ofisinden"],
         },
         "desktop_cpu": {
-            "socket": ["AM5", "AM4", "LGA1700", "LGA1200", "LGA1151"],
-            "cache": ["32 MB", "64 MB", "96 MB", "128 MB", "16 MB"],
+            "socket": [
+                "AM5", "AM4", "LGA1700", "LGA1200", "LGA1151", "LGA1155", "LGA1150", "LGA775",
+                "2011 Intel", "2066 Intel", "1851 Intel", "1366 Intel", "1156 Intel", "1166 Intel",
+                "AM3+", "AM3", "AM2+", "AM2", "FM2", "TR4", "sTRX4", "sWRX8", "SP3",
+                "462 AMD", "486 AMD", "563 AMD", "638 AMD", "754 AMD", "938 AMD", "939 AMD", "940 AMD", "941 AMD",
+                "1207 AMD", "1700 AMD", "1974 AMD", "296 Intel", "370 Intel", "423 Intel", "468 Intel",
+                "478 Intel", "771 Intel", "Slot", "1700 Intel", "1200 Intel", "1151 Intel", "1155 Intel",
+                "1150 Intel", "775 Intel", "SP3r2 (TR4)", "SP3r3 (sTRX4)", "SP3r4 (sWRX8)"
+            ],
+            "kombinasyon": [
+                "AM5, 32 MB",
+                "AM5, 64 MB, Kutulu",
+                "AM4, 32 MB",
+                "LGA1700, 32 MB",
+                "AM5, Tray",
+                "AM5, Kutulu",
+                "AM4, Kutulu",
+                "AM5, AMD",
+                "LGA1700, Intel",
+            ],
+            "cache": [
+                "32 MB", "64 MB", "96 MB", "128 MB", "16 MB",
+                "128 KB", "256 KB", "512 KB", "1 MB", "2 MB", "3 MB", "4 MB",
+                "6 MB", "8 MB", "9 MB", "10 MB", "12 MB", "14 MB", "15 MB", "20 MB", "36 MB"
+            ],
             "marka": ["AMD", "Intel"],
-            "durum": ["Tray", "Kutulu", "Sıfır", "İkinci El", "Garantili"],
+            "durum": ["Sıfır", "İkinci El", "Tray", "Kutulu", "Garantili"],
+            "takas": ["Takaslı", "Takassız", "Evet", "Hayır"],
+            "alisveris": ["Param Güvende", "Yüz Yüze"],
         },
         "laptop_cpu": {
             "seri": ["Intel i7 Mobile", "Intel i5 Mobile", "AMD Ryzen 7", "AMD Ryzen 5", "i9 Mobile", "Ryzen 9 Mobile"],
+            "kombinasyon": ["Intel i7 Mobile, Sıfır", "AMD Ryzen 7, Çıkma"],
             "marka": ["Intel", "AMD"],
             "durum": ["Sıfır", "İkinci El", "Çıkma"],
+            "alisveris": ["Param Güvende", "Yüz Yüze"],
         },
         "desktop_pc": {
-            "segment": ["Gaming PC", "Hazır Sistem", "İş İstasyonu", "All-in-One"],
+            "segment": ["Gaming PC", "Hazır Sistem", "İş İstasyonu", "All-in-One", "Mini PC"],
+            "kombinasyon": ["Gaming PC, RTX 4070", "Hazır Sistem, 32 GB RAM", "Gaming PC, RTX 4060"],
             "cpu": ["i5", "i7", "i9", "Ryzen 5", "Ryzen 7", "Ryzen 9"],
             "gpu": ["RTX 4060", "RTX 4070", "RTX 4080", "RTX 3060"],
             "ram": ["16 GB RAM", "32 GB RAM", "64 GB RAM"],
@@ -786,165 +999,237 @@ class CategoryResolver:
         },
         "vehicle_motorcycle": {
             "vites": ["Otomatik", "Manuel", "Vitesli"],
-            "tip": ["Scooter", "Naked", "Racing", "Touring", "Enduro", "Chopper"],
-            "motor_hacmi": ["125 cc", "250 cc", "500 cc", "600 cc"],
+            "kombinasyon": ["Scooter, Otomatik", "ABS, Hatasız", "250 cc, ABS"],
+            "tip": ["Scooter", "Naked", "Racing", "Touring", "Enduro", "Chopper", "Cross"],
+            "motor_hacmi": ["125 cc", "250 cc", "500 cc", "600 cc", "1000 cc"],
             "ozellik": ["ABS", "Çantalı", "Hatasız", "Düşmesi Yok"],
             "durum": ["Sıfır", "İkinci El"],
         },
         "vehicle_generic": {
             "cekis": ["4x4", "4x2"],
+            "kombinasyon": ["4x4, Otomatik", "Panelvan, Dizel", "Motokaravan, Sıfır"],
             "vites": ["Otomatik", "Manuel"],
-            "yakit": ["Dizel", "Benzin"],
-            "tip": ["Karavan", "Panelvan", "Minivan", "Çekme Karavan", "Kamyonet"],
+            "yakit": ["Dizel", "Benzin", "LPG"],
+            "tip": ["Karavan", "Panelvan", "Minivan", "Çekme Karavan", "Kamyonet", "Motokaravan"],
             "durum": ["Sıfır", "İkinci El"],
         },
         "vehicle_marine": {
-            "tur": ["Tekne", "Motoryat", "Dıştan Takma Motor", "Sürat Teknesi", "Kamaralı", "Bot"],
-            "motor": ["15 HP", "50 HP", "100 HP"],
+            "tur": ["Tekne", "Motoryat", "Dıştan Takma Motor", "Sürat Teknesi", "Kamaralı", "Bot", "Yelkenli"],
+            "kombinasyon": ["Tekne, Kamaralı", "Motoryat, Römorklu", "Dıştan Takma Motor, 50 HP"],
+            "motor": ["15 HP", "50 HP", "100 HP", "150 HP", "200 HP"],
             "durum": ["Sıfır", "İkinci El", "Römorklu"],
         },
         "parts": {
-            "lastik_jant": ["Kış Lastiği", "Yaz Lastiği", "Dört Mevsim", "Çelik Jant", "205/55 R16", "225/45 R17", "Run Flat"],
-            "ekipman": ["Kask", "Egzoz", "Akü", "Orijinal", "Yan Sanayi", "Çıkma", "Sıfır"],
+            "lastik_jant": ["Kış Lastiği", "Yaz Lastiği", "Dört Mevsim", "Çelik Jant", "205/55 R16", "225/45 R17", "Run Flat", "17 Jant", "18 Jant", "19 Jant"],
+            "kombinasyon": ["Kış Lastiği, 205/55 R16", "Çelik Jant, 17 Jant", "Kask, Sıfır"],
+            "ekipman": ["Kask", "Egzoz", "Akü", "Orijinal", "Yan Sanayi", "Çıkma"],
+            "durum": ["Sıfır", "İkinci El"],
+            "teslimat": ["Param Güvende", "Yüz Yüze"],
+            "kimden": ["Sahibinden", "Mağazadan"],
         },
         "agri_machine": {
             "ceker": ["4x4", "4x2", "Çift Çeker", "Tek Çeker"],
+            "kombinasyon": ["4x4, Klimalı", "Çift Çeker, Kabinli", "4x4, Sıfır"],
             "donanim": ["Klimalı", "Kabinsiz", "Kabinli", "Levyeli"],
-            "ekipman": ["Balya Makinesi", "Pulluk", "Römork"],
+            "ekipman": ["Balya Makinesi", "Pulluk", "Römork", "Traktör"],
             "durum": ["Sıfır", "İkinci El", "Saati Az"],
+            "kimden": ["Sahibinden", "Galeriden"],
         },
         "industrial_machine": {
             "tur": ["Ekskavatör", "Beko Loder", "Forklift", "Mini Ekskavatör", "Lastikli", "Paletli"],
-            "durum": ["Çalışma Saati Az", "Yengeç Yürüyüşü", "Sıfır", "İkinci El"],
+            "kombinasyon": ["Forklift, Sıfır", "Ekskavatör, Paletli", "Mini Ekskavatör, Sıfır"],
+            "ozellik": ["Çalışma Saati Az", "Yengeç Yürüyüşü"],
+            "durum": ["Sıfır", "İkinci El"],
+            "kimden": ["Sahibinden", "İşletmeden"],
         },
         "industrial_generic": {
             "tur": ["Güneş Paneli", "Jeneratör", "Kompresör", "Trafo", "İnvertör", "Sanayi Tipi"],
+            "kombinasyon": ["Jeneratör, Trifaze", "Güneş Paneli, Sıfır", "Kompresör, 380V"],
             "voltaj": ["Trifaze", "380V", "220V"],
             "durum": ["Sıfır", "İkinci El"],
+            "teslimat": ["Param Güvende", "Yüz Yüze"],
         },
         "service": {
-            "hizmet": ["Ev Tadilat", "Evden Eve Nakliyat", "Teknik Servis", "Çilingir", "Boya Badana", "Asansörlü Nakliyat", "Acil", "Garantili İşçilik"],
+            "hizmet": ["Ev Tadilat", "Evden Eve Nakliyat", "Teknik Servis", "Çilingir", "Boya Badana", "Asansörlü Nakliyat", "Acil", "Garantili İşçilik", "Temizlik"],
+            "kombinasyon": ["Evden Eve Nakliyat, Asansörlü", "Çilingir, Acil", "Ev Tadilat, Garantili İşçilik"],
+            "format": ["Yerinde Servis", "Atölyede"],
         },
         "lesson": {
-            "seviye": ["İlkokul", "Ortaokul", "Lise", "Üniversite", "LGS Hazırlık", "YKS Hazırlık"],
-            "format": ["Online / Çevrimiçi", "Yüz Yüze", "Birebir", "Grup"],
+            "seviye": ["İlkokul", "Ortaokul", "Lise", "Üniversite", "LGS Hazırlık", "YKS Hazırlık", "Başlangıç", "İleri Seviye"],
+            "kombinasyon": ["Lise, Online / Çevrimiçi", "YKS Hazırlık, Birebir", "Ortaokul, Yüz Yüze"],
+            "format": ["Online / Çevrimiçi", "Yüz Yüze", "Birebir", "Grup", "Öğretmenin Evi", "Öğrencinin Evi"],
         },
         "job": {
             "calisma_sekli": ["Tam Zamanlı", "Yarı Zamanlı", "Home Office", "Yatılı", "Dönemsel", "Stajyer", "Freelance"],
+            "kombinasyon": ["Tam Zamanlı, Deneyimli", "Home Office, Freelance", "Tam Zamanlı, Deneyimsiz"],
             "deneyim": ["Deneyimli", "Deneyimsiz", "Vasıfsız"],
+            "egitim": ["İlköğretim", "Lise", "Üniversite"],
         },
         "animal": {
-            "durum": ["Yavru", "Aşılı", "Çipli", "Safkan", "Karneli"],
-            "aksesuar": ["Akvaryum Seti", "Kafes Dahil"],
+            "durum": ["Yavru", "Aşılı", "Çipli", "Safkan", "Karneli", "Sağlıklı"],
+            "kombinasyon": ["Yavru, Aşılı", "Yavru, Safkan", "Aşılı, Çipli"],
+            "cinsiyet": ["Erkek", "Dişi"],
+            "aksesuar": ["Akvaryum Seti", "Kafes Dahil", "Veteriner Kontrollü"],
         },
         "helper": {
             "calisma_sekli": ["Yatılı", "Tam Zamanlı (Gündüzlü)", "Yarı Zamanlı", "Saatli"],
-            "alan": ["Bebek Bakıcısı", "Hasta Bakımı", "Yaşlı Bakımı", "Ev Temizliği", "Referanslı"],
+            "kombinasyon": ["Yatılı, Bebek Bakıcısı", "Tam Zamanlı (Gündüzlü), Referanslı", "Yatılı, Hasta Bakımı"],
+            "alan": ["Bebek Bakıcısı", "Hasta Bakımı", "Yaşlı Bakımı", "Ev Temizliği", "Referanslı", "Deneyimli"],
         },
         "commerce": {
             "durum": ["Sıfır", "İkinci El", "Yenilenmiş", "Sıfır Kapalı Kutu"],
-            "teslimat": ["Param Güvende", "Elden Teslim", "Kargo Dahil"],
+            "kombinasyon": ["Sıfır, Param Güvende", "İkinci El, Param Güvende", "TR Garantili, Sıfır"],
+            "teslimat": ["Param Güvende", "Elden Teslim", "Kargo Dahil", "Yüz Yüze"],
             "guvence": ["Garantili", "TR Garantili", "Kutulu / Faturalı", "A Kalite", "Kozmetik Mükemmel", "Takaslı"],
         },
         "commerce_generic": {
-            "durum": ["Sıfır", "İkinci El", "Param Güvende", "Garantili", "Kutulu", "Orijinal", "Koleksiyonluk", "Antika", "Vintage"],
+            "durum": ["Sıfır", "İkinci El", "Param Güvende", "Garantili", "Kutulu", "Orijinal", "Koleksiyonluk", "Antika", "Vintage", "Takaslı"],
+            "kombinasyon": ["Sıfır, Param Güvende", "İkinci El, Param Güvende", "Kutulu, Garantili"],
+            "teslimat": ["Param Güvende", "Yüz Yüze", "Kargo Dahil"],
         },
         "classified": {
             "durum": ["Sıfır", "İkinci El", "Param Güvende", "Sahibinden", "Garantili", "Kutulu", "Takaslı"],
+            "kombinasyon": ["Sıfır, Param Güvende", "İkinci El, Param Güvende"],
+            "teslimat": ["Param Güvende", "Yüz Yüze"],
         },
     }
 
     CATEGORY_SPEC_GROUPS: dict[str, dict[str, list[str]]] = {
         "ram": {
-            "kapasite": ["16 GB", "32 GB", "8 GB", "64 GB", "2x 16 GB", "2x 8 GB", "2x 32 GB", "512 MB DDR2"],
-            "tipi": ["DDR4", "DDR5", "DDR3", "SODIMM"],
-            "hiz": ["3200 MHz", "3600 MHz", "6000 MHz", "5600 MHz", "4800 MHz"],
-            "kombinasyon": ["16 GB DDR4", "32 GB DDR5", "16 GB DDR5", "8 GB DDR4", "32 GB DDR4"],
-            "marka": ["Corsair", "Kingston", "G.Skill", "Crucial"],
+            "kapasite": ["16 GB", "32 GB", "8 GB", "64 GB", "2x 16 GB", "2x 8 GB", "2x 32 GB", "512 MB DDR2", "128 GB", "4 GB"],
+            "kombinasyon": ["16 GB DDR4", "32 GB DDR5", "16 GB DDR5", "8 GB DDR4", "32 GB DDR4", "2x 16 GB DDR5", "2x 8 GB DDR4"],
+            "tipi": ["DDR4", "DDR5", "DDR3", "SODIMM", "DDR3L", "DDR2"],
+            "hiz": ["3200 MHz", "3600 MHz", "6000 MHz", "5600 MHz", "4800 MHz", "5200 MHz"],
+            "marka": ["Corsair", "Kingston", "G.Skill", "Crucial", "XPG"],
             "durum": ["Sıfır", "İkinci El", "Garantili"],
         },
         "ekran-karti": {
-            "bellek": ["8 GB", "12 GB", "16 GB", "24 GB", "6 GB"],
-            "chipset": ["Nvidia", "AMD"],
-            "bellek_tipi": ["GDDR6", "GDDR6X"],
+            "bellek": ["12 GB", "16 GB", "8 GB", "24 GB", "6 GB", "4 GB"],
+            "kombinasyon": [
+                "12 GB, Nvidia",
+                "12 GB, Nvidia, Sıfır",
+                "16 GB, Nvidia",
+                "16 GB, Nvidia, Sıfır",
+                "8 GB, AMD",
+                "8 GB, Nvidia",
+                "24 GB, Nvidia",
+                "12 GB, GDDR6X",
+            ],
+            "chipset": ["Nvidia", "AMD", "Intel"],
+            "bellek_tipi": ["GDDR6", "GDDR6X", "GDDR5"],
             "durum": ["Sıfır", "İkinci El", "Kutulu", "Garantili"],
+            "teslimat": ["Param Güvende", "Yüz Yüze"],
         },
         "ssd": {
-            "kapasite": ["500 GB", "1 TB", "2 TB", "4 TB", "250 GB", "120 GB"],
-            "tip": ["NVMe M.2", "SATA SSD", "Gen4 NVMe"],
+            "kapasite": ["500 GB", "1 TB", "2 TB", "4 TB", "250 GB", "120 GB", "8 TB"],
+            "kombinasyon": ["1 TB, NVMe M.2", "1 TB, NVMe M.2, Sıfır", "2 TB, NVMe M.2", "500 GB, NVMe M.2"],
+            "tip": ["NVMe M.2", "SATA SSD", "Gen4 NVMe", "Gen3 NVMe", "Taşınabilir SSD"],
             "durum": ["Sıfır", "İkinci El", "Garantili", "Kutulu"],
+            "teslimat": ["Param Güvende", "Yüz Yüze"],
         },
         "dizustu": {
             "gpu": ["RTX 4060", "RTX 4070", "RTX 4050", "RTX 3060", "M1", "M2", "M3"],
-            "cpu": ["i7", "i5", "Ryzen 7", "Ryzen 5"],
-            "ram": ["16 GB RAM", "32 GB RAM"],
-            "depolama": ["1 TB SSD", "512 GB SSD"],
-            "ekran": ["144 Hz", "165 Hz", "OLED"],
+            "kombinasyon": ["RTX 4060, 16 GB RAM", "RTX 4070, 32 GB RAM", "i7, RTX 4060"],
+            "cpu": ["i7", "i5", "i9", "Ryzen 7", "Ryzen 5"],
+            "ram": ["16 GB RAM", "32 GB RAM", "8 GB RAM", "64 GB RAM"],
+            "depolama": ["1 TB SSD", "512 GB SSD", "2 TB SSD"],
+            "ekran": ["144 Hz", "165 Hz", "OLED", "240 Hz"],
             "durum": ["Sıfır", "İkinci El", "Garantili", "Kutulu"],
         },
         "anakart": {
-            "socket": ["AM5", "AM4", "LGA1700", "LGA1200", "B650", "B550", "Z790", "Z690"],
+            "socket": ["AM5", "AM4", "LGA1700", "LGA1200", "B650", "B550", "Z790", "Z690", "A620", "B760"],
+            "kombinasyon": ["AM5, DDR5", "AM4, DDR4", "LGA1700, DDR5", "AM5, Wi-Fi"],
             "ram": ["DDR5", "DDR4"],
             "ozellik": ["Wi-Fi", "ATX", "Micro-ATX", "Mini-ITX"],
             "durum": ["Sıfır", "İkinci El", "Kutulu", "Garantili"],
         },
         "monitor": {
-            "hz": ["144 Hz", "165 Hz", "240 Hz"],
-            "boyut": ["27 inç", "24 inç", "32 inç"],
-            "cozunurluk": ["2K (1440p)", "4K (UHD)", "IPS", "OLED", "Curved", "1ms", "Pivot", "G-Sync"],
+            "hz": ["144 Hz", "165 Hz", "240 Hz", "360 Hz", "75 Hz"],
+            "kombinasyon": ["27 inç, 165 Hz", "27 inç, 2K (1440p)", "24 inç, 144 Hz"],
+            "boyut": ["27 inç", "24 inç", "32 inç", "34 inç"],
+            "cozunurluk": ["2K (1440p)", "4K (UHD)", "Full HD (1080p)", "IPS", "OLED", "Curved", "1ms", "Pivot", "G-Sync"],
+            "durum": ["Sıfır", "İkinci El", "Garantili", "Kutulu"],
         },
         "kasa": {
-            "guc": ["750W", "850W", "650W", "1000W", "80+ Gold", "80+ Bronze"],
-            "tip": ["Full Modüler", "Modüler", "Mesh", "RGB", "Temperli Cam", "ATX"],
+            "guc": ["750W", "850W", "650W", "1000W", "80+ Gold", "80+ Bronze", "1200W"],
+            "kombinasyon": ["750W, 80+ Gold", "850W, Full Modüler", "Mesh, RGB"],
+            "tip": ["Full Modüler", "Modüler", "Mesh", "RGB", "Temperli Cam", "ATX", "Micro-ATX"],
+            "durum": ["Sıfır", "İkinci El", "Kutulu"],
         },
         "akilli-saat": {
             "marka": ["Apple Watch", "Galaxy Watch", "Ultra"],
-            "boyut": ["44 mm", "40 mm", "45 mm", "49 mm"],
+            "kombinasyon": ["Apple Watch, 45 mm", "Ultra, 49 mm", "GPS, Pil 100"],
+            "boyut": ["44 mm", "40 mm", "45 mm", "49 mm", "41 mm"],
             "ozellik": ["Hücresel", "GPS", "Pil 100", "Kutulu", "Garantili"],
+            "durum": ["Sıfır", "İkinci El"],
         },
         "kol-saati": {
             "mekanizma": ["Otomatik", "Kinetik", "Quartz (Pilli)", "Kurmalı"],
+            "kombinasyon": ["Otomatik, Çelik Kasa", "Otomatik, Safir Cam"],
             "malzeme": ["Çelik Kasa", "Deri Kordon", "Safir Cam", "Kronometre", "Kutulu", "Orijinal"],
+            "durum": ["Sıfır", "İkinci El"],
         },
         "televizyon": {
-            "ekran_tipi": ["OLED", "QLED", "4K Ultra HD", "Smart TV"],
-            "boyut": ["55 inç", "65 inç", "50 inç", "75 inç", "120 Hz"],
-            "sistem": ["Google TV", "WebOS"],
+            "ekran_tipi": ["OLED", "QLED", "4K Ultra HD", "Smart TV", "Mini LED"],
+            "kombinasyon": ["55 inç, 4K Ultra HD", "65 inç, OLED", "OLED, 120 Hz"],
+            "boyut": ["55 inç", "65 inç", "50 inç", "75 inç", "43 inç", "120 Hz"],
+            "sistem": ["Google TV", "WebOS", "Android TV"],
+            "durum": ["Sıfır", "İkinci El"],
         },
         "beyaz-esya": {
-            "tip": ["Buzdolabı", "Çamaşır", "Bulaşık", "Solo", "Ankastre"],
+            "tip": ["Buzdolabı", "Çamaşır", "Bulaşık", "Solo", "Ankastre", "Kurutma Makinesi"],
+            "kombinasyon": ["No-Frost, Inverter", "9 kg, 1400 Devir"],
             "teknoloji": ["No-Frost", "Inverter", "A+++", "9 kg", "10 kg", "1200 Devir", "1400 Devir"],
+            "durum": ["Sıfır", "İkinci El", "Garantili"],
         },
         "isitma-sogutma": {
             "tip": ["Klima", "Kombi", "Inverter", "12000 BTU", "18000 BTU", "24000 BTU", "Tam Yoğuşmalı", "A++", "Doğalgaz", "Mobil Klima"],
+            "kombinasyon": ["Klima, 12000 BTU", "Kombi, Tam Yoğuşmalı", "Inverter, 18000 BTU"],
+            "durum": ["Sıfır", "İkinci El", "Garantili"],
         },
         "fotograf": {
             "tip": ["Aynasız", "DSLR", "Body", "Kit Lens", "Full Frame", "4K Video", "Shutter Az", "Garantili", "Kutulu", "Tripod"],
+            "kombinasyon": ["Aynasız, Full Frame", "Body, Shutter Az"],
+            "durum": ["Sıfır", "İkinci El"],
         },
         "dron": {
             "paket": ["Fly More Combo", "4K Kamera", "Gimbal", "Yedek Batarya", "GPS", "Engel Sensörü", "Kayıtlı", "Kutulu"],
+            "kombinasyon": ["Fly More Combo, 4K Kamera", "Kayıtlı, Kutulu"],
+            "durum": ["Sıfır", "İkinci El"],
         },
         "muzik": {
             "enstruman": ["Elektro Gitar", "Akustik Gitar", "Klasik Gitar", "Piyano", "Dijital Piyano", "Bağlama", "Bateri", "Amfi", "Kılıf Dahil"],
+            "kombinasyon": ["Elektro Gitar, Amfi", "Dijital Piyano, Tabure Dahil"],
+            "durum": ["Sıfır", "İkinci El"],
         },
         "spor": {
             "ekipman": ["Kondisyon Bisikleti", "Koşu Bandı", "Dambıl Seti", "Kamp Çadırı", "Uyku Tulumu", "Olta Takımı", "Su Geçirmez"],
+            "kombinasyon": ["Kondisyon Bisikleti, Sıfır", "Kamp Çadırı, Su Geçirmez"],
+            "durum": ["Sıfır", "İkinci El"],
         },
         "bisiklet": {
             "jant": ["29 Jant", "28 Jant", "27.5 Jant", "26 Jant"],
+            "kombinasyon": ["29 Jant, Dağ Bisikleti", "28 Jant, Yol / Yarış", "Elektrikli, Katlanır"],
             "tip": ["Dağ Bisikleti", "Yol / Yarış", "Elektrikli", "Katlanır", "Hidrolik Disk"],
+            "durum": ["Sıfır", "İkinci El"],
         },
         "konsol": {
             "cihaz": ["PlayStation 5", "Slim", "Digital Edition", "Diskli", "Xbox Series X", "Xbox Series S", "Nintendo Switch OLED", "Çift Kol"],
+            "kombinasyon": ["PlayStation 5, Slim", "PlayStation 5, Çift Kol", "Xbox Series X, Kutulu"],
+            "durum": ["Sıfır", "İkinci El", "Kutulu", "Garantili"],
         },
         "giyim": {
-            "durum": ["Sıfır", "Etiketli", "Kutulu", "Orijinal"],
+            "durum": ["Sıfır", "Etiketli", "Kutulu", "Orijinal", "İkinci El"],
+            "kombinasyon": ["Sıfır, Etiketli", "Bebek Arabası, Garantili"],
             "tur": ["Bebek Arabası", "Oto Koltuğu", "Garantili", "Mama Sandalyesi"],
         },
         "antika": {
             "nitelik": ["Koleksiyonluk", "Antika", "Vintage", "Nadir", "Çil", "Sertifikalı", "Orijinal", "Kutulu"],
+            "kombinasyon": ["Koleksiyonluk, Orijinal", "Vintage, Nadir"],
+            "durum": ["İkinci El", "Koleksiyonluk"],
         },
     }
+
 
     def _get_spec_groups_for_category(self, cat_key: str, profile: str) -> dict[str, list[str]]:
         """Resolves rich structured facet groups for any category key and profile."""
@@ -953,6 +1238,8 @@ class CategoryResolver:
         # 1. Authentic schema profile match first (protects specialized domains from substring bleed)
         if profile and profile in self.PROFILE_SPEC_GROUPS and profile not in ("commerce", "commerce_generic", "classified"):
             return self.PROFILE_SPEC_GROUPS[profile]
+        if cat_low in self.PROFILE_SPEC_GROUPS and cat_low not in ("commerce", "commerce_generic", "classified"):
+            return self.PROFILE_SPEC_GROUPS[cat_low]
 
         # 2. Specialized subcategories for commerce/hardware/appliances
         if any(k in cat_low for k in ("ram", "bellek")):
@@ -1064,7 +1351,38 @@ class CategoryResolver:
         norm_cur = self.normalize_turkish(current) if current else ""
 
         if not raw_cur:
-            return all_specs[:25]
+            curated: list[str] = []
+            # 1. Primary specs (from the first facet group, e.g. hafiza, vites, oda_sayisi, socket, bellek)
+            first_group_name = next(iter(spec_groups.keys()), None)
+            if first_group_name and first_group_name != "kombinasyon":
+                for s in spec_groups[first_group_name][:5]:
+                    if s not in curated:
+                        curated.append(s)
+
+            # 2. Curated combinations (top 6-8 popular combinations)
+            for c in spec_groups.get("kombinasyon", [])[:8]:
+                if c not in curated:
+                    curated.append(c)
+
+            # 3. Balanced sample from remaining groups (up to 2 from each group)
+            for g_name, specs in spec_groups.items():
+                if g_name in ("kombinasyon", first_group_name):
+                    continue
+                for s in specs[:2]:
+                    if s not in curated:
+                        curated.append(s)
+                    if len(curated) >= 25:
+                        break
+                if len(curated) >= 25:
+                    break
+
+            # 4. Fill from all_specs if still space
+            for s in all_specs:
+                if s not in curated:
+                    curated.append(s)
+                if len(curated) >= 25:
+                    break
+            return curated[:25]
 
         canon_spec_map = {self.normalize_turkish(s): s for s in all_specs}
 
@@ -1080,7 +1398,6 @@ class CategoryResolver:
             else:
                 last_norm = self.normalize_turkish(raw_parts[-1])
                 if last_norm in canon_spec_map:
-                    # Last token is already a full, valid spec choice!
                     chosen_tokens = raw_parts
                     active_query = ""
                 else:
@@ -1142,18 +1459,14 @@ class CategoryResolver:
                     continue
                 for gs in g_specs:
                     gs_norm = self.normalize_turkish(gs)
-                    if len(gs_norm) >= 2 and re.search(rf"(?:^|\b){re.escape(gs_norm)}(?:\b|$)", norm_tok):
+                    if len(gs_norm) >= 2 and re.search(rf"(?:^|(?<=\W)){re.escape(gs_norm)}(?=(?:\W|$))", norm_tok):
                         used_groups.add(g_name)
                         break
-
-        # When chaining is active (one or more tokens chosen), suppress redundant compound combinations
-        if canonical_chosen:
-            used_groups.add("kombinasyon")
 
         # Disallow options from already chosen facet groups
         compatible_specs = [
             s for g_name, specs in spec_groups.items()
-            if g_name not in used_groups
+            if g_name not in used_groups and g_name != "kombinasyon"
             for s in specs
             if self.normalize_turkish(s) not in [self.normalize_turkish(c) for c in canonical_chosen]
         ]
@@ -1163,9 +1476,73 @@ class CategoryResolver:
         norm_active = self.normalize_turkish(active_query)
 
         if canonical_chosen:
+            def is_combo_compatible(combo_str: str) -> bool:
+                combo_norm_str = self.normalize_turkish(combo_str)
+                norm_chosen_list = [self.normalize_turkish(c) for c in canonical_chosen]
+                if not all(c in combo_norm_str for c in norm_chosen_list):
+                    return False
+                parts = [p.strip() for p in combo_str.split(",")]
+                for p in parts:
+                    p_norm = self.normalize_turkish(p)
+                    p_group = spec_to_group.get(p_norm)
+                    if not p_group:
+                        for norm_s, g in spec_to_group.items():
+                            if norm_s == p_norm or (len(norm_s) >= 3 and norm_s in p_norm):
+                                p_group = g
+                                break
+                    if p_group in used_groups and p_norm not in norm_chosen_list and not any(p_norm in c or c in p_norm for c in norm_chosen_list):
+                        return False
+                return True
+
             if not active_query:
                 if prefix and prefix not in suggestions:
                     suggestions.append(prefix[:100])
+
+                # 1. Prioritize popular curated combinations from spec_groups['kombinasyon'] matching prefix/tokens
+                for combo in spec_groups.get("kombinasyon", []):
+                    if is_combo_compatible(combo):
+                        if combo not in suggestions and len(combo) <= 100:
+                            suggestions.append(combo)
+                        if len(suggestions) >= 25:
+                            break
+
+                # 2. Balanced 2-spec chained combos: take top 2-3 from each compatible group (prevents large group domination)
+                compat_by_group: dict[str, list[str]] = {}
+                for comp in compatible_specs:
+                    g = spec_to_group.get(self.normalize_turkish(comp), "other")
+                    compat_by_group.setdefault(g, []).append(comp)
+
+                # Round-robin up to 2 items per group
+                for idx in range(3):
+                    for g, c_list in compat_by_group.items():
+                        if idx < len(c_list):
+                            chained = f"{prefix}, {c_list[idx]}"
+                            if len(chained) <= 100 and chained not in suggestions:
+                                suggestions.append(chained)
+                            if len(suggestions) >= 25:
+                                break
+                    if len(suggestions) >= 25:
+                        break
+
+                # 3. Include 3-spec chained combos across distinct compatible groups
+                if len(canonical_chosen) == 1 and len(suggestions) < 25 and len(compat_by_group) >= 2:
+                    top_groups = list(compat_by_group.keys())
+                    for i in range(len(top_groups) - 1):
+                        g1_specs = compat_by_group[top_groups[i]][:3]
+                        g2_specs = compat_by_group[top_groups[i + 1]][:3]
+                        for comp1 in g1_specs:
+                            for comp2 in g2_specs:
+                                chained_3 = f"{prefix}, {comp1}, {comp2}"
+                                if len(chained_3) <= 100 and chained_3 not in suggestions:
+                                    suggestions.append(chained_3)
+                                if len(suggestions) >= 25:
+                                    break
+                            if len(suggestions) >= 25:
+                                break
+                        if len(suggestions) >= 25:
+                            break
+
+                # 4. Fill remaining slots with compatible specs
                 for comp in compatible_specs:
                     chained = f"{prefix}, {comp}"
                     if len(chained) <= 100 and chained not in suggestions:
@@ -1173,6 +1550,15 @@ class CategoryResolver:
                     if len(suggestions) >= 25:
                         break
             else:
+                # Active query filtering
+                # Check curated combinations matching active query
+                for combo in spec_groups.get("kombinasyon", []):
+                    if norm_active in self.normalize_turkish(combo) and is_combo_compatible(combo):
+                        if combo not in suggestions and len(combo) <= 100:
+                            suggestions.append(combo)
+                        if len(suggestions) >= 25:
+                            break
+
                 filtered_comp = [s for s in compatible_specs if norm_active in self.normalize_turkish(s)]
                 for comp in filtered_comp:
                     chained = f"{prefix}, {comp}"
@@ -1197,6 +1583,14 @@ class CategoryResolver:
             if not matching_specs:
                 return [current[:100]]
 
+            # Also check curated combos
+            for combo in spec_groups.get("kombinasyon", []):
+                if norm_active in self.normalize_turkish(combo):
+                    if combo not in suggestions and len(combo) <= 100:
+                        suggestions.append(combo)
+                    if len(suggestions) >= 25:
+                        break
+
             for s in matching_specs:
                 if s not in suggestions:
                     suggestions.append(s[:100])
@@ -1207,7 +1601,7 @@ class CategoryResolver:
             top_group = spec_to_group.get(self.normalize_turkish(top_match))
             top_comp = [
                 comp for g_name, specs in spec_groups.items()
-                if g_name != top_group
+                if g_name != top_group and g_name != "kombinasyon"
                 for comp in specs
             ]
             for comp in top_comp:
@@ -1218,6 +1612,121 @@ class CategoryResolver:
                     break
 
         return suggestions[:25]
+
+    def get_ek_ozellik_suggestions(
+        self,
+        category_key: str | None,
+        first_spec: str | None,
+        current: str = ""
+    ) -> list[str]:
+        """Provides dynamic autocomplete choices for a second spec (ek_ozellik), aware of the first spec (ozellik)."""
+        cat_data = self.get_category(category_key) if category_key else None
+        cat_key = (cat_data["key"] if cat_data else (category_key or "")).lower()
+        profile = (cat_data.get("profile") if cat_data else "") or ""
+        spec_groups = self._get_spec_groups_for_category(cat_key, profile)
+
+        used_groups: set[str] = set()
+        all_specs: list[str] = []
+        spec_to_group: dict[str, str] = {}
+        for g_name, specs in spec_groups.items():
+            for s in specs:
+                if s not in all_specs:
+                    all_specs.append(s)
+                    spec_to_group[self.normalize_turkish(s)] = g_name
+
+        canon_spec_map = {self.normalize_turkish(s): s for s in all_specs}
+
+        norm_first = self.normalize_turkish(first_spec) if first_spec else ""
+        if first_spec:
+            extracted = self.extract_specs_from_text(first_spec, category_key=cat_key)
+            for k in extracted.keys():
+                used_groups.add(k)
+            for g_name, specs in spec_groups.items():
+                if g_name == "kombinasyon":
+                    continue
+                for s in specs:
+                    s_norm = self.normalize_turkish(s)
+                    if len(s_norm) >= 2 and re.search(rf"(?:^|(?<=\W)){re.escape(s_norm)}(?=(?:\W|$))", norm_first):
+                        used_groups.add(g_name)
+                        break
+
+        # Handle chaining in ek_ozellik (e.g. 'Nvidia, ' or 'Sıfır, ')
+        chosen_cur_tokens: list[str] = []
+        active_cur_query = ""
+        if "," in current:
+            parts = [p.strip() for p in current.split(",") if p.strip()]
+            if current.rstrip().endswith(","):
+                chosen_cur_tokens = parts
+            elif parts:
+                last_n = self.normalize_turkish(parts[-1])
+                if last_n in canon_spec_map:
+                    chosen_cur_tokens = parts
+                else:
+                    chosen_cur_tokens = parts[:-1]
+                    active_cur_query = parts[-1]
+        elif current.strip() and self.normalize_turkish(current) in canon_spec_map:
+            chosen_cur_tokens = [canon_spec_map[self.normalize_turkish(current)]]
+
+        for tok in chosen_cur_tokens:
+            tok_norm = self.normalize_turkish(tok)
+            if tok_norm in spec_to_group:
+                used_groups.add(spec_to_group[tok_norm])
+            else:
+                for norm_s, g in spec_to_group.items():
+                    if tok_norm in norm_s or norm_s in tok_norm:
+                        used_groups.add(g)
+                        break
+
+        compatible_specs: list[str] = []
+        for g_name, specs in spec_groups.items():
+            if g_name in used_groups or g_name == "kombinasyon":
+                continue
+            for s in specs:
+                if s not in compatible_specs:
+                    compatible_specs.append(s)
+
+        norm_cur = self.normalize_turkish(current) if current else ""
+        norm_active = self.normalize_turkish(active_cur_query) if active_cur_query else ""
+
+        if chosen_cur_tokens:
+            prefix = ", ".join(chosen_cur_tokens)
+            res = [prefix[:100]] if not active_cur_query else []
+            filtered = [s for s in compatible_specs if not norm_active or norm_active in self.normalize_turkish(s)]
+            for s in filtered:
+                chained = f"{prefix}, {s}"
+                if len(chained) <= 100 and chained not in res:
+                    res.append(chained)
+                if len(res) >= 25:
+                    break
+            return res[:25]
+
+        if not norm_cur:
+            combo_suggestions: list[str] = []
+            top_rem_groups = [g for g in spec_groups.keys() if g not in used_groups and g != "kombinasyon"]
+            if len(top_rem_groups) >= 2:
+                g1_specs = spec_groups[top_rem_groups[0]][:3]
+                g2_specs = spec_groups[top_rem_groups[1]][:3]
+                for s1 in g1_specs:
+                    for s2 in g2_specs:
+                        combo_suggestions.append(f"{s1}, {s2}")
+
+            res: list[str] = []
+            for s in compatible_specs[:12]:
+                if s not in res:
+                    res.append(s)
+            for c in combo_suggestions:
+                if c not in res and len(res) < 25:
+                    res.append(c)
+            for s in compatible_specs[12:]:
+                if s not in res and len(res) < 25:
+                    res.append(s)
+            return res[:25]
+        else:
+            filtered = [s for s in compatible_specs if norm_cur in self.normalize_turkish(s)]
+            if filtered:
+                return filtered[:25]
+            return [current[:100]]
+
 
     def _format_choice_label(self, cat_key: str, cat_data: dict[str, Any]) -> str:
         display = cat_data.get("display_name", cat_key)
