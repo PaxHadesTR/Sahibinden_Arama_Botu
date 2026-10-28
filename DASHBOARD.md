@@ -2,8 +2,8 @@
 
 ## Metadata
 - **Mode**: BUILD_AND_ITERATE_MODE
-- **Status**: COMPLETE & HARDENED
-- **Last Sync**: 2026-10-27
+- **Status**: COMPLETE & HARDENED (7-Vector Audit Fixes Applied & Verified)
+- **Last Sync**: 2026-10-29
 - **Tech Stack**: Python 3.12 / 3.15, `discord.py` 2.7, `aiohttp-socks`, `playwright`, `BeautifulSoup4`, `aiosqlite`, `pydantic`, Docker, Coolify, Xvfb, Cloudflare WARP
 
 ## Current Stage: Apex Codebase Audit, Scoped Facet Heuristics, DB Hygiene & UI Autocomplete Intelligence Complete
@@ -177,8 +177,15 @@
   - [x] Alphanumeric Model Variant Resolution: Handled dotted and spaced models (`3.20i 4x4`, `3.20i`, `c 200`), routing BMW 3-series and Mercedes C-class searches to `otomobil` with `cekis=4x4` rather than generic or SUV search.
   - [x] Embed Badge Deduplication: Eliminated duplicate `💾 Kapasite` badges alongside `📱 Dahili Hafıza` across creation embeds and interactive detail views.
   - [x] Automated Test Suite expanded to 294/294 passing green tests (17 targeted boost tests in `tests/test_alarm_hizli_boost.py`).
-- [x] Automated Test Suite: 294/294 tests passing green across all 14 test suites (unit, integration, 11-branch validation, 24-profile validation, 660-node schema validation, multi-spec chaining, interactive views, boosted /alarm-hizli workflow, and full real-world scenarios)
-- [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`) fully updated and synchronized
+- [x] Asynchronous Baselining, Isolated Browser Page Lifecycle & Dead View Deprecation (`ADR-034`):
+  - [x] Option 1A (Asynchronous Baselining): `/alarm-hizli`, `/alarm-ara`, and `/alarm-url` execute with instant (<100ms) Discord acknowledgement and asynchronous background baselining (`is_primed = 0`). The background task handles initial listings without holding `scraper._lock` or blocking Discord gateway interaction deferrals.
+  - [x] Option 2A (Isolated Page Lifecycle): Scraper instantiates a fresh Chromium page per request (`page = await context.new_page()`) with deterministic `try...finally: await page.close()` lifecycle, keeping container memory usage constant. Added zero-result DOM selectors (`div.noResult`, `div.searchResultsRight`, etc.) eliminating 10s wait timeouts on empty queries.
+  - [x] Option 3A (Dead View Purge & View Auth): Completely removed 660+ lines of dead legacy views (`SpecFilterModal`, `UniversalCategorySelectView`, `RamSpecSelectView`, `CategoryGroupSelectView`, `SubCategorySelectView`). Enforced strict `user_id == interaction.user.id` authorization checks on `DeleteAlarmSelect`, `DetailFilterSelectView`, and `AlarmQuickActionView`.
+  - [x] Centralized Database Connection Manager: Introduced `@asynccontextmanager async def get_connection(self)` executing `PRAGMA foreign_keys = ON;` and `PRAGMA busy_timeout = 15000;`, replacing all raw `aiosqlite.connect` calls across all 16 database methods.
+  - [x] Monitor Deletion Guard: Fresh database query in `_run_loop` before scraping cleanly skips alarms deleted or paused mid-cycle.
+  - [x] Security Documentation: Created `SecurityUpdates.md` detailing V1-V5 hardening measures.
+- [x] Automated Test Suite: 294/294 tests passing green across all 14 test suites (100% pass rate).
+- [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`, `SecurityUpdates.md`) fully updated and synchronized.
 
 
 

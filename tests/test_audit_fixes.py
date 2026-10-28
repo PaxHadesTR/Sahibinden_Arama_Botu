@@ -14,7 +14,7 @@ from src.services.monitor import AlarmMonitor
 from src.services.parser import ListingItem
 from src.db.database import Database
 from src.bot.cogs.alarms import AlarmCog
-from src.bot.views import SpecFilterModal
+from src.bot.views import DetailFilterSelectView, DeleteAlarmSelect
 
 
 # =============================================================================
@@ -279,42 +279,51 @@ async def test_sehir_and_alarm_id_autocompletes(monkeypatch):
 
 
 # =============================================================================
-# 9. SPEC FILTER MODAL REJECTS NEGATIVE PRICES & PERSISTS PROFILE
+# 9. VIEW SELECT MENUS REJECT UNAUTHORIZED USERS (V4 AUTH DEFENSE)
 # =============================================================================
 @pytest.mark.asyncio
-async def test_spec_filter_modal_rejects_negative_prices(monkeypatch):
-    """Verify SpecFilterModal rejects negative price bounds and attaches profile metadata."""
+async def test_view_select_menus_reject_unauthorized_users(monkeypatch):
+    """Verify DetailFilterSelectView and DeleteAlarmSelect enforce strict user ownership checks."""
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     db = Database(db_path=path)
     await db.init_db()
 
     monkeypatch.setattr("src.bot.views.database", db)
-    monkeypatch.setattr("src.bot.views.scraper.fetch_listings", AsyncMock(return_value=[]))
 
-    modal = SpecFilterModal(category_key="otomobil")
-    modal.alarm_name_input._value = "Negatif Fiyat Alarmı"
-    modal.min_price_input._value = "-500"
+    # 1. DetailFilterSelectView select menu callback authorization
+    detail_view = DetailFilterSelectView(
+        alarm_id=99,
+        category_slug="otomobil",
+        display_name="Otomobil",
+        profile="vehicle_car",
+        current_filters={"vites": "Otomatik"},
+        user_id=1001,
+    )
+    selects = [item for item in detail_view.children if hasattr(item, "values")]
+    assert len(selects) > 0
+    sel = selects[0]
+    sel._values = ["Manuel"]
 
-    inter = MockInteraction(user_id=101)
-    await modal.on_submit(inter)
+    # Unauthorized user interaction
+    unauth_inter = MockInteraction(user_id=9999)
+    await sel.callback(unauth_inter)
+    assert unauth_inter.response.send_message.called
+    assert "yalnızca alarmı oluşturan kullanıcıya aittir" in unauth_inter.response.send_message.call_args[0][0]
 
-    # Rejection triggered either by int parsing or validation
-    assert inter.followup.send.called
-    sent_text = inter.followup.send.call_args[0][0]
-    assert "yalnızca rakam" in sent_text or "negatif" in sent_text
+    # Authorized user interaction
+    auth_inter = MockInteraction(user_id=1001)
+    await sel.callback(auth_inter)
+    assert auth_inter.response.defer.called
 
-    # Positive submission persists schema profile
-    modal.min_price_input._value = "500000"
-    modal.max_price_input._value = "900000"
-    inter2 = MockInteraction(user_id=102)
-    await modal.on_submit(inter2)
+    # 2. DeleteAlarmSelect authorization
+    del_select = DeleteAlarmSelect(alarms=[{"id": 99, "name": "BMW", "created_at": "2026-10-28"}], user_id=1001)
+    del_select._values = ["99"]
 
-    alarms = await db.get_user_alarms(102)
-    assert len(alarms) == 1
-    filters = json.loads(alarms[0]["filters_json"])
-    assert filters.get("profile") == "vehicle_car"
-    assert filters.get("min_fiyat") == 500000
+    unauth_del = MockInteraction(user_id=9999)
+    await del_select.callback(unauth_del)
+    assert unauth_del.response.send_message.called
+    assert "yalnızca alarmı oluşturan kullanıcıya aittir" in unauth_del.response.send_message.call_args[0][0]
 
     if os.path.exists(path):
         os.remove(path)

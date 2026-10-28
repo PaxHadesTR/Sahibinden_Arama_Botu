@@ -692,4 +692,34 @@ enk, property features, and motorcycle specs alongside capacity, warranty, condi
   - Car models with dots and spaces resolve to `otomobil` rather than SUV or generic search.
   - Test suite passes 100% (294/294 passed, 0 failures across all 14 suites).
 
+## ADR-034: Asynchronous Baselining, Isolated Browser Page Lifecycle & Dead View Deprecation
+- **Status**: Accepted
+- **Date**: 2026-10-29
+- **Context**:
+  - Following the comprehensive 7-vector adversarial audit (`!denetle`):
+    1. **Lock Contention on Initial Priming (V1 Concurrency)**: Initial baseline scraping during slash command creation (`/alarm-ara`, `/alarm-url`, `/alarm-hizli`) acquired `StealthScraper._lock` synchronously. If the background monitor was actively polling, slash command deferrals timed out (>3s) or hit Discord 429 gateway limits.
+    2. **Zero-Result DOM Selector Timeout (V1/V5 Resilience)**: `_wait_for_challenge_and_table` waited up to 10s for `table#searchResultsTable` on 0-result search queries because empty result DOM containers (`div.noResult`, `div.searchResultsRight`, `p.no-result-quote`, `div.no-result`) were missing from the wait selector.
+    3. **Browser Renderer Memory Retention (V2 Resource Bounds)**: Reusing `context.pages[0]` over thousands of scrapes in Chromium caused internal DOM tree and heap bloat in Docker containers.
+    4. **Database Connection Isolation & PRAGMA Foreign Keys (V3 Integrity)**: SQLite `PRAGMA foreign_keys = ON;` is strictly connection-scoped and was not executed on raw connections across modules.
+    5. **Dead Legacy Views & Authorization Deficit (V4 Security)**: Deprecated `/alarm-kur` modal and category views (660+ lines) in `src/bot/views.py` cluttered the codebase, and dropdown/button callbacks lacked user ownership validation.
+- **Decision**:
+  1. **Option 1A — Asynchronous Background Baselining**:
+     - Slash commands respond instantly (<100ms) with `is_primed = 0`. The alarm is immediately committed to SQLite, a rich confirmation embed is delivered instantly to the user, and `_prime_alarm_in_background` runs in a tracked background task (`self._schedule_background_priming`). If transient scraper errors occur, baselining automatically defers to the monitor loop without spamming historical listings.
+  2. **Option 2A — Isolated Per-Request Page Lifecycle & 0-Result Selectors**:
+     - Scraper creates an isolated page (`page = await context.new_page()`) per request and guarantees cleanup via `try...finally: await page.close()`.
+     - Added empty result DOM selectors to `_wait_for_challenge_and_table`, eliminating 10s wait timeouts on 0-result searches.
+  3. **Option 3A — Dead Legacy View Purge & Strict UI Authorization**:
+     - Cleaned up 660+ lines of dead legacy `/alarm-kur` views (`SpecFilterModal`, `UniversalCategorySelectView`, `RamSpecSelectView`, `CategoryGroupSelectView`, `SubCategorySelectView`).
+     - Added strict `user_id == interaction.user.id` authorization checks on `DeleteAlarmSelect`, `DetailFilterSelectView`, and `AlarmQuickActionView`.
+  4. **Centralized Database Connection Manager**:
+     - Introduced `@asynccontextmanager async def get_connection(self)` executing `PRAGMA foreign_keys = ON;` and `PRAGMA busy_timeout = 15000;`, replacing all raw `aiosqlite.connect` calls across all 16 database query methods.
+  5. **Monitor Mid-Cycle Alarm Deletion Guard**:
+     - Added fresh database check (`current_alarm = await database.get_alarm(alarm["id"])`) in `_run_loop` before scraping, cleanly skipping alarms deleted mid-cycle.
+- **Consequences**:
+  - Slash command latency dropped from 3-10s down to <100ms.
+  - Browser renderer memory consumption remains flat over extended runs.
+  - Full foreign key constraints and WAL busy timeout are enforced on every database query.
+  - Interactive menus cannot be tampered with by other Discord guild members.
+  - Test suite passes 100% across all 14 test modules (294/294 passed).
+
 

@@ -1,13 +1,16 @@
 # Technical Assumptions & Non-Negotiable System Invariants
 
 ## Core Invariants
-1. **Idempotent Delivery, Baseline Priming & Deduplication**:
+1. **Idempotent Delivery, Asynchronous Baseline Priming & Deduplication**:
    - Listings detected must only trigger a Discord alert once per event (brand-new listing or strict price reduction).
-   - Initial run of an alarm must NEVER spam historical listings; only listings published or first observed after the alarm's creation timestamp shall be dispatched.
-   - If the initial baseline fetch at alarm creation time fails due to a transient network/WAF issue (or if a paused alarm is resumed), `is_primed = 0` ensures the background `AlarmMonitor` baselines the first polled batch without firing alerts.
+   - Initial creation of an alarm must NEVER spam historical listings; only listings published or first observed after the alarm's creation timestamp shall be dispatched.
+   - Slash commands (`/alarm-hizli`, `/alarm-ara`, `/alarm-url`) respond instantly (<100ms) with asynchronous background baselining (`is_primed = 0`). The alarm is immediately committed to SQLite, a confirmation embed is delivered to Discord, and `_prime_alarm_in_background` schedules background priming without holding `scraper._lock` or delaying Discord gateway interactions.
+   - If the initial baseline fetch fails due to a transient network/WAF issue (or if a paused alarm is resumed), `is_primed = 0` ensures the background `AlarmMonitor` baselines the first polled batch without firing alerts.
    - Conversely, if a legitimate search returns 0 listings on a verified non-blocked page, `is_primed` transitions to `1` immediately so the very first future listing triggers a notification rather than being swallowed as baseline.
-2. **Anti-Scraping Resilience, Challenge Verification & Redirect Integrity**:
+2. **Anti-Scraping Resilience, Isolated Page Lifecycle & Redirect Integrity**:
    - Polling intervals feature randomized jitter, URL batching deduplication (scraping shared target URLs only once per cycle), and inter-alarm throttling to prevent IP blocks.
+   - Per-request isolated browser page lifecycle: Each scrape operation creates an isolated page (`page = await context.new_page()`) and guarantees its cleanup via `try...finally: await page.close()`, preventing Chromium tab memory retention and renderer heap growth over prolonged container runs.
+   - Zero-result search DOM markers (`div.noResult`, `div.searchResultsRight`, `p.no-result-quote`, `div.no-result`) are evaluated concurrently with search tables, eliminating 10-second wait timeouts on empty search results.
    - `SahibindenParser.is_blocked_or_challenge_page` verifies every response to ensure Cloudflare Turnstile (`checkLoading`, `cf-turnstile`), login walls (`/giris`), or WAF blocks raise an error and never masquerade as a 0-result search page.
    - Stale Chromium `SingletonLock` / `SingletonCookie` / `SingletonSocket` files in `/app/data/browser_profile` are automatically cleaned on container startup and browser context initialization to prevent persistent Docker volume lock crashes.
    - `entrypoint.sh` initializes `Xvfb` on display `:99` with `-nolisten tcp` to shield external network exposure while preserving the local UNIX domain socket `/tmp/.X11-unix/X99` for Chromium clients.
@@ -22,8 +25,9 @@
    - `SahibindenParser` ignores `nativeAd` and `searchResultsPromoToTop` rows and rejects `data:image` / `blank` lazy-load placeholders in favor of valid HTTP(S) `data-src` / `srcset` URLs.
 5. **Word-Boundary & Specificity Alias Resolution**:
    - Alias matching normalizes Turkish characters and evaluates multi-word and word-boundary matches sorted by specificity (longest phrase first) so `"motor"` never collides with `"oto"`, `"kiralik daire"` never collides with `"satilik-daire"`, and `"laptop ram"` always resolves to SODIMM RAM.
-6. **Data Isolation, Capacity Limits & State Persistence**:
-   - All active alarms, `is_primed` flags, `is_active` states, and seen ad IDs persist across bot restarts and Coolify redeployments using SQLite in WAL mode (`sahibinden_bot_data` volume) with a 15-second busy timeout and foreign key enforcement.
+6. **Data Isolation, Connection Management & State Persistence**:
+   - All active alarms, `is_primed` flags, `is_active` states, and seen ad IDs persist across bot restarts and Coolify redeployments using SQLite in WAL mode (`sahibinden_bot_data` volume).
+   - Centralized database context manager (`Database.get_connection()`) guarantees `PRAGMA foreign_keys = ON;` and `PRAGMA busy_timeout = 15000;` across all connections, preventing silent foreign key constraint bypasses.
    - Configurable alarm limits (`MAX_ALARMS_TOTAL=1000`, `MAX_ALARMS_PER_USER=100`) protect system resources.
 7. **Module Resolution & Container Bootstrapping**:
    - `src/main.py` bootstraps `sys.path` with its repository root directory prior to any local package imports.
@@ -34,13 +38,16 @@
 9. **Batch SQLite Filtering & Atomic UPSERT**:
    - `filter_new_listings` and `filter_price_drops` execute set-based batch queries with `IN (...)` to minimize SQLite round-trips.
    - `record_notified_listings` uses atomic `ON CONFLICT(alarm_id, classified_id) DO UPDATE SET` to preserve original row IDs and `first_seen_at` timestamps.
-10. **Full Site Taxonomy & Hierarchical Grouping**:
-    - The catalog spans 75+ categories covering every main section and subsection of Sahibinden (Emlak, Vasıta, Yedek Parça & Tuning, Bilgisayar & Donanım, Telefon & Ev Elektroniği, İkinci El & Hizmetler).
-    - UI views prevent Discord's 25-option Select overflow via a two-level hierarchy (`CategoryGroupSelectView` and `SubCategorySelectView`) while preserving direct 25-item curated lists for quick interaction.
+10. **Full Site Taxonomy & Dynamic Detail Views**:
+    - The catalog spans 111 comprehensive categories across all 11 authentic Sahibinden branches (Emlak, Vasıta, Yedek Parça, İkinci El Alışveriş, vb.).
+    - Interactive fine-tuning post-creation is powered by `DetailFilterSelectView` and `AlarmQuickActionView`, supporting paginated facet select menus without Discord 25-option limits.
+11. **Discord UI Component Authorization Enforcement**:
+    - All interactive UI views (`DeleteAlarmSelect`, `DeleteAlarmView`, `DetailFilterSelectView`, `AlarmQuickActionView`) strictly enforce `interaction.user.id == self.user_id`. Any attempt by unauthorized guild members to manipulate another user's alarm filters or delete alarms is rejected with an ephemeral error message.
 
 ## Acceptance Criteria
-- Users can define alarms via 3 universal methods: `/alarm-ara` (site-wide keyword search), `/alarm-url` (direct Sahibinden URL tracking), and `/alarm-kur` / `/alarm-hizli` (visual wizard & alias/spec resolver).
+- Users can define alarms via 3 universal methods: `/alarm-ara` (site-wide keyword search), `/alarm-url` (direct Sahibinden URL tracking), and `/alarm-hizli` (fast line creation with category resolver and inline facet chips).
 - All 81 provinces of Turkey are supported for city filtering.
-- All 75+ Sahibinden categories across all sections and hardware units (MB, GB, TB, Dual-Kit) are supported with `/kategoriler` reference manual.
+- All 111 Sahibinden categories across all 11 branches and hardware units (MB, GB, TB, Dual-Kit) are supported with `/kategoriler` reference manual.
 - Bot polls listings at configurable intervals and notifies the target Discord channel on both brand-new listings (`🔔 Yeni İlan`) and price drops (`📉 Fiyat Düştü`).
 - Alarms can be listed (`/alarmlarim`), tested (`/alarm-test` with ownership verification), paused/resumed (`/alarm-durum`), and deleted (`/alarm-sil`).
+- All interactive menus enforce user ownership authorization.

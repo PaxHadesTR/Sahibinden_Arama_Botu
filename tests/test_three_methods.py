@@ -144,27 +144,32 @@ def test_method_3_multi_unit_facet_resolution_mb_and_tb():
     assert ssd_qs.get("a3350") == ["1168189"]  # 1 TB
 
 
-def test_method_3_universal_category_select_view_options_count():
-    """Verify UniversalCategorySelectView defines valid choices within Discord's 25-item limit."""
-    from src.bot.views import UniversalCategorySelectView
-    view = UniversalCategorySelectView()
-    options = view.category_select.options
-    assert len(options) == 25
-    values = [opt.value for opt in options]
-    assert "ram-bellek-masaustu" in values
-    assert "ssd-dahili-sabit-disk" in values
-    assert "ekran-karti-masaustu" in values
-    assert "otomobil" in values
-    assert "satilik-daire" in values
+def test_method_3_alarm_quick_action_view_buttons():
+    """Verify AlarmQuickActionView attaches interactive link and edit filters buttons."""
+    from src.bot.views import AlarmQuickActionView
+    view = AlarmQuickActionView(
+        alarm_id=42,
+        category_slug="otomobil",
+        display_name="Otomobil",
+        profile="vehicle_car",
+        current_filters={"vites": "Otomatik"},
+        user_id=1001,
+        target_url="https://www.sahibinden.com/otomobil?sorting=date_desc"
+    )
+    assert len(view.children) >= 2
+    button_labels = [btn.label for btn in view.children if hasattr(btn, "label")]
+    assert "🌐 İlanları İncele" in button_labels
+    assert "⚙️ Detaylı Filtreleri Düzenle" in button_labels
 
 
-def test_method_3_ram_spec_select_view_contains_mb_and_kits():
-    """Verify RamSpecSelectView provides 512 MB, GB, and Dual-Kit options."""
-    from src.bot.views import RamSpecSelectView
-    ram_view = RamSpecSelectView()
-    cap_values = [opt.value for opt in ram_view.cap_select.options]
-    assert "512 MB" in cap_values
-    assert "16 GB" in cap_values
-    assert "2x 16 GB" in cap_values
-    assert "ALL" in cap_values
+def test_method_3_delete_alarm_view_dropdown():
+    """Verify DeleteAlarmView provides DeleteAlarmSelect with proper options."""
+    from src.bot.views import DeleteAlarmView
+    mock_alarms = [{"id": i, "name": f"Alarm {i}", "created_at": "2026-10-28"} for i in range(1, 30)]
+    view = DeleteAlarmView(alarms=mock_alarms, user_id=1001)
+    assert len(view.children) == 1
+    select = view.children[0]
+    assert len(select.options) == 25  # Discord max 25 options
+    assert select.options[0].value == "1"
+    assert select.options[24].value == "25"
 

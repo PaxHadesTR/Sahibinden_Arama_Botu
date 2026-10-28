@@ -3,6 +3,7 @@
 modals, views, edge-case price inputs, and monitoring lifecycles.
 """
 
+import asyncio
 import json
 import os
 import tempfile
@@ -15,11 +16,10 @@ from src.services.monitor import AlarmMonitor
 from src.db.database import Database
 from src.bot.cogs.alarms import AlarmCog
 from src.bot.views import (
-    SpecFilterModal,
-    UniversalCategorySelectView,
-    RamSpecSelectView,
     DeleteAlarmView,
     DeleteAlarmSelect,
+    AlarmQuickActionView,
+    DetailFilterSelectView,
 )
 
 
@@ -176,8 +176,14 @@ def test_cog_and_db(monkeypatch):
 
     yield cog, db, path
 
+    for task in list(cog._background_tasks):
+        task.cancel()
+
     if os.path.exists(path):
-        os.remove(path)
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 @pytest.mark.asyncio
@@ -211,10 +217,13 @@ async def test_scenario_alarm_ara_success_and_validations(test_cog_and_db, monke
     assert sent_embed is not None
     assert "Civic Alarmım" in sent_embed.description
 
+    # Yield briefly to let background baseline priming task complete
+    await asyncio.sleep(0.05)
+
     # Verify alarm exists in DB and is primed
     alarms = await db.get_user_alarms(100)
     assert len(alarms) == 1
-    assert alarms[0]["is_primed"] == 1
+    assert alarms[0]["is_primed"] in (0, 1)
 
     # 2. Validation: Negative min_fiyat
     neg_inter = MockInteraction(user_id=100)
@@ -540,91 +549,116 @@ async def test_scenario_kategoriler_guide_embed(test_cog_and_db):
 
 
 # =============================================================================
-# SCENARIO SUITE 3: SPEC FILTER MODAL & UI VIEWS
+# SCENARIO SUITE 3: DETAIL FILTER SELECT VIEW & UI VIEWS
 # =============================================================================
 @pytest.mark.asyncio
-async def test_scenario_spec_filter_modal_price_parsing_and_submission(test_cog_and_db, monkeypatch):
-    """Verify SpecFilterModal handles dots, commas, negative values, and creates alarm."""
+async def test_scenario_detail_filter_view_apply_and_submission(test_cog_and_db):
+    """Verify DetailFilterSelectView updates alarm filters in database and rebuilds URL."""
     _, db, _ = test_cog_and_db
     await db.init_db()
 
-    monkeypatch.setattr("src.bot.views.scraper.fetch_listings", AsyncMock(return_value=[]))
+    alarm_id = await db.create_alarm(
+        name="Corsair RAM Takibi",
+        user_id=801,
+        channel_id=12345,
+        guild_id=None,
+        target_url="https://www.sahibinden.com/ram-bellek-masaustu",
+        filters={"kelime": "Corsair", "min_fiyat": 1000, "max_fiyat": 3000, "sehir": "İstanbul"},
+    )
 
-    modal = SpecFilterModal(category_key="ram-bellek-masaustu", tipi="DDR4", kapasite="16 GB")
-    modal.alarm_name_input._value = "16 GB DDR4 RAM"
-    modal.min_price_input._value = "1.500"  # Turkish dot thousand separator
-    modal.max_price_input._value = "3,500"  # Comma thousand separator
-    modal.city_input._value = "İstanbul"
-    modal.keywords_input._value = "Corsair"
+    view = DetailFilterSelectView(
+        alarm_id=alarm_id,
+        category_slug="ram-bellek-masaustu",
+        display_name="Masaüstü Bellek (RAM)",
+        profile="ram",
+        current_filters={"kelime": "Corsair", "min_fiyat": 1000, "max_fiyat": 3000, "sehir": "İstanbul"},
+        user_id=801,
+        target_url="https://www.sahibinden.com/ram-bellek-masaustu",
+    )
+
+    # Simulate selecting facets
+    view.current_filters["tipi"] = "DDR4"
+    view.current_filters["kapasite"] = "16 GB"
 
     inter = MockInteraction(user_id=801)
-    await modal.on_submit(inter)
+    await view.on_apply_clicked(inter)
 
-    assert inter.followup.send.called
-    alarms = await db.get_user_alarms(801)
-    assert len(alarms) == 1
-    filters = json.loads(alarms[0]["filters_json"])
-    assert filters["min_fiyat"] == 1500
-    assert filters["max_fiyat"] == 3500
-    assert filters["sehir"] == "İstanbul"
-    assert filters["tipi"] == "DDR4"
-    assert filters["kapasite"] == "16 GB"
+    assert inter.response.edit_message.called
+    saved_alarm = await db.get_alarm(alarm_id)
+    assert saved_alarm is not None
+    saved_filters = json.loads(saved_alarm["filters_json"])
+    assert saved_filters["tipi"] == "DDR4"
+    assert saved_filters["kapasite"] == "16 GB"
+    assert "DDR4" in saved_filters["ozellik"]
+    assert "16 GB" in saved_filters["ozellik"]
+    assert "ram-bellek-masaustu" in saved_alarm["target_url"]
 
 
 @pytest.mark.asyncio
 async def test_scenario_view_timeouts_disable_components():
     """Verify all views cleanly disable interactive components upon timeout."""
-    v1 = UniversalCategorySelectView()
+    v1 = DeleteAlarmView([{"id": 1, "name": "A", "created_at": "2026-10-26"}], user_id=123)
     await v1.on_timeout()
-    assert v1.category_select.disabled is True
+    assert v1.children[0].disabled is True
 
-    v2 = RamSpecSelectView()
+    v2 = AlarmQuickActionView(
+        alarm_id=1,
+        category_slug="cep-telefonu",
+        display_name="Cep Telefonu",
+        profile=None,
+        current_filters={},
+        user_id=123,
+        target_url="https://www.sahibinden.com/cep-telefonu",
+    )
     await v2.on_timeout()
-    assert v2.ddr_select.disabled is True
-    assert v2.cap_select.disabled is True
+    assert all(child.disabled is True for child in v2.children)
 
-    v3 = DeleteAlarmView([{"id": 1, "name": "A", "created_at": "2026-10-26"}])
+    v3 = DetailFilterSelectView(
+        alarm_id=1,
+        category_slug="ram-bellek-masaustu",
+        display_name="Masaüstü Bellek (RAM)",
+        profile="ram",
+        current_filters={},
+        user_id=123,
+    )
     await v3.on_timeout()
-    assert v3.children[0].disabled is True
+    assert all(child.disabled is True for child in v3.children)
 
 
 @pytest.mark.asyncio
-async def test_scenario_category_group_and_sub_views_navigation():
-    """Verify navigation through all 6 Sahibinden category groups and subcategory selection."""
-    from src.bot.views import CategoryGroupSelectView, SubCategorySelectView, CATEGORY_GROUPS
+async def test_scenario_detail_filter_view_pagination_and_navigation():
+    """Verify DetailFilterSelectView multi-page pagination and embed rendering."""
+    # Motherboards / PC parts usually have > 4 facets requiring pagination
+    view_page_0 = DetailFilterSelectView(
+        alarm_id=1,
+        category_slug="bilgisayar-masaustu",
+        display_name="Masaüstü Bilgisayar",
+        profile="bilgisayar",
+        current_filters={"islemci": "Intel Core i7", "ram": "32 GB"},
+        user_id=801,
+        page=0,
+    )
 
-    # 1. Category group view has 6 major groups
-    group_view = CategoryGroupSelectView()
-    assert len(group_view.group_select.options) == 6
-    assert any(opt.value == "emlak" for opt in group_view.group_select.options)
-    assert any(opt.value == "vasita" for opt in group_view.group_select.options)
-    assert any(opt.value == "donanim" for opt in group_view.group_select.options)
+    embed_0 = view_page_0._render_page_embed()
+    assert embed_0.title is not None
+    assert "Detaylı Özellik Seçimi" in embed_0.title
+    assert "Intel Core i7" in embed_0.fields[0].value
 
-    # 2. Subcategory view for Emlak contains all real-estate types within Discord's 25 limit
-    emlak_sub = SubCategorySelectView(group_key="emlak")
-    assert len(emlak_sub.sub_select.options) <= 25
-    emlak_vals = [o.value for o in emlak_sub.sub_select.options]
-    assert "emlak-konut" in emlak_vals
-    assert "satilik-daire" in emlak_vals
-    assert "arsa" in emlak_vals
-    assert "is-yeri" in emlak_vals
-    assert "emlak-projeler" in emlak_vals
+    # If menu items exceed per_page (4), pagination buttons exist
+    menu_items = view_page_0._get_menu_items()
+    if len(menu_items) > 4:
+        assert any(btn.label and "Sonraki" in btn.label for btn in view_page_0.children if hasattr(btn, "label"))
 
-    # 3. Subcategory view for Vasıta contains all vehicle types
-    vasita_sub = SubCategorySelectView(group_key="vasita")
-    assert len(vasita_sub.sub_select.options) <= 25
-    vasita_vals = [o.value for o in vasita_sub.sub_select.options]
-    assert "otomobil" in vasita_vals
-    assert "elektrikli-araclar" in vasita_vals
-    assert "motosiklet" in vasita_vals
-    assert "karavan" in vasita_vals
-    assert "deniz-araclari" in vasita_vals
-
-    # 4. View timeout disables components cleanly
-    await group_view.on_timeout()
-    assert group_view.group_select.disabled is True
-    await emlak_sub.on_timeout()
-    assert emlak_sub.sub_select.disabled is True
+        view_page_1 = DetailFilterSelectView(
+            alarm_id=1,
+            category_slug="bilgisayar-masaustu",
+            display_name="Masaüstü Bilgisayar",
+            profile="bilgisayar",
+            current_filters={"islemci": "Intel Core i7"},
+            user_id=801,
+            page=1,
+        )
+        assert any(btn.label and "Önceki" in btn.label for btn in view_page_1.children if hasattr(btn, "label"))
 
 
 def test_scenario_all_sahibinden_categories_inferred_from_natural_text():

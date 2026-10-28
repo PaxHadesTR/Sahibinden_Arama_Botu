@@ -40,7 +40,7 @@ Sahibinden.com üzerinde **tüm kategorilerde** (Vasıta/Otomobil/Motosiklet/SUV
    - **Depolama (SSD/HDD):** Hem GB (`120 GB`, `240 GB`, `500 GB`) hem TB (`1 TB`, `2 TB`, `4 TB`, `8 TB`) birimleri hesaplanır.
    - **Kayıpsız Arama (Non-Lossy Fallback):** Sahibinden'in sayısal parametre kodunda yer almayan özel bir marka veya özellik girildiğinde, parametre asla çöpe atılmaz; otomatik olarak `query_text` kelime filtresine eklenir.
 3. **Parametrelerin Yanında Açık Örnekler**:
-   - Komut parametrelerinde (`@app_commands.describe`), modal formlarında (`SpecFilterModal`) ve otomatik tamamlama menülerinde kullanıcıya nasıl yazması gerektiği örneklerle gösterilir (örn: `'16 GB'`, `'512 MB'`, `'1 TB'`, `'2x 16 GB'`).
+   - Komut parametrelerinde (`@app_commands.describe`), detaylı seçim menülerinde (`DetailFilterSelectView`) ve otomatik tamamlama menülerinde kullanıcıya nasıl yazması gerektiği örneklerle gösterilir (örn: `'16 GB'`, `'512 MB'`, `'1 TB'`, `'2x 16 GB'`).
    - `/kategoriler` komutuyla tüm kategoriler, birimler ve hazır komut kalıpları tek tıkla listelenir.
 4. **Sıfır Spam & Ertelenmiş Baseline Priming**:
    - Alarm ilk kurulduğunda yayındaki mevcut ilanları `seen_listings` tablosuna arşivler (`is_primed = 1`).

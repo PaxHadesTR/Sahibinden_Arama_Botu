@@ -45,8 +45,14 @@ def test_env(monkeypatch):
 
     yield cog, db, path
 
+    for task in list(cog._background_tasks):
+        task.cancel()
+
     if os.path.exists(path):
-        os.remove(path)
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 # =============================================================================

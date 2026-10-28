@@ -229,25 +229,29 @@ class StealthScraper:
             await asyncio.sleep(1)
 
         try:
-            await page.wait_for_selector("tr.searchResultsItem, table#searchResultsTable", timeout=10000)
+            await page.wait_for_selector(
+                "tr.searchResultsItem, table#searchResultsTable, div.noResult, div.searchResultsRight, p.no-result-quote, div.no-result",
+                timeout=10000
+            )
         except Exception:
-            # Search may legitimately return 0 listings
+            # Search may legitimately return 0 listings or custom layout
             pass
 
     async def fetch_page_content(self, url: str) -> str:
         """Navigates to URL, resolves challenges, restores redirect-dropped params, and returns HTML."""
         async with self._lock:
             for attempt in range(2):
+                page = None
                 try:
                     context = await self._init_context()
                     # Clean up any extraneous popup pages to prevent memory leaks in 24/7 run
-                    if len(context.pages) > 1:
-                        for extra_page in context.pages[1:]:
+                    if context.pages:
+                        for existing_page in list(context.pages):
                             try:
-                                await extra_page.close()
+                                await existing_page.close()
                             except Exception:
                                 pass
-                    page = context.pages[0] if context.pages else await context.new_page()
+                    page = await context.new_page()
 
                     # Anti-bot jitter
                     jitter = random.uniform(settings.MIN_JITTER_SECONDS, settings.MAX_JITTER_SECONDS)
@@ -277,6 +281,12 @@ class StealthScraper:
                     if attempt == 1:
                         logger.error(f"Exhausted retries while fetching {url}", exc_info=True)
                         raise
+                finally:
+                    if page:
+                        try:
+                            await page.close()
+                        except Exception:
+                            pass
             return ""
 
     async def fetch_listings(self, url: str) -> list[ListingItem]:

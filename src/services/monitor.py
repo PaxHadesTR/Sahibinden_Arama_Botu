@@ -76,8 +76,13 @@ class AlarmMonitor:
                         for alarm in alarms_in_group:
                             if not self._running:
                                 break
+                            # Fresh check: verify alarm is still active and has not been deleted or paused mid-cycle
+                            current_alarm = await database.get_alarm(alarm["id"])
+                            if not current_alarm or not current_alarm.get("is_active"):
+                                logger.debug(f"Skipping alarm #{alarm['id']}: deleted or deactivated mid-cycle.")
+                                continue
                             try:
-                                await self.check_alarm(alarm, pre_fetched_listings=fetched)
+                                await self.check_alarm(current_alarm, pre_fetched_listings=fetched)
                             except Exception as e:
                                 logger.error(f"Error checking alarm #{alarm['id']} ({alarm['name']}): {e}", exc_info=True)
                     except Exception as e:

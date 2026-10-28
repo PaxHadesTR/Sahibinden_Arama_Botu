@@ -23,6 +23,18 @@ class AlarmCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self._background_tasks: set[asyncio.Task] = set()
+
+    def _schedule_background_priming(self, alarm_id: int, target_url: str, filters: dict[str, Any], name: str):
+        task = asyncio.create_task(self._prime_alarm_in_background(alarm_id, target_url, filters, name))
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        return task
+
+    async def wait_for_background_tasks(self, timeout: float = 2.0):
+        """Wait for any pending background priming tasks to finish (graceful shutdown & test isolation)."""
+        if self._background_tasks:
+            await asyncio.wait(self._background_tasks, timeout=timeout)
 
     async def _safe_defer(self, interaction: discord.Interaction, ephemeral: bool = True, max_retries: int = 2):
         """Defers interaction response with retries against momentary proxy or network blips."""
@@ -37,6 +49,21 @@ class AlarmCog(commands.Cog):
                     raise
                 logger.warning(f"Interaction defer attempt {attempt + 1} failed ({e}); retrying in 0.5s...")
                 await asyncio.sleep(0.5)
+
+    @staticmethod
+    async def _prime_alarm_in_background(alarm_id: int, target_url: str, filters: dict[str, Any], name: str):
+        """Asynchronously primes initial listings in the background without blocking slash command response."""
+        try:
+            alarm_meta = {"id": alarm_id, "name": name, "filters_json": json.dumps(filters, ensure_ascii=False)}
+            initial_listings = await scraper.fetch_listings(target_url)
+            valid_listings = [item for item in initial_listings if AlarmMonitor.matches_alarm_filters(alarm_meta, item)]
+            dict_items = [item.model_dump() for item in valid_listings]
+            await database.prime_initial_listings(alarm_id, dict_items)
+            logger.info(f"Background baseline primed for alarm #{alarm_id} ({len(dict_items)} listings).")
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.warning(f"Background baseline priming deferred to monitor loop for alarm #{alarm_id}: {e}")
 
     async def category_autocomplete(
         self,
@@ -245,18 +272,8 @@ class AlarmCog(commands.Cog):
             filters=filters
         )
 
-        alarm_meta = {"id": alarm_id, "name": name, "filters_json": json.dumps(filters, ensure_ascii=False)}
-        initial_count = 0
-        primed_immediately = False
-        try:
-            initial_listings = await scraper.fetch_listings(target_url)
-            valid_listings = [item for item in initial_listings if AlarmMonitor.matches_alarm_filters(alarm_meta, item)]
-            dict_items = [item.model_dump() for item in valid_listings]
-            await database.prime_initial_listings(alarm_id, dict_items)
-            initial_count = len(dict_items)
-            primed_immediately = True
-        except Exception as e:
-            logger.warning(f"Initial baseline fetch deferred for alarm #{alarm_id}: {e}")
+        # Baseline priming is performed asynchronously in the background to ensure instant (<100ms) command response
+        self._schedule_background_priming(alarm_id, target_url, filters, name)
 
         embed = discord.Embed(
             title="🌐 Evrensel Sahibinden Alarmı Başlatıldı!",
@@ -272,12 +289,11 @@ class AlarmCog(commands.Cog):
         if sehir:
             embed.add_field(name="📍 Şehir", value=sehir.title(), inline=True)
 
-        if primed_immediately:
-            baseline_msg = f"Şu an arama sonucundaki **{initial_count}** ilan arşivlendi. Yalnızca yeni eklenen veya fiyatı düşen ilanlar bildirilecek."
-        else:
-            baseline_msg = "İlk baz liste arka plan döngüsünde otomatik arşivlenecek ve geçmiş ilanlar spam yapılmayacaktır."
-
-        embed.add_field(name="📊 Başlangıç Durumu", value=baseline_msg, inline=False)
+        embed.add_field(
+            name="📊 Başlangıç Durumu",
+            value="Alarmınız anında aktifleştirildi. Yayındaki mevcut ilanlar arka planda arşivlenecek ve yalnızca yeni veya fiyatı düşen ilanlar bildirilecektir.",
+            inline=False
+        )
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     # =========================================================================
@@ -316,18 +332,8 @@ class AlarmCog(commands.Cog):
             filters=extracted_filters
         )
 
-        alarm_meta = {"id": alarm_id, "name": alarm_adi, "filters_json": json.dumps(extracted_filters, ensure_ascii=False)}
-        initial_count = 0
-        primed_immediately = False
-        try:
-            initial_listings = await scraper.fetch_listings(sanitized_url)
-            valid_listings = [item for item in initial_listings if AlarmMonitor.matches_alarm_filters(alarm_meta, item)]
-            dict_items = [item.model_dump() for item in valid_listings]
-            await database.prime_initial_listings(alarm_id, dict_items)
-            initial_count = len(dict_items)
-            primed_immediately = True
-        except Exception as e:
-            logger.warning(f"Initial baseline fetch deferred for URL alarm #{alarm_id}: {e}")
+        # Baseline priming is performed asynchronously in the background to ensure instant (<100ms) command response
+        self._schedule_background_priming(alarm_id, sanitized_url, extracted_filters, alarm_adi)
 
         embed = discord.Embed(
             title="🔗 Özel URL Alarmı Başarıyla Kaydedildi!",
@@ -338,12 +344,11 @@ class AlarmCog(commands.Cog):
         embed.add_field(name="🆔 Alarm ID", value=f"`#{alarm_id}`", inline=True)
         embed.add_field(name="🌐 Takip Edilen URL", value=f"[Arama Sayfası]({sanitized_url})", inline=True)
 
-        if primed_immediately:
-            baseline_msg = f"Yayındaki **{initial_count}** ilan baseline olarak kaydedildi. Sadece yeni ilanlar ve fiyat düşüşleri bildirilecek."
-        else:
-            baseline_msg = "İlk baz liste arka plan döngüsünde otomatik arşivlenecek ve geçmiş ilanlar spam yapılmayacaktır."
-
-        embed.add_field(name="📊 Başlangıç Durumu", value=baseline_msg, inline=False)
+        embed.add_field(
+            name="📊 Başlangıç Durumu",
+            value="Alarmınız anında aktifleştirildi. Yayındaki mevcut ilanlar arka planda arşivlenecek ve yalnızca yeni veya fiyatı düşen ilanlar bildirilecektir.",
+            inline=False
+        )
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @staticmethod
@@ -567,19 +572,8 @@ class AlarmCog(commands.Cog):
             filters=filters
         )
 
-        # Baseline prime
-        alarm_meta = {"id": alarm_id, "name": name, "filters_json": json.dumps(filters, ensure_ascii=False)}
-        initial_count = 0
-        primed_immediately = False
-        try:
-            initial_listings = await scraper.fetch_listings(target_url)
-            valid_listings = [item for item in initial_listings if AlarmMonitor.matches_alarm_filters(alarm_meta, item)]
-            dict_items = [item.model_dump() for item in valid_listings]
-            await database.prime_initial_listings(alarm_id, dict_items)
-            initial_count = len(dict_items)
-            primed_immediately = True
-        except Exception as e:
-            logger.warning(f"Initial baseline fetch deferred for alarm #{alarm_id}: {e}")
+        # Baseline priming is performed asynchronously in the background to ensure instant (<100ms) command response
+        self._schedule_background_priming(alarm_id, target_url, filters, name)
 
         embed = discord.Embed(
             title=embed_title,
@@ -623,12 +617,11 @@ class AlarmCog(commands.Cog):
         if canonical_city:
             embed.add_field(name="📍 Şehir", value=canonical_city, inline=True)
 
-        if primed_immediately:
-            baseline_msg = f"Şu an arama sonucundaki **{initial_count}** ilan arşivlendi. Yalnızca yeni gelen veya fiyatı düşen ilanlar bildirilecek."
-        else:
-            baseline_msg = "İlk baz liste arka plan döngüsünde otomatik arşivlenecek ve geçmiş ilanlar spam yapılmayacaktır."
-
-        embed.add_field(name="📊 Başlangıç Durumu", value=baseline_msg, inline=False)
+        embed.add_field(
+            name="📊 Başlangıç Durumu",
+            value="Alarmınız anında aktifleştirildi. Yayındaki mevcut ilanlar arka planda arşivlenecek ve yalnızca yeni veya fiyatı düşen ilanlar bildirilecektir.",
+            inline=False
+        )
         action_view = AlarmQuickActionView(
             alarm_id=alarm_id,
             category_slug=category_slug,
@@ -1072,7 +1065,7 @@ class AlarmCog(commands.Cog):
             await interaction.response.send_message("Silinecek herhangi bir alarmınız bulunmuyor.", ephemeral=True)
             return
 
-        view = DeleteAlarmView(alarms)
+        view = DeleteAlarmView(alarms, user_id=interaction.user.id)
         msg_text = "Lütfen silmek istediğiniz alarmı seçin:"
         if len(alarms) > 25:
             msg_text += " (İlk 25 alarm listeleniyor. Diğer alarmları ID belirterek silebilirsiniz: `/alarm-sil alarm_id:ID`)"
