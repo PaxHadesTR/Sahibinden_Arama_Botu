@@ -519,3 +519,63 @@ async def test_monitor_periodic_stale_cleanup_scheduling(monkeypatch):
     assert cleanup_called is True
 
 
+# =============================================================================
+# 17. SCRAPER LOGIN WALL FAST EXIT & BROWSER TAB RETENTION LIFECYCLE
+# =============================================================================
+@pytest.mark.asyncio
+async def test_scraper_wait_for_challenge_login_wall_fast_exit():
+    """Verify _wait_for_challenge_and_table exits immediately when redirected to login wall."""
+    from src.services.scraper import scraper
+    mock_page = MagicMock()
+    mock_page.url = "https://secure.sahibinden.com/giris?return_url=https%3A%2F%2Fwww.sahibinden.com"
+    mock_page.frames = []
+    mock_page.query_selector = AsyncMock(return_value=None)
+    mock_page.wait_for_selector = AsyncMock()
+
+    import time
+    start = time.time()
+    await scraper._wait_for_challenge_and_table(mock_page)
+    duration = time.time() - start
+
+    # Must exit immediately without hanging on wait_for_selector or challenge loop
+    assert duration < 2.0
+    mock_page.wait_for_selector.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_scraper_fetch_page_content_tab_retention_and_about_blank(monkeypatch):
+    """Verify fetch_page_content keeps primary tab alive and resets via about:blank."""
+    from src.services.scraper import StealthScraper
+    test_scraper = StealthScraper()
+
+    mock_page_0 = MagicMock()
+    mock_page_0.url = "https://www.sahibinden.com/ram-bellek"
+    mock_page_0.is_closed = MagicMock(return_value=False)
+    mock_page_0.goto = AsyncMock()
+    mock_page_0.content = AsyncMock(return_value="<html><table id='searchResultsTable'></table></html>")
+
+    mock_page_popup = MagicMock()
+    mock_page_popup.close = AsyncMock()
+
+    mock_context = MagicMock()
+    mock_context.pages = [mock_page_0, mock_page_popup]
+    mock_context.new_page = AsyncMock()
+
+    test_scraper._init_context = AsyncMock(return_value=mock_context)
+    test_scraper._wait_for_challenge_and_table = AsyncMock()
+    monkeypatch.setattr("src.config.settings.SCRAPER_TIMEOUT_SECONDS", 5)
+    monkeypatch.setattr("src.config.settings.MIN_JITTER_SECONDS", 0.0)
+    monkeypatch.setattr("src.config.settings.MAX_JITTER_SECONDS", 0.0)
+
+    html = await test_scraper.fetch_page_content("https://www.sahibinden.com/ram-bellek")
+
+    assert "searchResultsTable" in html
+    # Extra popup tab must be closed
+    mock_page_popup.close.assert_called()
+    # Primary tab must NOT be closed (prevents Target.createTarget crash in persistent contexts)
+    mock_page_0.close.assert_not_called()
+    # Primary tab must be reset to about:blank to free DOM/V8 memory
+    assert any(call.args[0] == "about:blank" for call in mock_page_0.goto.call_args_list)
+
+
+

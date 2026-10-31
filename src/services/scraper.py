@@ -37,7 +37,17 @@ class StealthScraper:
         Detects if Sahibinden's server-side redirect (e.g. from /kelime-ile-arama to a category page)
         stripped critical filter/sorting parameters, and returns the corrected URL if needed.
         """
-        if not requested_url or not final_url or "checkLoading" in final_url:
+        if not requested_url or not final_url:
+            return None
+
+        fin_url_low = final_url.lower()
+        if (
+            "checkloading" in fin_url_low
+            or "/giris" in fin_url_low
+            or "uye-girisi" in fin_url_low
+            or "secure.sahibinden.com" in fin_url_low
+            or "challenge" in fin_url_low
+        ):
             return None
 
         req_parsed = urlparse(requested_url)
@@ -101,9 +111,10 @@ class StealthScraper:
         """Initializes or returns persistent browser context with stealth flags."""
         if self._context is not None:
             try:
-                # Verify context is still alive
-                _ = self._context.pages
-                return self._context
+                # Verify context is alive and responsive
+                if self._context.pages and not self._context.pages[0].is_closed():
+                    await self._context.pages[0].evaluate("1")
+                    return self._context
             except Exception:
                 logger.warning("Existing browser context appears closed or unresponsive. Recreating...")
                 await self._reset_context()
@@ -115,7 +126,6 @@ class StealthScraper:
             "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
             "--disable-infobars",
-            "--start-minimized",
             "--disable-dev-shm-usage",
         ]
 
@@ -133,7 +143,7 @@ class StealthScraper:
             "user_agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0"
+                "Chrome/131.0.0.0 Safari/537.36"
             ),
         }
 
@@ -178,17 +188,31 @@ class StealthScraper:
             except Exception as e:
                 logger.debug(f"Could not inject stealth script: {e}")
 
+        # Warm up baseline session cookies if fresh profile
+        try:
+            cookies = await self._context.cookies()
+            has_session = any(c.get("name") in ("vid", "cdid", "csss") for c in cookies)
+            if not has_session:
+                warm_page = self._context.pages[0] if self._context.pages else await self._context.new_page()
+                logger.info("Warming up baseline session cookies from homepage...")
+                await warm_page.goto("https://www.sahibinden.com/", timeout=15000)
+                await asyncio.sleep(1.5)
+        except Exception as e:
+            logger.debug(f"Session warmup attempt skipped: {e}")
+
         return self._context
 
     async def _wait_for_challenge_and_table(self, page):
         """Waits for Cloudflare checkLoading interstitial and searchResultsTable."""
-        # Turnstile managed challenge resolution
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             loop = asyncio.get_event_loop()
         start_time = loop.time()
-        clicked = False
+
+        def _is_login_wall():
+            u = page.url.lower()
+            return "/giris" in u or "uye-girisi" in u or "secure.sahibinden.com" in u
 
         def _is_challenge_active():
             if "checkLoading" in page.url:
@@ -207,51 +231,40 @@ class StealthScraper:
                 return False
 
         while (loop.time() - start_time) < 25:
+            if _is_login_wall():
+                break
             if not _is_challenge_active():
                 break
             if await _is_table_ready():
                 break
-            elapsed = loop.time() - start_time
-            # After 4s of natural PoW computation, if still stuck, attempt gentle single click on Turnstile widget
-            if elapsed > 4 and not clicked:
-                for frame in page.frames:
-                    if "cloudflare" in frame.url or "challenges" in frame.url:
-                        try:
-                            cb = await frame.query_selector("input[type='checkbox'], span.mark, .ctp-checkbox-label, div#challenge-stage")
-                            if cb:
-                                await asyncio.sleep(random.uniform(0.3, 0.7))
-                                await cb.click(delay=random.randint(100, 200))
-                                logger.info("Gently clicked Cloudflare Turnstile checkbox.")
-                                clicked = True
-                                break
-                        except Exception:
-                            pass
             await asyncio.sleep(1)
 
-        try:
-            await page.wait_for_selector(
-                "tr.searchResultsItem, table#searchResultsTable, div.noResult, div.searchResultsRight, p.no-result-quote, div.no-result",
-                timeout=10000
-            )
-        except Exception:
-            # Search may legitimately return 0 listings or custom layout
-            pass
+        if not _is_login_wall():
+            try:
+                await page.wait_for_selector(
+                    "tr.searchResultsItem, table#searchResultsTable, div.noResult, div.searchResultsRight, p.no-result-quote, div.no-result",
+                    timeout=10000
+                )
+            except Exception:
+                # Search may legitimately return 0 listings or custom layout
+                pass
 
     async def fetch_page_content(self, url: str) -> str:
         """Navigates to URL, resolves challenges, restores redirect-dropped params, and returns HTML."""
         async with self._lock:
             for attempt in range(2):
                 page = None
+                context = None
                 try:
                     context = await self._init_context()
-                    # Clean up any extraneous popup pages to prevent memory leaks in 24/7 run
-                    if context.pages:
-                        for existing_page in list(context.pages):
+                    # Keep exactly one primary page and close any secondary popup tabs
+                    if len(context.pages) > 1:
+                        for extra_page in list(context.pages[1:]):
                             try:
-                                await existing_page.close()
+                                await extra_page.close()
                             except Exception:
                                 pass
-                    page = await context.new_page()
+                    page = context.pages[0] if context.pages else await context.new_page()
 
                     # Anti-bot jitter
                     jitter = random.uniform(settings.MIN_JITTER_SECONDS, settings.MAX_JITTER_SECONDS)
@@ -282,11 +295,18 @@ class StealthScraper:
                         logger.error(f"Exhausted retries while fetching {url}", exc_info=True)
                         raise
                 finally:
-                    if page:
+                    if context and context.pages:
+                        for extra_page in list(context.pages[1:]):
+                            try:
+                                await extra_page.close()
+                            except Exception:
+                                pass
                         try:
-                            await page.close()
+                            if not context.pages[0].is_closed():
+                                await context.pages[0].goto("about:blank")
                         except Exception:
                             pass
+            return ""
             return ""
 
     async def fetch_listings(self, url: str) -> list[ListingItem]:

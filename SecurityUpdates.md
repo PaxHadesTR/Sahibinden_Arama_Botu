@@ -30,11 +30,11 @@ Bu doküman, Sahibinden Discord Botu projesine uygulanan güvenlik (Security), v
 
 ---
 
-## 4. İzole Chromium Sayfa Yaşam Döngüsü & Sıfır Bellek Sızıntısı (V2 Resource Bounds)
-- **Problem**: Scraper motoru tüm taramalarda tek bir Chromium sekmesini (`context.pages[0]`) sürekli açık tutuyordu. Uzun süreli çalıştırmalarda Chromium renderer süreçlerinde DOM ağacı ve JavaScript heap birikerek Docker konteynerinin bellek tüketimini artırıyordu.
+## 4. Chromium Sekme Tutma Yaşam Döngüsü & Sıfır Bellek Sızıntısı (V2 Resource Bounds)
+- **Problem**: Persistent context modunda tüm sekmelerin (`page.close()`) kapatılması, Chromium pencere hedefini (window target) yok ederek bir sonraki istekte `BrowserContext.new_page: Protocol error (Target.createTarget): Failed to open a new tab` hatasına yol açıyordu.
 - **Çözüm**:
-  - İstek başına izole sekme modeli (`page = await context.new_page()`) devreye alındı.
-  - `try...finally: await page.close()` bloğu ile her tarama sonrasında sekme bellekten tamamen tahliye edilir.
+  - Ana sekme (`context.pages[0]`) sürekli canlı tutulur; yalnızca tarama esnasında açılan ikincil açılır pencereler (popuplar) kapatılır.
+  - `finally: await context.pages[0].goto("about:blank")` çağrısı ile taranan sitenin tüm DOM düğümleri, zamanlayıcıları ve V8 JavaScript heap belleği tamamen serbest bırakılır. Hem sekme kapanma çökmesi engellenir hem de 24/7 çalıştırmada bellek tüketimi sabit kalır.
   - Boş arama sonuçlarında (`div.noResult`, `div.searchResultsRight`, `div.no-result`) Playwright'ın 10 saniye boş yere tablo beklemesi engellendi; sıfır sonuç anında tespit edilip dönülür.
 
 ---
@@ -46,6 +46,14 @@ Bu doküman, Sahibinden Discord Botu projesine uygulanan güvenlik (Security), v
 
 ---
 
-## 6. Ölü Kod Temizliği & Test Bütünlüğü
+## 6. Ölü Kod Temizliği
 - **Temizlik**: Artık kullanılmayan eski `/alarm-kur` modal formları ve kategori seçim görünümleri (`SpecFilterModal`, `UniversalCategorySelectView`, `RamSpecSelectView`, `CategoryGroupSelectView`, `SubCategorySelectView`) kod tabanından tamamen kaldırıldı (660+ satır).
-- **Testler**: 14 test modülünde 294 testin tamamı (%100) yeşil durumdadır.
+
+---
+
+## 7. Login Wall Kısa Devresi, Parmak İzi Düzeltmesi & Oturum Isıtma (ADR-035)
+- **Problem 1 (Login Wall Parametre Döngüsü)**: Sahibinden oturumsuz istekleri `https://secure.sahibinden.com/giris?return_url=...` adresine yönlendirdiğinde, `merge_dropped_redirect_params` fonksiyonu `/giris` URL'sine eksik arama parametrelerini (`sorting=date_desc&price_max=...`) ekleyip sayfayı tekrar giriş ekranına yönlendiriyor ve tablolar için 10 saniye bekliyordu.
+- **Çözüm 1**: `merge_dropped_redirect_params` fonksiyonu `/giris`, `uye-girisi`, `secure.sahibinden.com`, `checkLoading` ve `challenge` URL'lerinde parametre birleştirmeyi derhal durdurup `None` döner. `_wait_for_challenge_and_table` giriş ekranını algıladığı anda 10 saniyelik beklemeden çıkar.
+- **Problem 2 (Bot Tespiti)**: Başlatma bayraklarındaki `--start-minimized`, sayfanın gizli (`document.hidden = true`) kalmasına ve Cloudflare Turnstile Proof-of-Work betiklerinin zaman aşımına uğramasına neden oluyordu. Ayrıca Edge User-Agent ile Chromium Client Hints arasındaki uyumsuzluk bot olarak algılanıyordu.
+- **Çözüm 2**: `--start-minimized` bayrağı kaldırıldı, User-Agent orijinal Chrome standardına çekildi. Taze tarayıcı profillerinde derin filtrelere girmeden önce anasayfadan temel oturum çerezleri (`vid`, `cdid`, `csss`, `__cf_bm`) otomatik ısıtılır.
+- **Testler**: 14 test modülünde 296 testin tamamı (%100) yeşil durumdadır.

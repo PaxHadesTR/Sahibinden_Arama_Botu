@@ -184,7 +184,13 @@
   - [x] Centralized Database Connection Manager: Introduced `@asynccontextmanager async def get_connection(self)` executing `PRAGMA foreign_keys = ON;` and `PRAGMA busy_timeout = 15000;`, replacing all raw `aiosqlite.connect` calls across all 16 database methods.
   - [x] Monitor Deletion Guard: Fresh database query in `_run_loop` before scraping cleanly skips alarms deleted or paused mid-cycle.
   - [x] Security Documentation: Created `SecurityUpdates.md` detailing V1-V5 hardening measures.
-- [x] Automated Test Suite: 294/294 tests passing green across all 14 test suites (100% pass rate).
+- [x] Persistent Browser Tab Retention, Login Wall Short-Circuit & Clean Fingerprint Hardening (`ADR-035`):
+  - [x] Primary Tab Retention & `about:blank` Cleanup: Prevented Chromium persistent context window destruction (`BrowserContext.new_page: Protocol error (Target.createTarget): Failed to open a new tab`) by retaining the primary tab (`context.pages[0]`), closing secondary popups, and resetting via `about:blank` in `finally` to purge DOM/V8 memory.
+  - [x] Active Context Ping Verification: Updated `_init_context()` with `await self._context.pages[0].evaluate("1")` to catch dead browser processes reliably.
+  - [x] Strict Login Wall & Challenge Parameter Immunity: Hardened `merge_dropped_redirect_params` to return `None` on `/giris`, `uye-girisi`, `secure.sahibinden.com`, `checkLoading`, preventing recursive parameter re-application on login walls.
+  - [x] Immediate Login Wall Escape: `_wait_for_challenge_and_table` detects login walls and exits immediately, skipping 10s `wait_for_selector` timeouts.
+  - [x] Clean Fingerprint & Baseline Session Warmup: Removed `--start-minimized`, aligned User-Agent with genuine Chrome matching Client Hints, and added homepage session cookie warming on fresh browser profiles.
+- [x] Automated Test Suite: 296/296 tests passing green across all 14 test suites (100% pass rate).
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`, `SecurityUpdates.md`) fully updated and synchronized.
 
 

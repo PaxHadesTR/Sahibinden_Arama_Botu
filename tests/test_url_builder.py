@@ -142,6 +142,20 @@ def test_merge_dropped_redirect_params():
     assert qs.get("address_city") == ["34"]
     assert qs.get("query_text") == ["iphone 15"]
 
+    # Must return None for login walls or challenge pages rather than re-applying params
+    assert StealthScraper.merge_dropped_redirect_params(
+        requested,
+        "https://secure.sahibinden.com/giris?return_url=https%3A%2F%2Fwww.sahibinden.com"
+    ) is None
+    assert StealthScraper.merge_dropped_redirect_params(
+        requested,
+        "https://www.sahibinden.com/giris"
+    ) is None
+    assert StealthScraper.merge_dropped_redirect_params(
+        requested,
+        "https://www.sahibinden.com/cs/checkLoading?returnUrl=https%3A%2F%2Fwww.sahibinden.com"
+    ) is None
+
 
 def test_extract_filters_from_url():
     """Verify price_min, price_max, and query_text are extracted from user-supplied URLs for defense-in-depth."""
