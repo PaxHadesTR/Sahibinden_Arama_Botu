@@ -39,3 +39,5 @@ Antigravity_Autonomous_Mesh_Universal.xml
 Antigravity_Otonom_Sistem_Prompt.xml
 Antigravity_System_Promt.md
 *.xml
+.agents/
+.agnets/
