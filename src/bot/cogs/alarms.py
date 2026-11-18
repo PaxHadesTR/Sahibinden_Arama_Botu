@@ -974,7 +974,18 @@ class AlarmCog(commands.Cog):
             color=0x3498DB
         )
 
-        for alarm in user_alarms[:15]:
+        total_count = len(user_alarms)
+        if total_count > 15:
+            footer_text = f"Toplam {total_count} alarmınızdan ilk 15 tanesi listeleniyor. Alarmlarınızı yönetmek veya silmek için /alarm-sil kullanabilirsiniz."
+        else:
+            footer_text = f"Toplam {total_count} kayıtlı alarm. Yönetim için /alarm-durum ve /alarm-sil kullanabilirsiniz."
+        embed.set_footer(text=footer_text)
+
+        shown_alarms = user_alarms[:15]
+        running_len = len(embed.title or "") + len(embed.description or "") + len(footer_text)
+        per_field_cap = min(1024, max(200, (5800 - running_len) // max(1, len(shown_alarms))))
+
+        for alarm in shown_alarms:
             status_icon = "🟢 Aktif" if alarm["is_active"] else "⏸️ Duraklatıldı"
             filters = json.loads(alarm["filters_json"]) if alarm.get("filters_json") else {}
 
@@ -997,21 +1008,37 @@ class AlarmCog(commands.Cog):
                 filter_parts.append(f"Şehir: {filters['sehir'].title()}")
 
             desc_text = " | ".join(filter_parts) if filter_parts else "Evrensel Arama Filtresi"
-            embed.add_field(
-                name=f"#{alarm['id']} - {alarm['name']} ({status_icon})",
-                value=f"🔍 {desc_text}\n🌐 [Arama Sayfası]({alarm['target_url']})\n📅 Kurulum: {alarm['created_at'][:16]}",
-                inline=False
-            )
+            created_str = (alarm.get("created_at") or "")[:16] or "Bilinmiyor"
+            date_line = f"📅 Kurulum: {created_str}"
+            target_url = alarm.get("target_url") or ""
+            full_url_line = f"🌐 [Arama Sayfası]({target_url})" if target_url else "🌐 Arama Linki: Yok"
 
-        total_count = len(user_alarms)
-        if total_count > 15:
-            embed.set_footer(
-                text=f"Toplam {total_count} alarmınızdan ilk 15 tanesi listeleniyor. Alarmlarınızı yönetmek veya silmek için /alarm-sil kullanabilirsiniz."
-            )
-        else:
-            embed.set_footer(
-                text=f"Toplam {total_count} kayıtlı alarm. Yönetim için /alarm-durum ve /alarm-sil kullanabilirsiniz."
-            )
+            max_name_len = 256
+            raw_prefix = f"#{alarm['id']} - "
+            raw_suffix = f" ({status_icon})"
+            avail_name = max(1, max_name_len - len(raw_prefix) - len(raw_suffix))
+            alarm_name = str(alarm.get("name") or "")
+            if len(alarm_name) > avail_name:
+                alarm_name = alarm_name[: max(0, avail_name - 3)] + "..."
+            field_name = f"{raw_prefix}{alarm_name}{raw_suffix}"[:256]
+
+            value_limit = min(per_field_cap, max(0, 5950 - running_len - len(field_name)))
+            if value_limit < len(date_line) + 20:
+                break
+
+            # Keep Markdown link intact or swap to short fallback without slicing inside [text](url)
+            if len(full_url_line) + len(date_line) + 30 <= value_limit:
+                url_line = full_url_line
+            else:
+                url_line = "🌐 Arama Linki: (URL çok uzun)"
+
+            desc_budget = max(0, value_limit - len(url_line) - len(date_line) - 4)  # 4 chars for "🔍 " + two "\n"
+            if len(desc_text) > desc_budget:
+                desc_text = (desc_text[: max(0, desc_budget - 3)] + "...") if desc_budget >= 3 else desc_text[:desc_budget]
+
+            field_value = f"🔍 {desc_text}\n{url_line}\n{date_line}"[:1024]
+            embed.add_field(name=field_name, value=field_value, inline=False)
+            running_len += len(field_name) + len(field_value)
 
         await interaction.followup.send(embed=embed, ephemeral=True)
 

@@ -153,7 +153,7 @@ class AlarmMonitor:
 
 
         # Client-side capacity verification (e.g. 12 GB, 16 GB, 512 MB, 1 TB)
-        kapasite = filters.get("kapasite")
+        kapasite = filters.get("kapasite") or filters.get("bellek") or filters.get("hafiza")
         if kapasite and item.title:
             import re
             cap_clean = str(kapasite).strip().lower()
@@ -273,8 +273,9 @@ class AlarmMonitor:
                 logger.error(f"Failed to send price-drop Discord message for {item.classified_id}: {e}")
 
         if notified_drops:
-            # Record all detected drops so overflow items don't re-trigger next cycle
-            await database.record_notified_listings(alarm_id, price_drops)
+            # Record only delivered drops plus genuine overflow beyond MAX_DISPATCH_PER_CYCLE
+            overflow_drops = price_drops[self.MAX_DISPATCH_PER_CYCLE:]
+            await database.record_notified_listings(alarm_id, notified_drops + overflow_drops)
 
         # Dispatch Brand New Listings (oldest to newest so newest appears at bottom, capped at MAX_DISPATCH_PER_CYCLE)
         new_to_send = new_items[:self.MAX_DISPATCH_PER_CYCLE]
@@ -292,8 +293,9 @@ class AlarmMonitor:
                 logger.error(f"Failed to send new-listing Discord message for {item.classified_id}: {e}")
 
         if notified_new:
-            # Record all new items so overflow items beyond MAX_DISPATCH_PER_CYCLE are marked seen
-            await database.record_notified_listings(alarm_id, new_items)
+            # Record only delivered new items plus genuine overflow beyond MAX_DISPATCH_PER_CYCLE
+            overflow_new = new_items[self.MAX_DISPATCH_PER_CYCLE:]
+            await database.record_notified_listings(alarm_id, notified_new + overflow_new)
 
         await database.update_last_checked(alarm_id)
         return [ListingItem(**x) for x in notified_new]

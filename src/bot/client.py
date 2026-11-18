@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 import discord
 from discord.ext import commands
 from aiohttp_socks import ProxyConnector
@@ -50,9 +50,24 @@ class SahibindenBot(commands.Bot):
         self.monitor: AlarmMonitor | None = None
 
         if self.discord_proxy_url:
-            logger.info(f"Discord client configured with proxy: {self.discord_proxy_url}")
+            logger.info(f"Discord client configured with proxy: {self._redact_proxy_url(self.discord_proxy_url)}")
         else:
             logger.info("Discord client configured with direct connection (no proxy).")
+
+    @staticmethod
+    def _redact_proxy_url(proxy_url: str | None) -> str:
+        """Strips embedded basic-auth credentials from a proxy URL for safe logging and errors."""
+        if not proxy_url:
+            return ""
+        try:
+            parsed = urlparse(proxy_url)
+            if not parsed.hostname:
+                return proxy_url
+            host_part = f"[{parsed.hostname}]" if ":" in parsed.hostname else parsed.hostname
+            netloc = f"{host_part}:{parsed.port}" if parsed.port is not None else host_part
+            return urlunparse((parsed.scheme, netloc, parsed.path, "", parsed.query, ""))
+        except Exception:
+            return "<redacted-proxy>"
 
     @staticmethod
     async def check_proxy_health(
@@ -103,9 +118,10 @@ class SahibindenBot(commands.Bot):
         if self.discord_proxy_url:
             is_healthy, err_msg = await self.check_proxy_health(self.discord_proxy_url)
             if not is_healthy:
+                safe_proxy_url = self._redact_proxy_url(self.discord_proxy_url)
                 diagnostic = (
                     f"\n{'=' * 76}\n"
-                    f"❌ DISCORD PROXY BAĞLANTI HATASI ({self.discord_proxy_url})\n"
+                    f"❌ DISCORD PROXY BAĞLANTI HATASI ({safe_proxy_url})\n"
                     f"{'-' * 76}\n"
                     f"Hata Detayı: {err_msg}\n\n"
                     f"Bot, Discord API ve Gateway'e bağlanmak üzere proxy ile yapılandırıldı;\n"
@@ -130,7 +146,7 @@ class SahibindenBot(commands.Bot):
                 else:
                     logger.error(diagnostic)
                     raise ConnectionRefusedError(
-                        f"Discord proxy ({self.discord_proxy_url}) unreachable: {err_msg}"
+                        f"Discord proxy ({safe_proxy_url}) unreachable: {err_msg}"
                     )
 
         self._ensure_proxy_connector()
@@ -157,13 +173,34 @@ class SahibindenBot(commands.Bot):
             self.monitor.start()
 
     async def close(self):
-        """Idempotent graceful shutdown for monitor, browser context, and Discord session."""
+        """Idempotent graceful shutdown for monitor, Discord session/cogs, and browser context."""
         if self._closed_cleanly:
             return
         self._closed_cleanly = True
 
         if self.monitor:
             self.monitor.stop()
+            monitor_task = self.monitor._task
+            if monitor_task and not monitor_task.done():
+                try:
+                    await asyncio.wait_for(monitor_task, timeout=2.0)
+                except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+                    pass
+
+        # Cancel and drain any pending cog background priming tasks before closing scraper
+        for cog in list(self.cogs.values()):
+            bg_tasks = list(getattr(cog, "_background_tasks", ()) or ())
+            for task in bg_tasks:
+                if not task.done():
+                    task.cancel()
+            wait_fn = getattr(cog, "wait_for_background_tasks", None)
+            if callable(wait_fn):
+                try:
+                    await wait_fn(timeout=2.0)
+                except Exception:
+                    pass
+
+        # Close Discord cogs/session before closing the scraper
+        await super().close()
         from src.services.scraper import scraper
         await scraper.close()
-        await super().close()

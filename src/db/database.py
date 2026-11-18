@@ -1,10 +1,12 @@
 """SQLite state, baseline priming, price-drop, and deduplication database service."""
 
+import asyncio
 import json
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+import weakref
 import aiosqlite
 from src.config import settings
 
@@ -14,7 +16,17 @@ class Database:
 
     def __init__(self, db_path: str = settings.DATABASE_PATH):
         self.db_path = db_path
+        self._write_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = weakref.WeakKeyDictionary()
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+
+    def _get_write_lock(self) -> asyncio.Lock:
+        """Returns an asyncio.Lock bound lazily to the current running event loop."""
+        loop = asyncio.get_running_loop()
+        lock = self._write_locks.get(loop)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._write_locks[loop] = lock
+        return lock
 
     @asynccontextmanager
     async def get_connection(self):
@@ -93,12 +105,11 @@ class Database:
                 row = await cursor.fetchone()
                 return int(row[0]) if row else 0
 
-    async def check_alarm_limits(self, user_id: int) -> tuple[bool, str | None]:
-        """
-        Validates if a new alarm can be created against global and user limits.
-        Returns (True, None) if permitted, or (False, error_message) if limit reached.
-        """
-        total_count = await self.get_total_alarms_count()
+    async def _check_alarm_limits_on_conn(self, db: aiosqlite.Connection, user_id: int) -> tuple[bool, str | None]:
+        """Evaluates global and per-user alarm quotas using an active database connection."""
+        async with db.execute("SELECT COUNT(*) FROM alarms") as cursor:
+            row = await cursor.fetchone()
+            total_count = int(row[0]) if row else 0
         if settings.MAX_ALARMS_TOTAL and total_count >= settings.MAX_ALARMS_TOTAL:
             return (
                 False,
@@ -107,7 +118,9 @@ class Database:
             )
 
         if settings.MAX_ALARMS_PER_USER:
-            user_count = await self.get_user_alarms_count(user_id)
+            async with db.execute("SELECT COUNT(*) FROM alarms WHERE user_id = ?", (user_id,)) as cursor:
+                row = await cursor.fetchone()
+                user_count = int(row[0]) if row else 0
             if user_count >= settings.MAX_ALARMS_PER_USER:
                 return (
                     False,
@@ -116,6 +129,14 @@ class Database:
                 )
 
         return True, None
+
+    async def check_alarm_limits(self, user_id: int) -> tuple[bool, str | None]:
+        """
+        Validates if a new alarm can be created against global and user limits.
+        Returns (True, None) if permitted, or (False, error_message) if limit reached.
+        """
+        async with self.get_connection() as db:
+            return await self._check_alarm_limits_on_conn(db, user_id)
 
     async def create_alarm(
         self,
@@ -126,22 +147,28 @@ class Database:
         target_url: str,
         filters: dict[str, Any] | None = None
     ) -> int:
-        """Creates a new alarm (initially unprimed) and returns its ID."""
-        allowed, reason = await self.check_alarm_limits(user_id)
-        if not allowed:
-            raise ValueError(reason or "Alarm limit reached")
-
+        """Atomically checks quotas and creates a new alarm (initially unprimed), returning its ID."""
         filters_str = json.dumps(filters or {}, ensure_ascii=False)
-        async with self.get_connection() as db:
-            cursor = await db.execute(
-                """
-                INSERT INTO alarms (name, user_id, channel_id, guild_id, target_url, filters_json, is_primed)
-                VALUES (?, ?, ?, ?, ?, ?, 0)
-                """,
-                (name, user_id, channel_id, guild_id, target_url, filters_str)
-            )
-            await db.commit()
-            return cursor.lastrowid
+        async with self._get_write_lock():
+            async with self.get_connection() as db:
+                await db.execute("BEGIN IMMEDIATE")
+                try:
+                    allowed, reason = await self._check_alarm_limits_on_conn(db, user_id)
+                    if not allowed:
+                        raise ValueError(reason or "Alarm limit reached")
+
+                    cursor = await db.execute(
+                        """
+                        INSERT INTO alarms (name, user_id, channel_id, guild_id, target_url, filters_json, is_primed)
+                        VALUES (?, ?, ?, ?, ?, ?, 0)
+                        """,
+                        (name, user_id, channel_id, guild_id, target_url, filters_str)
+                    )
+                    await db.commit()
+                    return cursor.lastrowid
+                except Exception:
+                    await db.rollback()
+                    raise
 
     @staticmethod
     def _extract_price_val(item: dict[str, Any]) -> int | None:
@@ -321,18 +348,31 @@ class Database:
         filters: dict[str, Any],
         name: str | None = None
     ) -> bool:
-        """Updates target_url, filters_json and optionally name for an existing alarm."""
+        """Updates target_url, filters_json and optionally name, resetting is_primed when target_url changes."""
         filters_str = json.dumps(filters or {}, ensure_ascii=False)
         async with self.get_connection() as db:
+            async with db.execute(
+                "SELECT target_url FROM alarms WHERE id = ? AND user_id = ?",
+                (alarm_id, user_id),
+            ) as cursor:
+                existing = await cursor.fetchone()
+            if not existing:
+                return False
+
+            reset_primed = 1 if existing[0] != target_url else 0
             if name:
                 cursor = await db.execute(
-                    "UPDATE alarms SET target_url = ?, filters_json = ?, name = ? WHERE id = ? AND user_id = ?",
-                    (target_url, filters_str, name, alarm_id, user_id)
+                    "UPDATE alarms SET target_url = ?, filters_json = ?, name = ?, "
+                    "is_primed = CASE WHEN ? THEN 0 ELSE is_primed END "
+                    "WHERE id = ? AND user_id = ?",
+                    (target_url, filters_str, name, reset_primed, alarm_id, user_id),
                 )
             else:
                 cursor = await db.execute(
-                    "UPDATE alarms SET target_url = ?, filters_json = ? WHERE id = ? AND user_id = ?",
-                    (target_url, filters_str, alarm_id, user_id)
+                    "UPDATE alarms SET target_url = ?, filters_json = ?, "
+                    "is_primed = CASE WHEN ? THEN 0 ELSE is_primed END "
+                    "WHERE id = ? AND user_id = ?",
+                    (target_url, filters_str, reset_primed, alarm_id, user_id),
                 )
             await db.commit()
             return cursor.rowcount > 0

@@ -241,7 +241,7 @@ Desteklenen tüm kategorileri, RAM (MB/GB), SSD (GB/TB), Ekran Kartı, Vasıta v
 
 | Komut | Parametreler | Açıklama |
 |---|---|---|
-| `/alarm-hizli` | `kategori`, `arama`, `ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi` | 4 ana bölüm hiyerarşisi, dinamik özellik ve 81 il/plaka/eşanlamlı (İçel, Afyon vb.) otomatik tamamlamasıyla tek komutta hızlı parametrik alarm kurar. |
+| `/alarm-hizli` | `kategori`, `arama`, `ozellik`, `ek_ozellik`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi` | 4 ana bölüm hiyerarşisi, dinamik özellik ve 81 il/plaka/eşanlamlı (İçel, Afyon vb.) otomatik tamamlamasıyla tek komutta hızlı parametrik alarm kurar. |
 | `/alarm-ara` | `kelime`, `min_fiyat`, `max_fiyat`, `sehir`, `alarm_adi` | Tüm Sahibinden sitesinde kategori bağımsız serbest arama yapar (81 il, plaka ve eşanlamlı otomatik tamamlamalı). |
 | `/alarm-url` | `url`, `alarm_adi` | Doğrudan yapıştırılan Sahibinden arama URL'sini dinler ve alt kategorileri otomatik tespit eder. |
 | `/kategoriler` | `-` | Tüm kategorileri, birim türlerini (MB, GB, TB) ve komut örneklerini gösterir. |
@@ -368,10 +368,10 @@ python -m src.main
 ## ❓ Sıkça Sorulan Sorular (SSS)
 
 **S: Eski model bir RAM için 512 MB alarmı kurabilir miyim?**  
-C: Evet! `/alarm-hizli kategori:ram ddr:DDR2 kapasite:512 MB` yazmanız yeterlidir. Bot otomatik olarak 512 MB'ı algılar ve Sahibinden'in doğru parametresiyle filtreler.
+C: Evet! `/alarm-hizli kategori:ram-bellek-masaustu ozellik:512 MB, DDR2` yazmanız yeterlidir. Bot otomatik olarak 512 MB'ı algılar ve Sahibinden'in doğru parametresiyle filtreler.
 
 **S: SSD için 1 TB ve 500 GB filtreleri nasıl yazılır?**  
-C: `/alarm-hizli kategori:ssd kapasite:1 TB` veya `/alarm-hizli kategori:ssd kapasite:500 GB` şeklinde doğrudan yazabilirsiniz.
+C: `/alarm-hizli kategori:ssd-dahili-sabit-disk ozellik:1 TB` veya `/alarm-hizli kategori:ssd-dahili-sabit-disk ozellik:500 GB` şeklinde doğrudan yazabilirsiniz.
 
 **S: Özel bir marka veya model yazdığımda kaybolur mu?**  
 C: Kesinlikle hayır. Botumuzda **Non-Lossy Fallback (Kayıpsız Arama)** mimarisi bulunur. Sahibinden'in sayısal kodlarında yer almayan özel bir marka, çipset veya model yazdığınızda, filtre silinmez; otomatik olarak kelime arama motoruna (`query_text`) eklenir.
