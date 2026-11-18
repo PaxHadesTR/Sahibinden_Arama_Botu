@@ -2,7 +2,9 @@
 
 import json
 import logging
+import re
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 import discord
 from discord.ui import View, Select
 from src.catalog.resolver import resolver
@@ -259,6 +261,34 @@ class DetailFilterSelectView(View):
         embed = self._render_alarm_embed(self.current_filters, self.target_url)
         await interaction.response.edit_message(embed=embed, view=view)
 
+    def _strip_conflicting_facet_tokens(
+        self,
+        query: str,
+        extra_facets: dict[str, Any],
+        tipi: str | None,
+        kapasite: str | None,
+        marka: str | None,
+    ) -> str | None:
+        """Removes stale mutually-exclusive facet option terms from base_query when facets change."""
+        spec_groups = resolver._get_spec_groups_for_category(self.category_slug.lower(), self.profile)
+        active = dict(extra_facets)
+        if tipi:
+            active["tipi"] = tipi
+        if kapasite:
+            active["kapasite"] = kapasite
+        if marka:
+            active["marka"] = marka
+
+        cleaned = query
+        for facet_name, chosen_val in active.items():
+            options = spec_groups.get(facet_name) or []
+            chosen_low = str(chosen_val).strip().lower()
+            for opt in sorted(options, key=len, reverse=True):
+                if opt.strip().lower() == chosen_low:
+                    continue
+                cleaned = re.sub(rf"(?<!\w){re.escape(opt)}(?!\w)", "", cleaned, flags=re.IGNORECASE)
+        return " ".join(cleaned.split()).strip() or None
+
     async def on_apply_clicked(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
             await interaction.response.send_message("❌ Bu alarmı yalnızca oluşturan kullanıcı güncelleyebilir.", ephemeral=True)
@@ -304,7 +334,13 @@ class DetailFilterSelectView(View):
         else:
             self.current_filters.pop("ozellik", None)
 
-        base_query = self.current_filters.get("raw_query") or self.current_filters.get("kelime")
+        if "raw_query" in self.current_filters:
+            base_query = self.current_filters.get("raw_query")
+        else:
+            base_query = self.current_filters.get("kelime")
+
+        if base_query:
+            base_query = self._strip_conflicting_facet_tokens(base_query, extra_facets, tipi, kapasite, marka)
 
         new_target_url = SahibindenURLBuilder.build_url(
             category_slug=self.category_slug,
@@ -317,6 +353,12 @@ class DetailFilterSelectView(View):
             marka=marka,
             extra_facets=extra_facets,
         )
+        rebuilt_qs = parse_qs(urlparse(new_target_url).query)
+        rebuilt_qt = rebuilt_qs.get("query_text", [None])[0]
+        if rebuilt_qt:
+            self.current_filters["kelime"] = rebuilt_qt
+        else:
+            self.current_filters.pop("kelime", None)
         self.target_url = new_target_url
 
         await database.update_alarm_filters(

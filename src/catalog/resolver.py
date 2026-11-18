@@ -384,7 +384,24 @@ class CategoryResolver:
             return self.code_to_city.get(resolved_code)
         return self.code_to_city.get(code_str)
 
-    def extract_specs_from_text(self, text: str, category_key: str = "ram-bellek-masaustu") -> dict[str, str]:
+    _MODEL_OR_GEN_PREFIXES = frozenset({
+        "iphone", "ipad", "galaxy", "note", "pixel", "redmi", "mi", "poco",
+        "oneplus", "mate", "honor", "gen", "pcie", "pci", "usb", "thunderbolt",
+        "ddr", "gddr", "sata", "ryzen", "core", "rtx", "gtx", "rx", "arc",
+        "series", "serisi", "model", "nesil", "s", "a", "p", "m", "x", "z", "v",
+    })
+    _NON_CAPACITY_SUFFIXES = frozenset({
+        "fan", "fanli", "nesil", "gen", "pin", "mm", "cm", "nm", "w", "watt",
+        "hz", "mhz", "ghz", "cekirdek", "core", "pro", "max", "plus", "ultra",
+        "mini", "lite", "fe", "se", "ti", "super", "xt", "xtx", "inc", "inch",
+    })
+
+    def extract_specs_from_text(
+        self,
+        text: str,
+        category_key: str = "ram-bellek-masaustu",
+        allow_bare_numeric_capacity: bool = True,
+    ) -> dict[str, str]:
         """Extracts recognized facets (like DDR type, capacity, brand, chipset, VRAM) from raw query text."""
         cat_data = self.get_category(category_key)
         if not cat_data:
@@ -448,16 +465,31 @@ class CategoryResolver:
                                 found_facets[cap_facet_key] = norm_cap
 
                     # Check token numeric inference (e.g. '512' in RAM -> '512 MB')
-                    if cap_facet_key not in found_facets:
-                        for token in tokens:
-                            if token.isdigit():
-                                # Do not infer unit if token was already paired with an explicit unit in text
-                                if re.search(rf"\b{token}\s*(?:mb|gb|tb)\b", normalized):
+                    if allow_bare_numeric_capacity and cap_facet_key not in found_facets:
+                        cat_low = (cat_data.get("key") or category_key or "").lower()
+                        is_ssd_cat = "ssd" in cat_low or "sabit-disk" in cat_low
+                        for idx, token in enumerate(tokens):
+                            if not token.isdigit():
+                                continue
+                            # Do not infer unit if token was already paired with an explicit unit in text
+                            if re.search(rf"\b{token}\s*(?:mb|gb|tb)\b", normalized):
+                                continue
+                            if len(tokens) > 1:
+                                prev_tok = tokens[idx - 1] if idx > 0 else ""
+                                next_tok = tokens[idx + 1] if idx + 1 < len(tokens) else ""
+                                if prev_tok in self._MODEL_OR_GEN_PREFIXES or next_tok in self._NON_CAPACITY_SUFFIXES:
                                     continue
-                                norm_token = self.normalize_capacity_unit(token, category_key=category_key)
-                                if norm_token and norm_token in facets[cap_facet_key]["options"]:
-                                    found_facets[cap_facet_key] = norm_token
-                                    break
+                                num_val = int(token)
+                                if cap_facet_key == "hafiza" and num_val < 64:
+                                    continue
+                                if is_ssd_cat and num_val < 16:
+                                    continue
+                                if cap_facet_key == "bellek" and num_val < 4:
+                                    continue
+                            norm_token = self.normalize_capacity_unit(token, category_key=category_key)
+                            if norm_token and norm_token in facets[cap_facet_key]["options"]:
+                                found_facets[cap_facet_key] = norm_token
+                                break
 
         # 3. Marka or Chipset (e.g. Corsair, Kingston, Nvidia, AMD, Intel)
         for brand_facet_key in ("marka", "chipset"):

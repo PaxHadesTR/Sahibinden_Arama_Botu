@@ -115,9 +115,10 @@ class StealthScraper:
                 if self._context.pages and not self._context.pages[0].is_closed():
                     await self._context.pages[0].evaluate("1")
                     return self._context
-            except Exception:
-                logger.warning("Existing browser context appears closed or unresponsive. Recreating...")
-                await self._reset_context()
+                logger.warning("Existing browser context has empty or closed pages. Recreating...")
+            except Exception as exc:
+                logger.warning(f"Existing browser context appears closed or unresponsive ({exc}). Recreating...")
+            await self._reset_context()
 
         self._cleanup_stale_singleton_locks()
         self._playwright = await async_playwright().start()
