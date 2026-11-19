@@ -179,3 +179,18 @@ async def test_conc_priming_001_happy_path_and_concurrent_url_change(monkeypatch
     finally:
         if os.path.exists(path):
             os.remove(path)
+
+
+def test_ci_missing_001_workflow_present_and_valid():
+    """CI-MISSING-001: Repository contains a GitHub Actions workflow running pytest without secrets."""
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parent.parent
+    ci_path = repo_root / ".github" / "workflows" / "ci.yml"
+    assert ci_path.is_file()
+    content = ci_path.read_text(encoding="utf-8")
+    assert "push:" in content
+    assert "pull_request:" in content
+    assert "requirements.txt" in content
+    assert "pytest" in content
+    assert "secrets." not in content.lower()
