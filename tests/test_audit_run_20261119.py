@@ -319,3 +319,49 @@ async def test_db_atomic_write_transactions_and_concurrent_updates():
     finally:
         if os.path.exists(path):
             os.remove(path)
+
+
+@pytest.mark.asyncio
+async def test_bot_close_serializes_concurrent_calls_until_scraper_finished(monkeypatch):
+    """F-sahibinden-arama-botu-49d7e201ca99: Concurrent bot.close() callers wait for in-flight scraper.close()."""
+    from src.bot.client import SahibindenBot
+    from src.services.scraper import scraper
+
+    monkeypatch.setattr("src.config.settings.USE_WARP", False)
+    monkeypatch.setattr("src.config.settings.DISCORD_PROXY_URL", None)
+
+    bot = SahibindenBot()
+    scraper_close_started = asyncio.Event()
+    allow_scraper_close_finish = asyncio.Event()
+    scraper_close_count = 0
+    scraper_close_finished = False
+
+    async def slow_scraper_close():
+        nonlocal scraper_close_count, scraper_close_finished
+        scraper_close_count += 1
+        scraper_close_started.set()
+        await allow_scraper_close_finish.wait()
+        scraper_close_finished = True
+
+    monkeypatch.setattr(scraper, "close", slow_scraper_close)
+
+    # First close begins and blocks inside scraper.close()
+    first_close = asyncio.create_task(bot.close())
+    await scraper_close_started.wait()
+
+    # Adversarial: second concurrent close must NOT return early before scraper_close_finished is True
+    second_close = asyncio.create_task(bot.close())
+    await asyncio.sleep(0.05)
+    assert not first_close.done()
+    assert not second_close.done()
+    assert scraper_close_finished is False
+
+    allow_scraper_close_finish.set()
+    await asyncio.gather(first_close, second_close)
+
+    assert scraper_close_finished is True
+    assert scraper_close_count == 1
+
+    # Happy path: subsequent sequential close is an idempotent no-op
+    await bot.close()
+    assert scraper_close_count == 1
