@@ -138,6 +138,19 @@ class Database:
         async with self.get_connection() as db:
             return await self._check_alarm_limits_on_conn(db, user_id)
 
+    @asynccontextmanager
+    async def _write_transaction(self):
+        """Serializes DB writes via the loop-local lock and an atomic BEGIN IMMEDIATE transaction."""
+        async with self._get_write_lock():
+            async with self.get_connection() as db:
+                await db.execute("BEGIN IMMEDIATE")
+                try:
+                    yield db
+                    await db.commit()
+                except Exception:
+                    await db.rollback()
+                    raise
+
     async def create_alarm(
         self,
         name: str,
@@ -149,26 +162,19 @@ class Database:
     ) -> int:
         """Atomically checks quotas and creates a new alarm (initially unprimed), returning its ID."""
         filters_str = json.dumps(filters or {}, ensure_ascii=False)
-        async with self._get_write_lock():
-            async with self.get_connection() as db:
-                await db.execute("BEGIN IMMEDIATE")
-                try:
-                    allowed, reason = await self._check_alarm_limits_on_conn(db, user_id)
-                    if not allowed:
-                        raise ValueError(reason or "Alarm limit reached")
+        async with self._write_transaction() as db:
+            allowed, reason = await self._check_alarm_limits_on_conn(db, user_id)
+            if not allowed:
+                raise ValueError(reason or "Alarm limit reached")
 
-                    cursor = await db.execute(
-                        """
-                        INSERT INTO alarms (name, user_id, channel_id, guild_id, target_url, filters_json, is_primed)
-                        VALUES (?, ?, ?, ?, ?, ?, 0)
-                        """,
-                        (name, user_id, channel_id, guild_id, target_url, filters_str)
-                    )
-                    await db.commit()
-                    return cursor.lastrowid
-                except Exception:
-                    await db.rollback()
-                    raise
+            cursor = await db.execute(
+                """
+                INSERT INTO alarms (name, user_id, channel_id, guild_id, target_url, filters_json, is_primed)
+                VALUES (?, ?, ?, ?, ?, ?, 0)
+                """,
+                (name, user_id, channel_id, guild_id, target_url, filters_str)
+            )
+            return cursor.lastrowid
 
     @staticmethod
     def _extract_price_val(item: dict[str, Any]) -> int | None:
@@ -197,7 +203,7 @@ class Database:
     async def prime_initial_listings(self, alarm_id: int, classified_items: list[dict[str, Any]]):
         """Marks currently active listings as baseline seen and marks the alarm as primed."""
         now_iso = datetime.now(timezone.utc).isoformat()
-        async with self.get_connection() as db:
+        async with self._write_transaction() as db:
             for item in classified_items:
                 price_text = item.get("price_text") or item.get("price") or ""
                 price_val = self._extract_price_val(item)
@@ -216,7 +222,6 @@ class Database:
                 "UPDATE alarms SET is_primed = 1, last_checked_at = ? WHERE id = ?",
                 (now_iso, alarm_id)
             )
-            await db.commit()
 
     async def filter_new_listings(self, alarm_id: int, listings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Compares incoming listings against seen_listings in batch and returns truly new items."""
@@ -291,7 +296,7 @@ class Database:
         Preserves original row IDs and first_seen_at timestamps while updating current price and notified_at.
         """
         now_iso = datetime.now(timezone.utc).isoformat()
-        async with self.get_connection() as db:
+        async with self._write_transaction() as db:
             for item in listings:
                 price_text = item.get("price_text") or item.get("price") or ""
                 price_val = self._extract_price_val(item)
@@ -307,21 +312,19 @@ class Database:
                     """,
                     (alarm_id, str(item["classified_id"]), item.get("title", ""), price_text, price_val, now_iso)
                 )
-            await db.commit()
 
     async def update_last_checked(self, alarm_id: int):
         """Updates last_checked_at timestamp for an alarm."""
         now_iso = datetime.now(timezone.utc).isoformat()
-        async with self.get_connection() as db:
+        async with self._write_transaction() as db:
             await db.execute(
                 "UPDATE alarms SET last_checked_at = ? WHERE id = ?",
                 (now_iso, alarm_id)
             )
-            await db.commit()
 
     async def set_alarm_active(self, alarm_id: int, user_id: int, is_active: bool) -> bool:
         """Pauses or resumes an alarm. Re-primes on resume to avoid flooding missed ads."""
-        async with self.get_connection() as db:
+        async with self._write_transaction() as db:
             if is_active:
                 cursor = await db.execute(
                     "UPDATE alarms SET is_active = 1, is_primed = 0 WHERE id = ? AND user_id = ?",
@@ -332,7 +335,6 @@ class Database:
                     "UPDATE alarms SET is_active = 0 WHERE id = ? AND user_id = ?",
                     (alarm_id, user_id)
                 )
-            await db.commit()
             return cursor.rowcount > 0
 
     async def get_active_alarms(self) -> list[dict[str, Any]]:
@@ -367,9 +369,9 @@ class Database:
         filters: dict[str, Any],
         name: str | None = None
     ) -> bool:
-        """Updates target_url, filters_json and optionally name, resetting is_primed when target_url changes."""
+        """Atomically updates target_url, filters_json and optionally name, resetting is_primed when target_url changes."""
         filters_str = json.dumps(filters or {}, ensure_ascii=False)
-        async with self.get_connection() as db:
+        async with self._write_transaction() as db:
             async with db.execute(
                 "SELECT target_url FROM alarms WHERE id = ? AND user_id = ?",
                 (alarm_id, user_id),
@@ -393,25 +395,23 @@ class Database:
                     "WHERE id = ? AND user_id = ?",
                     (target_url, filters_str, reset_primed, alarm_id, user_id),
                 )
-            await db.commit()
             return cursor.rowcount > 0
 
     async def delete_alarm(self, alarm_id: int, user_id: int | None = None) -> bool:
-        """Deletes an alarm (and cascading seen_listings). Returns True if deleted."""
-        async with self.get_connection() as db:
+        """Atomically deletes an alarm (and cascading seen_listings). Returns True if deleted."""
+        async with self._write_transaction() as db:
             if user_id is not None:
                 cursor = await db.execute("DELETE FROM alarms WHERE id = ? AND user_id = ?", (alarm_id, user_id))
             else:
                 cursor = await db.execute("DELETE FROM alarms WHERE id = ?", (alarm_id,))
             if cursor.rowcount > 0:
                 await db.execute("DELETE FROM seen_listings WHERE alarm_id = ?", (alarm_id,))
-                await db.commit()
                 return True
             return False
 
     async def cleanup_stale_seen_listings(self, days: int = 90) -> int:
         """Deletes seen listing records older than the specified number of days to keep database lean."""
-        async with self.get_connection() as db:
+        async with self._write_transaction() as db:
             cursor = await db.execute(
                 """
                 DELETE FROM seen_listings
@@ -419,7 +419,6 @@ class Database:
                 """,
                 (days,)
             )
-            await db.commit()
             return cursor.rowcount
 
 

@@ -268,3 +268,54 @@ async def test_data_price_currency_001_rejects_cross_currency_comparison():
     finally:
         if os.path.exists(path):
             os.remove(path)
+
+
+@pytest.mark.asyncio
+async def test_db_atomic_write_transactions_and_concurrent_updates():
+    """F-sahibinden-arama-botu-3290f3111965: Write methods serialize via _write_transaction without lost updates or lock errors."""
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    db = Database(db_path=path)
+    try:
+        await db.init_db()
+        url_a = "https://www.sahibinden.com/ekran-karti-masaustu?a=1"
+        url_b = "https://www.sahibinden.com/ekran-karti-masaustu?a=2"
+        alarm_id = await db.create_alarm(
+            name="Atomic Test",
+            user_id=10,
+            channel_id=20,
+            guild_id=30,
+            target_url=url_a,
+            filters={"a": "1"},
+        )
+        await db.prime_initial_listings(alarm_id, [_make_listing("1", "GPU 1").model_dump()])
+        assert (await db.get_alarm(alarm_id))["is_primed"] == 1
+
+        # Happy path: missing/unauthorized returns False and preserves state
+        assert await db.update_alarm_filters(999999, 10, url_b, {"a": "2"}) is False
+        assert await db.update_alarm_filters(alarm_id, 999, url_b, {"a": "2"}) is False
+        assert (await db.get_alarm(alarm_id))["is_primed"] == 1
+
+        # Same URL preserves is_primed=1
+        assert await db.update_alarm_filters(alarm_id, 10, url_a, {"a": "1b"}, name="Renamed") is True
+        row_same = await db.get_alarm(alarm_id)
+        assert row_same["is_primed"] == 1
+        assert row_same["name"] == "Renamed"
+
+        # Adversarial: concurrent prime/record/update_alarm_filters serialize without sqlite lock failures
+        results = await asyncio.gather(
+            db.prime_initial_listings(alarm_id, [_make_listing("2", "GPU 2").model_dump()]),
+            db.record_notified_listings(alarm_id, [_make_listing("3", "GPU 3").model_dump()]),
+            db.update_alarm_filters(alarm_id, 10, url_b, {"a": "2"}),
+            db.update_last_checked(alarm_id),
+            return_exceptions=True,
+        )
+        errors = [r for r in results if isinstance(r, Exception)]
+        assert errors == []
+
+        row_after = await db.get_alarm(alarm_id)
+        assert row_after["target_url"] == url_b
+        assert row_after["is_primed"] == 0
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
