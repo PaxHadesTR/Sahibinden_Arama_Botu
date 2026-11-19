@@ -365,3 +365,76 @@ async def test_bot_close_serializes_concurrent_calls_until_scraper_finished(monk
     # Happy path: subsequent sequential close is an idempotent no-op
     await bot.close()
     assert scraper_close_count == 1
+
+
+@pytest.mark.asyncio
+async def test_res_scraper_proxy_001_separates_credentials_from_server(monkeypatch, tmp_path):
+    """RES-SCRAPER-PROXY-001: _init_context passes Playwright proxy credentials separately from server URL."""
+    from src.services.scraper import StealthScraper
+
+    # Happy path: empty/None and unauthenticated proxy
+    assert StealthScraper._build_playwright_proxy(None) is None
+    assert StealthScraper._build_playwright_proxy("   ") is None
+    assert StealthScraper._build_playwright_proxy("http://proxy.local:8080") == {
+        "server": "http://proxy.local:8080",
+    }
+
+    # Adversarial: embedded & percent-encoded credentials and IPv6 host
+    assert StealthScraper._build_playwright_proxy("http://alice%40corp:s%40fe%3A1@proxy.local:8080") == {
+        "server": "http://proxy.local:8080",
+        "username": "alice@corp",
+        "password": "s@fe:1",
+    }
+    assert StealthScraper._build_playwright_proxy("socks5://bob:pw123@[::1]:1080") == {
+        "server": "socks5://[::1]:1080",
+        "username": "bob",
+        "password": "pw123",
+    }
+
+    # Integration through _init_context with mocked async_playwright
+    captured_kwargs: dict = {}
+
+    class FakeContext:
+        async def cookies(self):
+            return [{"name": "vid", "value": "1"}]
+
+        async def add_init_script(self, _script: str):
+            return None
+
+        async def close(self):
+            return None
+
+    class FakeChromium:
+        async def launch_persistent_context(self, **kwargs):
+            captured_kwargs.update(kwargs)
+            return FakeContext()
+
+    class FakePlaywright:
+        chromium = FakeChromium()
+
+        async def stop(self):
+            return None
+
+    class FakeAsyncPlaywright:
+        async def start(self):
+            return FakePlaywright()
+
+    import sys
+    scraper_mod = sys.modules["src.services.scraper"]
+    monkeypatch.setattr(scraper_mod, "async_playwright", lambda: FakeAsyncPlaywright())
+    monkeypatch.setattr(scraper_mod, "HAS_PLAYWRIGHT_STEALTH", False)
+    monkeypatch.setattr("src.config.settings.USER_DATA_DIR", str(tmp_path / "profile"))
+    monkeypatch.setattr("src.config.settings.BROWSER_CHANNEL", None)
+    monkeypatch.setattr("src.config.settings.PROXY_URL", "http://alice:pw123@proxy.example:3128")
+
+    s = StealthScraper()
+    await s._init_context()
+    try:
+        assert captured_kwargs["proxy"] == {
+            "server": "http://proxy.example:3128",
+            "username": "alice",
+            "password": "pw123",
+        }
+        assert "@" not in captured_kwargs["proxy"]["server"]
+    finally:
+        await s.close()
