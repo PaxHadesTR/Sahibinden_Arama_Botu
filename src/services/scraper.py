@@ -4,7 +4,7 @@ import asyncio
 import logging
 import random
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse, unquote
 from playwright.async_api import async_playwright, BrowserContext, Playwright
 
 try:
@@ -30,6 +30,31 @@ class StealthScraper:
         self._lock = asyncio.Lock()
         self._profile_dir = Path(settings.USER_DATA_DIR)
         self._profile_dir.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def _build_playwright_proxy(proxy_url: str | None) -> dict[str, str] | None:
+        """Builds a Playwright proxy dict with credentials separated from the server URL."""
+        if not proxy_url or not proxy_url.strip():
+            return None
+        raw = proxy_url.strip()
+        parsed = urlparse(raw)
+        if not parsed.scheme or not parsed.hostname:
+            return {"server": raw}
+
+        host_part = f"[{parsed.hostname}]" if ":" in parsed.hostname else parsed.hostname
+        try:
+            port = parsed.port
+        except ValueError:
+            port = None
+        netloc = f"{host_part}:{port}" if port is not None else host_part
+        server = urlunparse((parsed.scheme, netloc, parsed.path or "", "", "", ""))
+
+        proxy_cfg: dict[str, str] = {"server": server}
+        if parsed.username is not None:
+            proxy_cfg["username"] = unquote(parsed.username)
+        if parsed.password is not None:
+            proxy_cfg["password"] = unquote(parsed.password)
+        return proxy_cfg
 
     @classmethod
     def merge_dropped_redirect_params(cls, requested_url: str, final_url: str) -> str | None:
@@ -148,8 +173,9 @@ class StealthScraper:
             ),
         }
 
-        if settings.PROXY_URL and settings.PROXY_URL.strip():
-            launch_kwargs["proxy"] = {"server": settings.PROXY_URL.strip()}
+        proxy_cfg = self._build_playwright_proxy(settings.PROXY_URL)
+        if proxy_cfg:
+            launch_kwargs["proxy"] = proxy_cfg
             logger.info("Configured Playwright proxy server.")
 
         # Try Edge channel first if available, fallback to chromium

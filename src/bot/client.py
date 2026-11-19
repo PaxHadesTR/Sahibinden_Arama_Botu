@@ -19,6 +19,7 @@ class SahibindenBot(commands.Bot):
         intents = discord.Intents.default()
         self.discord_proxy_url: str | None = settings.get_discord_proxy()
         self._closed_cleanly: bool = False
+        self._close_lock: asyncio.Lock | None = None
 
         # Determine if proxy is SOCKS (requires aiohttp_socks.ProxyConnector) or standard HTTP
         is_socks = bool(
@@ -172,35 +173,44 @@ class SahibindenBot(commands.Bot):
             self.monitor = AlarmMonitor(self)
             self.monitor.start()
 
+    def _get_close_lock(self) -> asyncio.Lock:
+        """Lazily initializes the shutdown lock on the active event loop."""
+        if self._close_lock is None:
+            self._close_lock = asyncio.Lock()
+        return self._close_lock
+
     async def close(self):
         """Idempotent graceful shutdown for monitor, Discord session/cogs, and browser context."""
-        if self._closed_cleanly:
-            return
-        self._closed_cleanly = True
+        async with self._get_close_lock():
+            if self._closed_cleanly:
+                return
+            self._closed_cleanly = True
 
-        if self.monitor:
-            self.monitor.stop()
-            monitor_task = self.monitor._task
-            if monitor_task and not monitor_task.done():
-                try:
-                    await asyncio.wait_for(monitor_task, timeout=2.0)
-                except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
-                    pass
+            if self.monitor:
+                self.monitor.stop()
+                monitor_task = self.monitor._task
+                if monitor_task and not monitor_task.done():
+                    try:
+                        await asyncio.wait_for(monitor_task, timeout=2.0)
+                    except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+                        pass
 
-        # Cancel and drain any pending cog background priming tasks before closing scraper
-        for cog in list(self.cogs.values()):
-            bg_tasks = list(getattr(cog, "_background_tasks", ()) or ())
-            for task in bg_tasks:
-                if not task.done():
-                    task.cancel()
-            wait_fn = getattr(cog, "wait_for_background_tasks", None)
-            if callable(wait_fn):
-                try:
-                    await wait_fn(timeout=2.0)
-                except Exception:
-                    pass
+            # Cancel and drain any pending cog background priming tasks before closing scraper
+            for cog in list(self.cogs.values()):
+                bg_tasks = list(getattr(cog, "_background_tasks", ()) or ())
+                for task in bg_tasks:
+                    if not task.done():
+                        task.cancel()
+                wait_fn = getattr(cog, "wait_for_background_tasks", None)
+                if callable(wait_fn):
+                    try:
+                        await wait_fn(timeout=2.0)
+                    except Exception:
+                        pass
 
-        # Close Discord cogs/session before closing the scraper
-        await super().close()
-        from src.services.scraper import scraper
-        await scraper.close()
+            # Close Discord cogs/session before closing the scraper
+            try:
+                await super().close()
+            finally:
+                from src.services.scraper import scraper
+                await scraper.close()

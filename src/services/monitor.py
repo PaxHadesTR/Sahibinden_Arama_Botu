@@ -76,10 +76,15 @@ class AlarmMonitor:
                         for alarm in alarms_in_group:
                             if not self._running:
                                 break
-                            # Fresh check: verify alarm is still active and has not been deleted or paused mid-cycle
+                            # Fresh check: verify alarm is still active, not deleted/paused, and URL unchanged mid-cycle
                             current_alarm = await database.get_alarm(alarm["id"])
                             if not current_alarm or not current_alarm.get("is_active"):
                                 logger.debug(f"Skipping alarm #{alarm['id']}: deleted or deactivated mid-cycle.")
+                                continue
+                            if current_alarm.get("target_url") != target_url:
+                                logger.debug(
+                                    f"Skipping alarm #{alarm['id']}: target_url changed mid-cycle."
+                                )
                                 continue
                             try:
                                 await self.check_alarm(current_alarm, pre_fetched_listings=fetched)
@@ -160,30 +165,34 @@ class AlarmMonitor:
             cap_compact = cap_clean.replace(" ", "")
             title_low = item.title.lower()
 
-            requested_num = re.search(r"(\d+)\s*(?:gb|mb|tb)", cap_clean)
-            if requested_num:
-                req_val = requested_num.group(1)
-                title_caps = re.findall(r"\b(\d+)\s*(?:gb|mb|tb)\b", title_low)
-                title_compact_caps = re.findall(r"(\d+)(?:gb|mb|tb)", title_low)
-                all_found = set(title_caps + title_compact_caps)
+            requested_match = re.search(r"(?<!\d)(\d+)\s*(gb|mb|tb)\b", cap_clean)
+            if requested_match:
+                req_val, req_unit = requested_match.group(1), requested_match.group(2)
+                req_num = int(req_val)
+                all_found = set(re.findall(r"(?<!\d)(\d+)\s*(gb|mb|tb)\b", title_low))
 
-                # Unit equivalence: 1 TB == 1000 GB == 1024 GB, 2 TB == 2000 GB == 2048 GB
-                allowed_vals = {req_val}
-                if "tb" in cap_clean:
-                    if req_val == "1":
-                        allowed_vals.update(["1", "1000", "1024"])
-                    elif req_val == "2":
-                        allowed_vals.update(["2", "2000", "2048"])
-                    elif req_val == "4":
-                        allowed_vals.update(["4", "4000", "4096"])
-                elif "gb" in cap_clean:
-                    if req_val in ("1000", "1024"):
-                        allowed_vals.update(["1000", "1024", "1"])
-                    elif req_val in ("2000", "2048"):
-                        allowed_vals.update(["2000", "2048", "2"])
+                # Unit-aware equivalence: e.g. 1 TB == 1000 GB == 1024 GB, 1 GB == 1000 MB == 1024 MB
+                allowed_pairs: set[tuple[str, str]] = {(str(req_num), req_unit)}
+                if req_unit == "tb":
+                    allowed_pairs.add((str(req_num * 1000), "gb"))
+                    allowed_pairs.add((str(req_num * 1024), "gb"))
+                elif req_unit == "gb":
+                    if req_num >= 1000 and req_num % 1000 == 0:
+                        allowed_pairs.add((str(req_num // 1000), "tb"))
+                    if req_num >= 1024 and req_num % 1024 == 0:
+                        allowed_pairs.add((str(req_num // 1024), "tb"))
+                    allowed_pairs.add((str(req_num * 1000), "mb"))
+                    allowed_pairs.add((str(req_num * 1024), "mb"))
+                elif req_unit == "mb":
+                    if req_num >= 1000 and req_num % 1000 == 0:
+                        allowed_pairs.add((str(req_num // 1000), "gb"))
+                    if req_num >= 1024 and req_num % 1024 == 0:
+                        allowed_pairs.add((str(req_num // 1024), "gb"))
+
+                normalized_found = {(str(int(val)), unit) for val, unit in all_found}
 
                 # If title explicitly mentions conflicting capacities, block the item
-                if all_found and not (all_found & allowed_vals) and cap_compact not in title_low.replace(" ", ""):
+                if normalized_found and not (normalized_found & allowed_pairs) and cap_compact not in title_low.replace(" ", ""):
                     return False
 
         return True

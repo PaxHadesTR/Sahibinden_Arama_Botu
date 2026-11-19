@@ -54,9 +54,17 @@ class AlarmCog(commands.Cog):
     async def _prime_alarm_in_background(alarm_id: int, target_url: str, filters: dict[str, Any], name: str):
         """Asynchronously primes initial listings in the background without blocking slash command response."""
         try:
-            alarm_meta = {"id": alarm_id, "name": name, "filters_json": json.dumps(filters, ensure_ascii=False)}
             initial_listings = await scraper.fetch_listings(target_url)
-            valid_listings = [item for item in initial_listings if AlarmMonitor.matches_alarm_filters(alarm_meta, item)]
+            current_alarm = await database.get_alarm(alarm_id)
+            if not current_alarm or current_alarm.get("target_url") != target_url:
+                logger.info(
+                    f"Skipping background baseline priming for alarm #{alarm_id}: "
+                    "alarm was deleted or target_url changed during fetch."
+                )
+                return
+            valid_listings = [
+                item for item in initial_listings if AlarmMonitor.matches_alarm_filters(current_alarm, item)
+            ]
             dict_items = [item.model_dump() for item in valid_listings]
             await database.prime_initial_listings(alarm_id, dict_items)
             logger.info(f"Background baseline primed for alarm #{alarm_id} ({len(dict_items)} listings).")
