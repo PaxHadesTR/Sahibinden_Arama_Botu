@@ -217,3 +217,54 @@ def test_data_monitor_cap_001_unit_aware_capacity_matching():
     assert AlarmMonitor.matches_alarm_filters(alarm_16gb, _make_listing("7", "Card 16 MB")) is False
     assert AlarmMonitor.matches_alarm_filters(alarm_1tb, _make_listing("8", "Flash 1 GB")) is False
     assert AlarmMonitor.matches_alarm_filters(alarm_1tb, _make_listing("9", "RAM 1024 MB")) is False
+
+
+@pytest.mark.asyncio
+async def test_data_price_currency_001_rejects_cross_currency_comparison():
+    """DATA-PRICE-CURRENCY-001: filter_price_drops detects same-currency drops and rejects cross-currency changes."""
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    db = Database(db_path=path)
+    try:
+        await db.init_db()
+        alarm_id = await db.create_alarm(
+            name="Currency Check",
+            user_id=1,
+            channel_id=10,
+            guild_id=100,
+            target_url="https://www.sahibinden.com/otomobil",
+        )
+
+        # Baseline: TL listing and USD listing
+        await db.prime_initial_listings(
+            alarm_id,
+            [
+                _make_listing("TL1", "Car TL", price_text="500.000 TL", price_val=500000, currency="TL").model_dump(),
+                _make_listing("USD1", "Car USD", price_text="20.000 USD", price_val=20000, currency="USD").model_dump(),
+                _make_listing("EUR1", "Car EUR", price_text="15.000 EUR", price_val=15000, currency="EUR").model_dump(),
+            ],
+        )
+
+        # Happy path: same-currency drops (TL->TL, USD->USD) detected
+        same_currency_drops = await db.filter_price_drops(
+            alarm_id,
+            [
+                _make_listing("TL1", "Car TL", price_text="450.000 TL", price_val=450000, currency="TL").model_dump(),
+                _make_listing("USD1", "Car USD", price_text="18.000 USD", price_val=18000, currency="USD").model_dump(),
+            ],
+        )
+        assert {d["classified_id"] for d in same_currency_drops} == {"TL1", "USD1"}
+
+        # Adversarial: cross-currency numeric drops (500.000 TL -> 15.000 USD, 20.000 USD -> 12.000 GBP, 15.000 EUR -> 14.000 USD) rejected
+        cross_currency = await db.filter_price_drops(
+            alarm_id,
+            [
+                _make_listing("TL1", "Car TL", price_text="15.000 USD", price_val=15000, currency="USD").model_dump(),
+                _make_listing("USD1", "Car USD", price_text="12.000 GBP", price_val=12000, currency="GBP").model_dump(),
+                {"classified_id": "EUR1", "title": "Car EUR", "price_text": "14.000 $", "price_val": 14000},
+            ],
+        )
+        assert cross_currency == []
+    finally:
+        if os.path.exists(path):
+            os.remove(path)

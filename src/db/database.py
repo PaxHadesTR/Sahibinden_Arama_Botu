@@ -180,6 +180,20 @@ class Database:
         val, _ = SahibindenParser.parse_price(price_text)
         return val
 
+    @staticmethod
+    def _extract_price_currency(item: dict[str, Any]) -> str | None:
+        """Extracts normalized currency code from price_text or explicit item currency."""
+        price_text = (item.get("price_text") or item.get("price") or "").strip()
+        explicit_currency = item.get("currency")
+        if price_text:
+            from src.services.parser import SahibindenParser
+            _, parsed_currency = SahibindenParser.parse_price(price_text)
+            if parsed_currency != "TL" or not explicit_currency:
+                return parsed_currency
+        if explicit_currency:
+            return str(explicit_currency).strip().upper()
+        return None
+
     async def prime_initial_listings(self, alarm_id: int, classified_items: list[dict[str, Any]]):
         """Marks currently active listings as baseline seen and marks the alarm as primed."""
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -257,6 +271,11 @@ class Database:
             old_val = row["price_val"]
             if old_val is None and old_price_text:
                 old_val = self._extract_price_val({"price_text": old_price_text})
+
+            old_currency = self._extract_price_currency({"price_text": old_price_text})
+            new_currency = self._extract_price_currency(item)
+            if not old_currency or not new_currency or old_currency != new_currency:
+                continue
 
             if old_val is not None and old_val > 0 and new_val < old_val:
                 enriched = dict(item)
