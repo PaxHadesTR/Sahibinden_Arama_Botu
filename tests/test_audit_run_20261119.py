@@ -194,3 +194,26 @@ def test_ci_missing_001_workflow_present_and_valid():
     assert "requirements.txt" in content
     assert "pytest" in content
     assert "secrets." not in content.lower()
+
+
+def test_data_monitor_cap_001_unit_aware_capacity_matching():
+    """DATA-MONITOR-CAP-001: Capacity matching preserves (value, unit) so MB/GB/TB do not collide."""
+    import json
+
+    # Happy path: exact unit and valid cross-unit equivalence
+    alarm_16gb = {"id": 1, "name": "GPU 16GB", "filters_json": json.dumps({"kapasite": "16 GB"})}
+    assert AlarmMonitor.matches_alarm_filters(alarm_16gb, _make_listing("1", "Corsair 16GB DDR4")) is True
+    assert AlarmMonitor.matches_alarm_filters(alarm_16gb, _make_listing("2", "Corsair 16 GB DDR4")) is True
+
+    alarm_512mb = {"id": 2, "name": "Old GPU 512MB", "filters_json": json.dumps({"kapasite": "512 MB"})}
+    assert AlarmMonitor.matches_alarm_filters(alarm_512mb, _make_listing("3", "Ekran Kartı 512 MB")) is True
+
+    alarm_1tb = {"id": 3, "name": "SSD 1TB", "filters_json": json.dumps({"kapasite": "1 TB"})}
+    assert AlarmMonitor.matches_alarm_filters(alarm_1tb, _make_listing("4", "Samsung 1000 GB NVMe")) is True
+    assert AlarmMonitor.matches_alarm_filters(alarm_1tb, _make_listing("5", "Samsung 1024 GB NVMe")) is True
+
+    # Adversarial: same number, wrong unit must be rejected
+    assert AlarmMonitor.matches_alarm_filters(alarm_512mb, _make_listing("6", "SSD 512 GB NVMe")) is False
+    assert AlarmMonitor.matches_alarm_filters(alarm_16gb, _make_listing("7", "Card 16 MB")) is False
+    assert AlarmMonitor.matches_alarm_filters(alarm_1tb, _make_listing("8", "Flash 1 GB")) is False
+    assert AlarmMonitor.matches_alarm_filters(alarm_1tb, _make_listing("9", "RAM 1024 MB")) is False
