@@ -3,7 +3,9 @@
 import asyncio
 import json
 import logging
+import os
 import random
+import time
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse, unquote
 from playwright.async_api import async_playwright, BrowserContext, Playwright
@@ -32,6 +34,8 @@ class StealthScraper:
     """Automated browser session with Cloudflare/Akamai anti-bot evasion and self-healing recovery."""
 
     PRESERVED_QUERY_KEYS = ("sorting", "price_min", "price_max", "address_city")
+    PERSISTENT_COOKIE_TTL_SECONDS = 30 * 86400  # 30 days fallback for session-only cookies
+    COOKIE_PERSIST_INTERVAL_SECONDS = 1800.0  # Persist rolling refreshed cookies every 30 min
 
     def __init__(self):
         self._playwright: Playwright | None = None
@@ -40,6 +44,19 @@ class StealthScraper:
         self._profile_dir = Path(settings.USER_DATA_DIR)
         self._profile_dir.mkdir(parents=True, exist_ok=True)
         self._loaded_cookies_mtime: float | None = None
+        self._loaded_cookies_expires: list[float] = []
+        self._last_cookie_persist_at: float = 0.0
+        self.session_expired: bool = False
+        self.session_expired_since: float | None = None
+        self.last_successful_fetch_at: float | None = None
+
+    def is_session_expired(self) -> bool:
+        """Returns True if Sahibinden redirected to /giris or all loaded cookies have expired."""
+        if self.session_expired:
+            return True
+        if self._loaded_cookies_expires and max(self._loaded_cookies_expires) <= time.time():
+            return True
+        return False
 
     @staticmethod
     def _is_login_wall_url(url: str | None) -> bool:
@@ -47,9 +64,9 @@ class StealthScraper:
         u = (url or "").lower()
         return "/giris" in u or "uye-girisi" in u or "secure.sahibinden.com" in u
 
-    @staticmethod
-    def _parse_cookie_header_string(header_value: str) -> list[dict]:
-        """Parses a raw browser 'Cookie:' header string into Playwright cookie dicts for .sahibinden.com."""
+    @classmethod
+    def _parse_cookie_header_string(cls, header_value: str) -> list[dict]:
+        """Parses a raw browser 'Cookie:' header string into persistent Playwright cookie dicts."""
         text = (header_value or "").strip()
         if text.lower().startswith("cookie:"):
             text = text[len("cookie:"):].strip()
@@ -68,6 +85,7 @@ class StealthScraper:
                 continue
             by_name[name] = value
 
+        persistent_exp = float(time.time() + cls.PERSISTENT_COOKIE_TTL_SECONDS)
         return [
             {
                 "name": name,
@@ -75,6 +93,7 @@ class StealthScraper:
                 "domain": ".sahibinden.com",
                 "path": "/",
                 "secure": True,
+                "expires": persistent_exp,
             }
             for name, value in by_name.items()
         ]
@@ -144,6 +163,9 @@ class StealthScraper:
             raw_exp = entry.get("expires", entry.get("expirationDate"))
             if isinstance(raw_exp, (int, float)) and raw_exp > 0:
                 cookie["expires"] = float(raw_exp)
+            else:
+                # Promote volatile session cookies to persistent cookies so Chromium restarts keep them
+                cookie["expires"] = float(time.time() + cls.PERSISTENT_COOKIE_TTL_SECONDS)
 
             normalized.append(cookie)
         return normalized
@@ -175,6 +197,11 @@ class StealthScraper:
                 return 0
             await context.add_cookies(cookies)
             self._loaded_cookies_mtime = mtime
+            self._loaded_cookies_expires = [
+                float(c["expires"]) for c in cookies if isinstance(c.get("expires"), (int, float))
+            ]
+            self.session_expired = False
+            self.session_expired_since = None
             logger.info(
                 "Loaded %d user session cookies for sahibinden.com from '%s'.",
                 len(cookies),
@@ -184,6 +211,53 @@ class StealthScraper:
         except Exception as exc:
             logger.warning("Failed to load user cookies from '%s': %s", cookie_path, exc)
             return 0
+
+    async def _persist_refreshed_cookies_if_due(self, context: BrowserContext) -> bool:
+        """Periodically saves rolling server-refreshed Sahibinden cookies back to SAHIBINDEN_COOKIES_PATH."""
+        cookies_path_raw = (getattr(settings, "SAHIBINDEN_COOKIES_PATH", "") or "").strip()
+        if not cookies_path_raw:
+            return False
+        cookie_path = Path(cookies_path_raw)
+        if not cookie_path.is_file():
+            return False
+
+        now = time.time()
+        if self._last_cookie_persist_at > 0 and (now - self._last_cookie_persist_at) < self.COOKIE_PERSIST_INTERVAL_SECONDS:
+            return False
+
+        try:
+            live_cookies = await context.cookies(
+                ["https://www.sahibinden.com", "https://secure.sahibinden.com"]
+            )
+            filtered = []
+            for c in live_cookies:
+                domain = str(c.get("domain") or "").strip().lower()
+                bare = domain.lstrip(".")
+                if bare == "sahibinden.com" or bare.endswith(".sahibinden.com"):
+                    entry = dict(c)
+                    if not isinstance(entry.get("expires"), (int, float)) or entry["expires"] <= 0:
+                        entry["expires"] = float(now + self.PERSISTENT_COOKIE_TTL_SECONDS)
+                    filtered.append(entry)
+            if not filtered:
+                return False
+
+            tmp_path = cookie_path.with_suffix(cookie_path.suffix + ".tmp")
+            tmp_path.write_text(json.dumps({"cookies": filtered}, indent=2), encoding="utf-8")
+            try:
+                os.chmod(tmp_path, 0o600)
+            except OSError:
+                pass
+            os.replace(tmp_path, cookie_path)
+            self._loaded_cookies_mtime = cookie_path.stat().st_mtime
+            self._loaded_cookies_expires = [
+                float(c["expires"]) for c in filtered if isinstance(c.get("expires"), (int, float))
+            ]
+            self._last_cookie_persist_at = now
+            logger.debug("Persisted %d refreshed sahibinden.com cookies to '%s'.", len(filtered), cookie_path)
+            return True
+        except Exception as exc:
+            logger.debug("Skipping rolling cookie persistence: %s", exc)
+            return False
 
     @staticmethod
     def _build_playwright_proxy(proxy_url: str | None) -> dict[str, str] | None:
@@ -475,11 +549,19 @@ class StealthScraper:
                         if self._is_login_wall_url(page.url):
                             raise LoginWallError(msg, final_url=page.url)
                         raise RuntimeError(msg)
+
+                    self.session_expired = False
+                    self.session_expired_since = None
+                    self.last_successful_fetch_at = time.time()
+                    await self._persist_refreshed_cookies_if_due(context)
                     return html
 
                 except LoginWallError as login_err:
                     # Do not kill/relaunch Chromium or retry the same URL immediately on /giris;
                     # surface immediately so AlarmMonitor can apply circuit-breaker cooldown.
+                    if not self.session_expired:
+                        self.session_expired = True
+                        self.session_expired_since = time.time()
                     logger.warning(f"Login wall detected for {url}: {login_err}")
                     raise
                 except Exception as e:

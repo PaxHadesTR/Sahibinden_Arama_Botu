@@ -172,70 +172,49 @@ Bot bu durumla karşılaştığında:
 - Otomatik artan soğuma moduna geçer (**5 dk -> 15 dk -> 30 dk**, `LOGIN_WALL_COOLDOWN_SECONDS` ile ayarlanabilir).
 - Kendi hesabınızla giriş yaptığınız tarayıcı çerezlerini `/app/data/sahibinden_cookies.json` dosyasına koyduğunuzda **konteyneri yeniden başlatmanıza gerek kalmadan ~5 saniye içinde otomatik algılar**, soğumayı bitirir ve taramaya devam eder.
 
-### Adım 1: Eklenti Kurmadan Kendi Tarayıcınızdan Sahibinden Çerezlerini Alın (Sıfır 3. Parti Eklenti)
+### Adım 1: Çerezleri Dışa Aktarın & Coolify'a Yükleyin (Tek Script — Windows / Linux / macOS)
 
-Üçüncü parti bir tarayıcı eklentisi kurmanıza **kesinlikle gerek yoktur**. Aşağıdaki iki güvenli yöntemden birini kullanabilirsiniz:
+Üçüncü parti bir tarayıcı eklentisi kurmanıza **kesinlikle gerek yoktur**. Proje içindeki çapraz platform yardımcı script (`scripts/export_sahibinden_cookies.py`) ile tüm işlemi 30 saniyede yapabilirsiniz:
 
-#### Yöntem 1 (En Kolay & Önerilen — Tarayıcı F12 Geliştirici Araçları)
-1. Normal tarayıcınızda (**Chrome, Edge, Brave veya Firefox**) [sahibinden.com](https://www.sahibinden.com/) adresine girin ve **kendi hesabınızla giriş yapın**.
-2. Klavyeden **`F12`** tuşuna basıp Geliştirici Araçlarını açın ve üstten **Network (Ağ)** sekmesine geçin.
-3. Sayfayı yenileyin (**`F5`**) ve istek listesinde en üstteki **`www.sahibinden.com`** (veya `Doc` filtresindeki ana sayfa) isteğine tıklayın.
-4. Sağda açılan panelde **Headers (Üstbilgiler)** -> **Request Headers (İstek Üstbilgileri)** altına inip **`Cookie:`** satırını bulun.
-5. `Cookie:` değerine sağ tıklayıp **Copy value (Değeri kopyala)** deyin *(Not: `HttpOnly` güvenlik çerezleri de burada tam olarak yer alır; Console üzerinden `document.cookie` kullanmayın çünkü `HttpOnly` çerezleri eksik bırakır)*.
-
-#### Yöntem 2 (Alternatif — Resmi Playwright CLI ile Yerel Bilgisayarda)
-Yerel bilgisayarınızda Python + Playwright kuruluysa tek komutla resmi tarayıcı penceresi açıp oturumu doğrudan JSON olarak kaydedebilirsiniz:
 ```bash
-playwright open --save-storage=sahibinden_cookies.json https://www.sahibinden.com
+# Windows / Linux / macOS:
+python scripts/export_sahibinden_cookies.py
 ```
-Açılan pencerede hesabınıza giriş yapıp pencereyi kapattığınızda `sahibinden_cookies.json` otomatik oluşur.
+
+Script sırasıyla size şu seçenekleri sunar:
+1. **Çerez Alma Yöntemi:**
+   - **[1] Tarayıcı aç (Playwright — Önerilen):** Resmi tarayıcı penceresi açılır, kendi Sahibinden hesabınızla giriş yapıp terminale dönüp `ENTER`'a basarsınız (`HttpOnly` dahil tüm çerezler alınır).
+   - **[2] F12 DevTools `Cookie:` yapıştır (`--paste`):** Playwright kurulu olmasa bile çalışır! Tarayıcıda `sahibinden.com`'a giriş -> `F12` -> **Network (Ağ)** -> `F5` -> ilk `www.sahibinden.com` isteği -> **Request Headers -> `Cookie:`** değerini kopyalayıp yapıştırırsınız.
+2. **Coolify / Docker'a Yükleme Yöntemi:**
+   - **[1] Coolify Web Terminal Tek-Satır Komutu (SSH gerekmez — Önerilen):** Base64 kodlu güvenli tek satırlık komutu üretir ve otomatik panonuza kopyalar; Coolify -> **Terminal (`sahibinden-bot`)** ekranına yapıştırıp Enter'a basmanız yeterlidir.
+   - **[2] SSH ile Doğrudan Yükleme (`--ssh root@SUNUCU_IP`):** Sunucuda geçici dosya bile bırakmadan doğrudan çalışan konteynere aktarır.
+   - **[3] Yerel Docker / WSL (`--local-docker`):** Doğrudan `docker cp` ile aktarır.
+
+*(Tek satırda doğrudan SSH ile yüklemek isterseniz: `python scripts/export_sahibinden_cookies.py --ssh root@SUNUCU_IP`)*
+
+### Oturum Ömrü & Süre Dolumu Bildirimi
+- **Uzun Ömürlü Oturum (Rolling Persistence):** Bot, geçici oturum çerezlerini 30 günlük kalıcı TTL ile saklar ve her başarılı taramada Sahibinden'in yenilediği güncel çerezleri periyodik olarak `/app/data/sahibinden_cookies.json` dosyasına geri yazar; böylece konteyner yeniden başlasa veya Redeploy edilse bile en güncel oturum korunur.
+- **Otomatik Süre Dolumu Uyarısı:** Çerezin süresi dolup `/giris` yönlendirmesi başladığında, bot üzerinde **herhangi bir slash komutunu** (`/alarmlarim`, `/alarm-hizli`, `/alarm-test` vb.) kullandığınız anda bot size yalnızca sizin görebileceğiniz (ephemeral) bir uyarı kartıyla çerezin süresinin dolduğunu ve yenileme komutunu bildirir.
 
 > [!CAUTION]
-> **Güvenlik Uyarısı:** Kopyaladığınız `Cookie` değeri / `sahibinden_cookies.json` dosyası aktif Sahibinden oturum anahtarlarınızı içerir. Bu dosyayı **asla GitHub'a yüklemeyin** (`.gitignore` içinde engellenmiştir) ve kimseyle paylaşmayın.
+> **Güvenlik Uyarısı:** `sahibinden_cookies.json` dosyası aktif Sahibinden oturum anahtarlarınızı içerir. Bu dosyayı **asla GitHub'a yüklemeyin** (`.gitignore` içinde engellenmiştir) ve kimseyle paylaşmayın.
 
-### Adım 2: Çerezleri Bota Yükleyin (`/app/data/sahibinden_cookies.json`)
-
-Bot, `/app/data/sahibinden_cookies.json` dosyasında hem **doğrudan yapıştırılan ham `Cookie:` satırını** (`vid=...; cdid=...`), hem `{"cookie_header": "..."}` formatını hem de Playwright `storage_state.json` formatını otomatik tanır.
-
-#### A) Coolify Kullanıyorsanız (En Kolay Yöntem — Coolify Terminal)
-1. Coolify panelinizde uygulamanızın sayfasına girip **Terminal** sekmesini açın ve **`sahibinden-bot`** konteynerine bağlanın.
-2. Aşağıdaki komutu yapıştırıp Enter'a basın, ardından F12'den kopyaladığınız `Cookie` değerini yapıştırıp yeni satırda `EOF` yazarak Enter'a basın:
+### Manuel Alternatif (Script Kullanmadan Coolify Terminal ile)
+Script kullanmak istemezseniz F12 -> Network -> `Cookie:` değerini kopyalayıp Coolify **Terminal (`sahibinden-bot`)** ekranında doğrudan kaydedebilirsiniz:
 ```bash
 cat << 'EOF' > /app/data/sahibinden_cookies.json
 BURAYA_F12_NETWORK_COOKIE_DEGERINI_YAPISTIRIN
 EOF
 ```
-3. Dosyanın oluştuğunu doğrulayın:
-```bash
-ls -lh /app/data/sahibinden_cookies.json
-```
-*(Alternatif — Dosyayı SSH/SCP ile bilgisayarınızdan sunucuya atmak isterseniz:)*
-```powershell
-# 1. Windows PowerShell üzerinden sunucuya kopyalayın:
-scp .\sahibinden_cookies.json kullanici@SUNUCU_IP:/tmp/sahibinden_cookies.json
 
-# 2. Sunucu SSH terminalinde konteynere aktarın ve geçici dosyayı silin:
-docker cp /tmp/sahibinden_cookies.json sahibinden-discord-bot:/app/data/sahibinden_cookies.json
-rm -f /tmp/sahibinden_cookies.json
-```
-
-#### B) Standart Docker Compose Kullanıyorsanız
-```bash
-docker cp ./sahibinden_cookies.json sahibinden-discord-bot:/app/data/sahibinden_cookies.json
-```
-
-#### C) Yerel (Windows) Kurulumda
-Kopyaladığınız `Cookie` değerini doğrudan proje klasöründeki `data\sahibinden_cookies.json` dosyasına yapıştırıp kaydetmeniz yeterlidir.
-
-### Adım 3: Çalıştığını Doğrulayın
+### Çalıştığını Doğrulayın
 - Konteyneri **yeniden başlatmanız gerekmez**!
 - Loglarda ~5 saniye içinde şu satırları göreceksiniz:
 ```text
 Detected updated Sahibinden cookies file ('/app/data/sahibinden_cookies.json'); ending login-wall cooldown early.
 Loaded 18 user session cookies for sahibinden.com from '/app/data/sahibinden_cookies.json'.
 ```
-- **Oturum süresi dolduğunda ne yapmalıyım?** Haftalar sonra Sahibinden oturumunuzun süresi dolarsa loglarda yeniden `/giris` soğuma uyarısı görünür. Aynı şekilde F12 -> Network -> `Cookie` değerini kopyalayıp `/app/data/sahibinden_cookies.json` üzerine yazmanız yeterlidir; bot otomatik devam eder.
-- **Not:** `/app/data` dizini Coolify Persistent Storage (veya Docker `bot_data` volume) üzerinde olduğu için **Redeploy** yaptığınızda `sahibinden_cookies.json` dosyanız silinmez.
+- `/app/data` dizini Coolify Persistent Storage (veya Docker `bot_data` volume) üzerinde olduğu için **Redeploy** yaptığınızda `sahibinden_cookies.json` dosyanız silinmez.
 
 ---
 

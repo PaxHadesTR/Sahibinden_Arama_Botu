@@ -223,3 +223,135 @@ async def test_monitor_login_wall_circuit_breaker_aborts_cycle_and_scales_cooldo
     ]
     # Cooldown escalates 300s (5m) -> 900s (15m)
     assert cooldowns_seen == [300.0, 900.0]
+
+
+@pytest.mark.asyncio
+async def test_scraper_persists_refreshed_cookies_and_tracks_session_expiry(monkeypatch, tmp_path):
+    """Verify rolling cookie save-back on success, persistent TTL promotion, and session_expired state."""
+    cookie_file = tmp_path / "sahibinden_cookies.json"
+    cookie_file.write_text("vid=old_token; cdid=initial", encoding="utf-8")
+    monkeypatch.setattr("src.config.settings.SAHIBINDEN_COOKIES_PATH", str(cookie_file))
+    monkeypatch.setattr("src.config.settings.MIN_JITTER_SECONDS", 0.0)
+    monkeypatch.setattr("src.config.settings.MAX_JITTER_SECONDS", 0.0)
+    monkeypatch.setattr("src.config.settings.SCRAPER_TIMEOUT_SECONDS", 5)
+
+    s = StealthScraper()
+    mock_page = MagicMock()
+    mock_page.url = "https://www.sahibinden.com/ekran-karti-masaustu"
+    mock_page.is_closed = MagicMock(return_value=False)
+    mock_page.goto = AsyncMock()
+    mock_page.content = AsyncMock(return_value="<html><table id='searchResultsTable'></table></html>")
+
+    mock_ctx = MagicMock()
+    mock_ctx.pages = [mock_page]
+    mock_ctx.add_cookies = AsyncMock()
+    mock_ctx.cookies = AsyncMock(
+        return_value=[
+            {"name": "vid", "value": "rotated_server_token", "domain": ".sahibinden.com", "path": "/", "expires": -1},
+            {"name": "other", "value": "skip_me", "domain": ".example.com", "path": "/", "expires": 9999999999},
+        ]
+    )
+    s._init_context = AsyncMock(return_value=mock_ctx)
+    s._wait_for_challenge_and_table = AsyncMock()
+
+    # 1. Successful fetch persists rotated sahibinden.com cookies with persistent TTL
+    html = await s.fetch_page_content("https://www.sahibinden.com/ekran-karti-masaustu")
+    assert "searchResultsTable" in html
+    assert s.is_session_expired() is False
+
+    saved = json.loads(cookie_file.read_text(encoding="utf-8"))
+    assert len(saved["cookies"]) == 1
+    assert saved["cookies"][0]["name"] == "vid"
+    assert saved["cookies"][0]["value"] == "rotated_server_token"
+    assert saved["cookies"][0]["expires"] > time.time() + 86400
+
+    # 2. LoginWallError flips is_session_expired() to True
+    mock_page.url = "https://secure.sahibinden.com/giris?return_url=foo"
+    mock_page.content = AsyncMock(return_value="<html>Giriş Yap</html>")
+    with pytest.raises(LoginWallError):
+        await s.fetch_page_content("https://www.sahibinden.com/ekran-karti-masaustu")
+    assert s.is_session_expired() is True
+    assert s.session_expired_since is not None
+
+    # 3. Updating cookie file resets is_session_expired() back to False
+    cookie_file.write_text("vid=brand_new_token", encoding="utf-8")
+    future_mtime = time.time() + 60
+    os.utime(cookie_file, (future_mtime, future_mtime))
+    loaded = await s._load_user_cookies_if_updated(mock_ctx)
+    assert loaded == 1
+    assert s.is_session_expired() is False
+
+
+@pytest.mark.asyncio
+async def test_bot_notifies_user_on_any_command_when_cookie_expired(monkeypatch):
+    """Verify on_app_command_completion sends ephemeral expiry warning only when session is expired."""
+    monkeypatch.setattr("src.config.settings.USE_WARP", False)
+    monkeypatch.setattr("src.config.settings.DISCORD_PROXY", None)
+    monkeypatch.setattr("src.config.settings.DISCORD_PROXY_URL", None)
+
+    from src.services.scraper import scraper as global_scraper
+
+    bot = SahibindenBot(proxy_override=None)
+    interaction = MagicMock()
+    interaction.response.is_done.return_value = True
+    interaction.followup.send = AsyncMock()
+    dummy_cmd = MagicMock()
+
+    try:
+        # Healthy session -> no warning sent
+        monkeypatch.setattr(global_scraper, "session_expired", False)
+        monkeypatch.setattr(global_scraper, "_loaded_cookies_expires", [])
+        await bot.on_app_command_completion(interaction, dummy_cmd)
+        interaction.followup.send.assert_not_awaited()
+
+        # Expired session -> sends ephemeral embed warning
+        monkeypatch.setattr(global_scraper, "session_expired", True)
+        monkeypatch.setattr(global_scraper, "session_expired_since", time.time() - 600)
+        await bot.on_app_command_completion(interaction, dummy_cmd)
+        interaction.followup.send.assert_awaited_once()
+        kwargs = interaction.followup.send.call_args.kwargs
+        assert kwargs["ephemeral"] is True
+        assert "Süresi Doldu" in kwargs["embed"].title
+        assert "export_sahibinden_cookies.py" in kwargs["embed"].description
+    finally:
+        await bot.close()
+
+
+def test_export_sahibinden_cookies_script_cli_and_coolify_command(tmp_path, capsys):
+    """Verify cross-platform cookie exporter script parses headers, writes JSON, and generates valid base64 Coolify cmd."""
+    import base64
+    from scripts.export_sahibinden_cookies import (
+        build_coolify_terminal_command,
+        main as export_main,
+        normalize_sahibinden_cookies,
+    )
+
+    out_file = tmp_path / "out_cookies.json"
+    rc = export_main([
+        "--paste",
+        "--cookie-header",
+        "Cookie: vid=abc123; csss=dG9rZW4==; cdid=xyz",
+        "--output",
+        str(out_file),
+        "--print-coolify-cmd",
+    ])
+    assert rc == 0
+    assert out_file.is_file()
+
+    saved = json.loads(out_file.read_text(encoding="utf-8"))
+    by_name = {c["name"]: c for c in saved["cookies"]}
+    assert by_name["vid"]["value"] == "abc123"
+    assert by_name["csss"]["value"] == "dG9rZW4=="
+    assert by_name["cdid"]["expires"] > time.time() + 86400
+
+    # Verify generated Coolify one-liner decodes back to identical JSON bytes
+    cmd = build_coolify_terminal_command(out_file, "/app/data/sahibinden_cookies.json")
+    b64_part = cmd.split("'")[1]
+    assert base64.b64decode(b64_part) == out_file.read_bytes()
+
+    # Verify normalize_sahibinden_cookies filters out non-sahibinden domains
+    filtered = normalize_sahibinden_cookies([
+        {"name": "ok", "value": "1", "domain": ".sahibinden.com"},
+        {"name": "bad", "value": "2", "domain": ".google.com"},
+    ])
+    assert [c["name"] for c in filtered] == ["ok"]

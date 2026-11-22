@@ -218,6 +218,47 @@ class SahibindenBot(commands.Bot):
             self.monitor = AlarmMonitor(self)
             self.monitor.start()
 
+    async def on_app_command_completion(
+        self,
+        interaction: discord.Interaction,
+        command: discord.app_commands.Command | discord.app_commands.ContextMenu,
+    ) -> None:
+        """Notifies the user on ANY slash command if the Sahibinden session cookie has expired."""
+        from src.services.scraper import scraper
+
+        if not scraper.is_session_expired():
+            return
+
+        elapsed_note = ""
+        if scraper.session_expired_since:
+            import time
+            mins = max(1, int((time.time() - scraper.session_expired_since) // 60))
+            elapsed_note = f"\n⏱️ **Durum:** Yaklaşık **{mins} dakikadır** `/giris` yönlendirmesi alınıyor."
+
+        embed = discord.Embed(
+            title="🍪 Sahibinden Oturum Çerezi (Cookie) Süresi Doldu!",
+            description=(
+                "Sahibinden aramaları şu anda `/giris` giriş ekranına yönleniyor; "
+                "yeni çerez yüklenene kadar arka plan taramaları beklemede tutuluyor."
+                f"{elapsed_note}\n\n"
+                "**Hızlı Yenileme (Yeniden Başlatma Gerekmez):**\n"
+                "1. Bilgisayarınızda çalıştırın:\n"
+                "```bash\npython scripts/export_sahibinden_cookies.py\n```\n"
+                "2. Çıktıyı script üzerinden SSH/Coolify Terminal ile "
+                f"`{settings.SAHIBINDEN_COOKIES_PATH}` dosyasına aktarın.\n"
+                "3. Bot ~5 saniye içinde çerezleri otomatik algılayıp taramaya devam eder."
+            ),
+            color=0xE67E22,
+        )
+        embed.set_footer(text="Bu uyarı yalnızca size görünür (ephemeral).")
+        try:
+            if interaction.response.is_done():
+                await interaction.followup.send(embed=embed, ephemeral=True)
+            else:
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+        except Exception as exc:
+            logger.debug("Could not send session-expired followup notice: %s", exc)
+
     def _get_close_lock(self) -> asyncio.Lock:
         """Lazily initializes the shutdown lock on the active event loop."""
         if self._close_lock is None:
