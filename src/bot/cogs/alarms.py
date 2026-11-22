@@ -3,11 +3,14 @@
 import asyncio
 import json
 import logging
+from pathlib import Path
 import re
+import time
 from typing import Any
 import discord
 from discord import app_commands
 from discord.ext import commands
+from src.config import settings
 from src.catalog.resolver import resolver, CategoryResolver
 from src.services.url_builder import SahibindenURLBuilder
 from src.db.database import database
@@ -17,6 +20,37 @@ from src.services.monitor import AlarmMonitor
 
 logger = logging.getLogger("sahibinden_bot.cogs.alarms")
 
+MAX_COOKIE_ATTACHMENT_BYTES = 512 * 1024  # 512 KB hard cap
+
+
+class CookieUploadModal(discord.ui.Modal, title="Sahibinden Çerez (Cookie) Yükle"):
+    """Private modal for pasting F12 DevTools 'cookie:' header or JSON without posting to channel."""
+
+    cookie_input = discord.ui.TextInput(
+        label="F12 'cookie:' Değeri veya JSON",
+        style=discord.TextStyle.paragraph,
+        required=True,
+        max_length=4000,
+        placeholder="F12 -> Network -> www.sahibinden.com -> Headers -> Request Headers -> cookie: değerini yapıştırın...",
+    )
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        try:
+            count = scraper.save_user_cookies_from_text(self.cookie_input.value)
+            await interaction.response.send_message(
+                f"✅ **{count} adet** `sahibinden.com` çerezi güvenle kaydedildi!\n"
+                "Konteyneri yeniden başlatmanıza gerek yok; bot birkaç saniye içinde otomatik yükleyip taramaya devam edecek.",
+                ephemeral=True,
+            )
+        except ValueError as err:
+            await interaction.response.send_message(f"❌ {err}", ephemeral=True)
+        except Exception as err:
+            logger.error("Failed to save cookies from modal: %s", err, exc_info=True)
+            await interaction.response.send_message(
+                "❌ Çerezler kaydedilirken beklenmeyen bir hata oluştu. Logları kontrol edin.",
+                ephemeral=True,
+            )
+
 
 class AlarmCog(commands.Cog):
     """Slash command group for managing Sahibinden listing alarms across all categories."""
@@ -24,6 +58,24 @@ class AlarmCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self._background_tasks: set[asyncio.Task] = set()
+        self._cached_owner_ids: set[int] | None = None
+
+    async def _is_bot_admin(self, user_id: int) -> bool:
+        """Returns True only for the Discord bot owner/team members or configured ADMIN_USER_IDS."""
+        if user_id in settings.admin_user_id_set:
+            return True
+        if self._cached_owner_ids is None:
+            owner_ids: set[int] = set()
+            try:
+                app_info = await self.bot.application_info()
+                if getattr(app_info, "team", None) and getattr(app_info.team, "members", None):
+                    owner_ids.update(m.id for m in app_info.team.members)
+                elif getattr(app_info, "owner", None):
+                    owner_ids.add(app_info.owner.id)
+            except Exception as exc:
+                logger.warning("Could not fetch Discord application_info for owner verification: %s", exc)
+            self._cached_owner_ids = owner_ids
+        return user_id in self._cached_owner_ids
 
     def _schedule_background_priming(self, alarm_id: int, target_url: str, filters: dict[str, Any], name: str):
         task = asyncio.create_task(self._prime_alarm_in_background(alarm_id, target_url, filters, name))
@@ -1141,6 +1193,97 @@ class AlarmCog(commands.Cog):
             )
         except Exception as e:
             await interaction.followup.send(f"❌ Test sırasında hata oluştu: {e}", ephemeral=True)
+
+    @app_commands.command(
+        name="cookie-yukle",
+        description="Sahibinden oturum çerezini Discord içinden güvenle yükleyin (Yalnızca Bot Sahibi)."
+    )
+    @app_commands.describe(
+        dosya="İsteğe bağlı: 4000 karakterden uzunsa .txt/.json dosyasını ekleyin (boş bırakırsanız yapıştırma penceresi açılır)."
+    )
+    async def cookie_yukle(
+        self,
+        interaction: discord.Interaction,
+        dosya: discord.Attachment | None = None,
+    ):
+        if not await self._is_bot_admin(interaction.user.id):
+            await interaction.response.send_message(
+                "⛔ Bu komutu yalnızca bot sahibi (veya `ADMIN_USER_IDS` içindeki yöneticiler) kullanabilir.",
+                ephemeral=True,
+            )
+            return
+
+        if dosya is None:
+            await interaction.response.send_modal(CookieUploadModal())
+            return
+
+        await self._safe_defer(interaction, ephemeral=True)
+        if getattr(dosya, "size", 0) > MAX_COOKIE_ATTACHMENT_BYTES:
+            await interaction.followup.send(
+                "❌ Dosya çok büyük (en fazla 512 KB izin verilir).",
+                ephemeral=True,
+            )
+            return
+
+        try:
+            raw_bytes = await dosya.read()
+            raw_text = raw_bytes.decode("utf-8", errors="replace")
+            count = scraper.save_user_cookies_from_text(raw_text)
+            await interaction.followup.send(
+                f"✅ **{count} adet** `sahibinden.com` çerezi dosyadan güvenle kaydedildi!\n"
+                "Konteyneri yeniden başlatmanıza gerek yok; bot birkaç saniye içinde otomatik yükleyip taramaya devam edecek.",
+                ephemeral=True,
+            )
+        except ValueError as err:
+            await interaction.followup.send(f"❌ {err}", ephemeral=True)
+        except Exception as err:
+            logger.error("Failed to save cookies from attachment: %s", err, exc_info=True)
+            await interaction.followup.send(
+                "❌ Dosya okunurken/kaydedilirken hata oluştu. Logları kontrol edin.",
+                ephemeral=True,
+            )
+
+    @app_commands.command(
+        name="cookie-durum",
+        description="Sahibinden oturum çerezi durumunu kontrol edin (Yalnızca Bot Sahibi)."
+    )
+    async def cookie_durum(self, interaction: discord.Interaction):
+        if not await self._is_bot_admin(interaction.user.id):
+            await interaction.response.send_message(
+                "⛔ Bu komutu yalnızca bot sahibi (veya `ADMIN_USER_IDS` içindeki yöneticiler) kullanabilir.",
+                ephemeral=True,
+            )
+            return
+
+        await self._safe_defer(interaction, ephemeral=True)
+        expired = scraper.is_session_expired()
+        status_text = "🔴 Süresi Doldu (`/giris` yönlendirmesi)" if expired else "🟢 Aktif / Normal"
+
+        cookie_path = Path(settings.SAHIBINDEN_COOKIES_PATH)
+        if cookie_path.is_file():
+            try:
+                parsed = scraper._parse_cookies_file(cookie_path)
+                file_text = f"✅ Mevcut (**{len(parsed)}** `sahibinden.com` çerezi)"
+            except Exception:
+                file_text = "⚠️ Mevcut ancak okunamadı"
+        else:
+            file_text = "ℹ️ Henüz yüklenmemiş (`/cookie-yukle` ile ekleyebilirsiniz)"
+
+        if scraper.last_successful_fetch_at:
+            mins_ago = max(0, int((time.time() - scraper.last_successful_fetch_at) // 60))
+            last_ok = f"{mins_ago} dakika önce"
+        else:
+            last_ok = "Henüz başarılı tarama yok"
+
+        embed = discord.Embed(
+            title="🍪 Sahibinden Oturum Çerezi Durumu",
+            color=0xE74C3C if expired else 0x2ECC71,
+        )
+        embed.add_field(name="Oturum Durumu", value=status_text, inline=False)
+        embed.add_field(name="Çerez Dosyası", value=file_text, inline=False)
+        embed.add_field(name="Son Başarılı Tarama", value=last_ok, inline=True)
+        embed.set_footer(text="Yenilemek için: /cookie-yukle (yalnızca bot sahibi)")
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

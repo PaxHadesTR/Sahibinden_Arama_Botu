@@ -226,6 +226,9 @@ class SahibindenBot(commands.Bot):
         """Notifies the user on ANY slash command if the Sahibinden session cookie has expired."""
         from src.services.scraper import scraper
 
+        if getattr(command, "name", None) in ("cookie-yukle", "cookie-durum"):
+            return
+
         if not scraper.is_session_expired():
             return
 
@@ -241,11 +244,11 @@ class SahibindenBot(commands.Bot):
                 "Sahibinden aramaları şu anda `/giris` giriş ekranına yönleniyor; "
                 "yeni çerez yüklenene kadar arka plan taramaları beklemede tutuluyor."
                 f"{elapsed_note}\n\n"
-                "**Hızlı Yenileme (Yeniden Başlatma Gerekmez):**\n"
-                "1. Bilgisayarınızda çalıştırın:\n"
-                "```bash\npython scripts/export_sahibinden_cookies.py\n```\n"
-                "2. Çıktıyı script üzerinden SSH/Coolify Terminal ile "
-                f"`{settings.SAHIBINDEN_COOKIES_PATH}` dosyasına aktarın.\n"
+                "**Hızlı Yenileme (10 Saniye — SSH/Coolify Gerekmez):**\n"
+                "1. Tarayıcınızda `sahibinden.com`'da `F12` -> **Network** -> `www.sahibinden.com` -> "
+                "**Headers** -> `cookie:` değerini kopyalayın.\n"
+                "2. Discord'da **`/cookie-yukle`** yazıp açılan pencereye yapıştırın "
+                "*(4000 karakterden uzunsa `.txt`/`.json` olarak `dosya:` parametresine ekleyin)*.\n"
                 "3. Bot ~5 saniye içinde çerezleri otomatik algılayıp taramaya devam eder."
             ),
             color=0xE67E22,

@@ -312,7 +312,14 @@ async def test_bot_notifies_user_on_any_command_when_cookie_expired(monkeypatch)
         kwargs = interaction.followup.send.call_args.kwargs
         assert kwargs["ephemeral"] is True
         assert "Süresi Doldu" in kwargs["embed"].title
-        assert "export_sahibinden_cookies.py" in kwargs["embed"].description
+        assert "/cookie-yukle" in kwargs["embed"].description
+
+        # Skips redundant notice on cookie-yukle / cookie-durum itself
+        interaction.followup.send.reset_mock()
+        cookie_cmd = MagicMock()
+        cookie_cmd.name = "cookie-yukle"
+        await bot.on_app_command_completion(interaction, cookie_cmd)
+        interaction.followup.send.assert_not_awaited()
     finally:
         await bot.close()
 
@@ -355,3 +362,85 @@ def test_export_sahibinden_cookies_script_cli_and_coolify_command(tmp_path, caps
         {"name": "bad", "value": "2", "domain": ".google.com"},
     ])
     assert [c["name"] for c in filtered] == ["ok"]
+
+
+def test_admin_user_id_set_parsing():
+    assert Settings(ADMIN_USER_IDS=None).admin_user_id_set == set()
+    assert Settings(ADMIN_USER_IDS=" 111 , 222, invalid, 111 ").admin_user_id_set == {111, 222}
+
+
+@pytest.mark.asyncio
+async def test_discord_cookie_yukle_and_durum_auth_modal_and_attachment(monkeypatch, tmp_path):
+    """Verify /cookie-yukle & /cookie-durum enforce bot-owner auth, open modal, accept file attachment, and save safely."""
+    from src.bot.cogs.alarms import AlarmCog, CookieUploadModal
+    from src.services.scraper import scraper as global_scraper
+
+    cookie_file = tmp_path / "sahibinden_cookies.json"
+    monkeypatch.setattr("src.config.settings.SAHIBINDEN_COOKIES_PATH", str(cookie_file))
+    monkeypatch.setattr("src.config.settings.ADMIN_USER_IDS", None)
+
+    mock_bot = MagicMock()
+    app_info = MagicMock()
+    app_info.team = None
+    app_info.owner = MagicMock(id=99999)
+    mock_bot.application_info = AsyncMock(return_value=app_info)
+
+    cog = AlarmCog(mock_bot)
+
+    # 1. Unauthorized user is blocked on /cookie-yukle
+    inter_unauth = MagicMock()
+    inter_unauth.user = MagicMock(id=12345)
+    inter_unauth.response.send_message = AsyncMock()
+    await cog.cookie_yukle.callback(cog, inter_unauth, dosya=None)
+    inter_unauth.response.send_message.assert_awaited_once()
+    assert "yalnızca bot sahibi" in inter_unauth.response.send_message.call_args.args[0]
+    assert inter_unauth.response.send_message.call_args.kwargs["ephemeral"] is True
+
+    # 2. Bot owner calling /cookie-yukle with no file opens CookieUploadModal
+    inter_modal = MagicMock()
+    inter_modal.user = MagicMock(id=99999)
+    inter_modal.response.send_modal = AsyncMock()
+    await cog.cookie_yukle.callback(cog, inter_modal, dosya=None)
+    inter_modal.response.send_modal.assert_awaited_once()
+    modal_sent = inter_modal.response.send_modal.call_args.args[0]
+    assert isinstance(modal_sent, CookieUploadModal)
+
+    # 3. Submitting CookieUploadModal saves cookies and clears session_expired without echoing secrets
+    global_scraper.session_expired = True
+    modal_sent.cookie_input._value = "Cookie: vid=secret_val_123; cdid=cdid_val_456"
+    inter_submit = MagicMock()
+    inter_submit.response.send_message = AsyncMock()
+    await modal_sent.on_submit(inter_submit)
+    assert cookie_file.is_file()
+    assert global_scraper.session_expired is False
+    reply_text = inter_submit.response.send_message.call_args.args[0]
+    assert "2 adet" in reply_text
+    assert "secret_val_123" not in reply_text
+
+    # 4. Bot owner uploading via file attachment works and rejects >512KB files
+    inter_file = MagicMock()
+    inter_file.user = MagicMock(id=99999)
+    inter_file.response.defer = AsyncMock()
+    inter_file.followup.send = AsyncMock()
+
+    big_attachment = MagicMock()
+    big_attachment.size = 600 * 1024
+    await cog.cookie_yukle.callback(cog, inter_file, dosya=big_attachment)
+    assert "512 KB" in inter_file.followup.send.call_args.args[0]
+
+    good_attachment = MagicMock()
+    good_attachment.size = 128
+    good_attachment.read = AsyncMock(return_value=b'{"cookie_header": "vid=file_tok; csss=ok; cdid=3"}')
+    inter_file.followup.send.reset_mock()
+    await cog.cookie_yukle.callback(cog, inter_file, dosya=good_attachment)
+    assert "3 adet" in inter_file.followup.send.call_args.args[0]
+
+    # 5. /cookie-durum shows status embed for owner
+    inter_status = MagicMock()
+    inter_status.user = MagicMock(id=99999)
+    inter_status.response.defer = AsyncMock()
+    inter_status.followup.send = AsyncMock()
+    await cog.cookie_durum.callback(cog, inter_status)
+    embed = inter_status.followup.send.call_args.kwargs["embed"]
+    assert "Durumu" in embed.title
+    assert inter_status.followup.send.call_args.kwargs["ephemeral"] is True

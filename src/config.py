@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # Discord Bot Token
     DISCORD_BOT_TOKEN: str = ""
     DISCORD_GUILD_ID: int | None = None  # Optional: For instant guild slash command sync
+    ADMIN_USER_IDS: str | None = None  # Optional comma-separated Discord User IDs allowed to run /cookie-yukle
 
     # Outbound Discord Proxy / Dual-Proxy Failover (SpoofDPI + Cloudflare WARP for Turkey BTK bypass)
     # Comma-separated proxy list supported (e.g. "http://spoof-dpi:8080,http://warp:1080")
@@ -54,6 +55,19 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore"
     )
+
+    @property
+    def admin_user_id_set(self) -> set[int]:
+        """Parse optional comma-separated ADMIN_USER_IDS into a set of integer Discord user IDs."""
+        raw = (self.ADMIN_USER_IDS or "").strip()
+        if not raw:
+            return set()
+        ids: set[int] = set()
+        for part in raw.split(","):
+            cleaned = part.strip()
+            if cleaned.isdigit():
+                ids.add(int(cleaned))
+        return ids
 
     @property
     def discord_proxy_list(self) -> list[str]:

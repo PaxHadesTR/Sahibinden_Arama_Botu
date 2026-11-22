@@ -172,40 +172,37 @@ Bot bu durumla karşılaştığında:
 - Otomatik artan soğuma moduna geçer (**5 dk -> 15 dk -> 30 dk**, `LOGIN_WALL_COOLDOWN_SECONDS` ile ayarlanabilir).
 - Kendi hesabınızla giriş yaptığınız tarayıcı çerezlerini `/app/data/sahibinden_cookies.json` dosyasına koyduğunuzda **konteyneri yeniden başlatmanıza gerek kalmadan ~5 saniye içinde otomatik algılar**, soğumayı bitirir ve taramaya devam eder.
 
-### Adım 1: Çerezleri Dışa Aktarın & Coolify'a Yükleyin (Tek Script — Windows / Linux / macOS)
+### Yöntem 1 (En Kolay & Önerilen — 10 Saniyede Doğrudan Discord'dan `/cookie-yukle`)
 
-Üçüncü parti bir tarayıcı eklentisi kurmanıza **kesinlikle gerek yoktur**. Proje içindeki çapraz platform yardımcı script (`scripts/export_sahibinden_cookies.py`) ile tüm işlemi 30 saniyede yapabilirsiniz:
+Coolify başka bir cihazda olsa bile SSH, Terminal veya 3. parti eklenti **gerekmeden** doğrudan Discord içinden çerez yükleyebilirsiniz:
+
+1. Bilgisayarınızdaki normal tarayıcınızda (**Chrome / Edge / Firefox**) [sahibinden.com](https://www.sahibinden.com/) adresine girip **kendi hesabınızla giriş yapın**.
+2. **`F12`** -> **Network (Ağ)** -> sayfayı yenileyin (**`F5`**) -> soldan en üstteki **`www.sahibinden.com`** isteğine tıklayın.
+3. Sağ tarafta **`Headers`** -> **Request Headers** altında **`cookie:`** satırına sağ tıklayıp **`Copy value`** deyin.
+4. Discord'da **`/cookie-yukle`** yazıp Enter'a basın:
+   - Açılan özel pencereye (Modal — yalnızca size görünür, kanala yazılmaz) kopyaladığınız `cookie:` değerini **Ctrl+V** ile yapıştırıp gönderin!
+   - *(Eğer `cookie:` değeriniz 4000 karakterden uzunsa Not Defteri'ne kaydedip `/cookie-yukle dosya:cookies.txt` şeklinde dosya olarak ekleyin; 512 KB'a kadar desteklenir.)*
+5. Bitti! Konteyneri yeniden başlatmanıza gerek yoktur; bot ~5 saniye içinde çerezleri otomatik yükleyip taramaya devam eder. Durumu istediğiniz zaman **`/cookie-durum`** ile kontrol edebilirsiniz.
+
+> [!NOTE]
+> **Güvenlik:** `/cookie-yukle` ve `/cookie-durum` komutlarını yalnızca **Bot Sahibi** (Discord Developer Portal'da botu oluşturan hesap, otomatik tanınır) ve isteğe bağlı olarak `.env` içindeki `ADMIN_USER_IDS` kullanıcıları çalıştırabilir.
+
+### Yöntem 2 (Opsiyonel — Çapraz Platform Script: Windows / Linux / macOS)
+
+Tarayıcıda F12 açmak yerine tek komutla JSON çıktısı almak (veya SSH / Coolify Terminal ile yüklemek) isterseniz `scripts/export_sahibinden_cookies.py` aracını kullanabilirsiniz:
 
 ```bash
 # Windows / Linux / macOS:
 python scripts/export_sahibinden_cookies.py
 ```
-
-Script sırasıyla size şu seçenekleri sunar:
-1. **Çerez Alma Yöntemi:**
-   - **[1] Tarayıcı aç (Playwright — Önerilen):** Resmi tarayıcı penceresi açılır, kendi Sahibinden hesabınızla giriş yapıp terminale dönüp `ENTER`'a basarsınız (`HttpOnly` dahil tüm çerezler alınır).
-   - **[2] F12 DevTools `Cookie:` yapıştır (`--paste`):** Playwright kurulu olmasa bile çalışır! Tarayıcıda `sahibinden.com`'a giriş -> `F12` -> **Network (Ağ)** -> `F5` -> ilk `www.sahibinden.com` isteği -> **Request Headers -> `Cookie:`** değerini kopyalayıp yapıştırırsınız.
-2. **Coolify / Docker'a Yükleme Yöntemi:**
-   - **[1] Coolify Web Terminal Tek-Satır Komutu (SSH gerekmez — Önerilen):** Base64 kodlu güvenli tek satırlık komutu üretir ve otomatik panonuza kopyalar; Coolify -> **Terminal (`sahibinden-bot`)** ekranına yapıştırıp Enter'a basmanız yeterlidir.
-   - **[2] SSH ile Doğrudan Yükleme (`--ssh root@SUNUCU_IP`):** Sunucuda geçici dosya bile bırakmadan doğrudan çalışan konteynere aktarır.
-   - **[3] Yerel Docker / WSL (`--local-docker`):** Doğrudan `docker cp` ile aktarır.
-
-*(Tek satırda doğrudan SSH ile yüklemek isterseniz: `python scripts/export_sahibinden_cookies.py --ssh root@SUNUCU_IP`)*
+Oluşan `sahibinden_cookies.json` dosyasını isterseniz Discord'da **`/cookie-yukle dosya:sahibinden_cookies.json`** ile, isterseniz script içindeki Coolify Terminal / SSH seçenekleriyle yükleyebilirsiniz.
 
 ### Oturum Ömrü & Süre Dolumu Bildirimi
 - **Uzun Ömürlü Oturum (Rolling Persistence):** Bot, geçici oturum çerezlerini 30 günlük kalıcı TTL ile saklar ve her başarılı taramada Sahibinden'in yenilediği güncel çerezleri periyodik olarak `/app/data/sahibinden_cookies.json` dosyasına geri yazar; böylece konteyner yeniden başlasa veya Redeploy edilse bile en güncel oturum korunur.
-- **Otomatik Süre Dolumu Uyarısı:** Çerezin süresi dolup `/giris` yönlendirmesi başladığında, bot üzerinde **herhangi bir slash komutunu** (`/alarmlarim`, `/alarm-hizli`, `/alarm-test` vb.) kullandığınız anda bot size yalnızca sizin görebileceğiniz (ephemeral) bir uyarı kartıyla çerezin süresinin dolduğunu ve yenileme komutunu bildirir.
+- **Otomatik Süre Dolumu Uyarısı:** Çerezin süresi dolup `/giris` yönlendirmesi başladığında, bot üzerinde **herhangi bir slash komutunu** (`/alarmlarim`, `/alarm-hizli`, `/alarm-test` vb.) kullandığınız anda bot size yalnızca sizin görebileceğiniz (ephemeral) bir uyarı kartıyla çerezin süresinin dolduğunu ve `/cookie-yukle` ile yenileme adımını bildirir.
 
 > [!CAUTION]
 > **Güvenlik Uyarısı:** `sahibinden_cookies.json` dosyası aktif Sahibinden oturum anahtarlarınızı içerir. Bu dosyayı **asla GitHub'a yüklemeyin** (`.gitignore` içinde engellenmiştir) ve kimseyle paylaşmayın.
-
-### Manuel Alternatif (Script Kullanmadan Coolify Terminal ile)
-Script kullanmak istemezseniz F12 -> Network -> `Cookie:` değerini kopyalayıp Coolify **Terminal (`sahibinden-bot`)** ekranında doğrudan kaydedebilirsiniz:
-```bash
-cat << 'EOF' > /app/data/sahibinden_cookies.json
-BURAYA_F12_NETWORK_COOKIE_DEGERINI_YAPISTIRIN
-EOF
-```
 
 ### Çalıştığını Doğrulayın
 - Konteyneri **yeniden başlatmanız gerekmez**!

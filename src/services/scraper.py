@@ -99,17 +99,17 @@ class StealthScraper:
         ]
 
     @classmethod
-    def _parse_cookies_file(cls, path: Path) -> list[dict]:
+    def _parse_cookies_content(cls, content: str) -> list[dict]:
         """Parses user-exported Sahibinden cookies from Playwright storage_state, JSON array, or raw Cookie header."""
-        content = path.read_text(encoding="utf-8").strip()
-        if not content:
+        text = (content or "").strip()
+        if not text:
             return []
 
         try:
-            raw = json.loads(content)
+            raw = json.loads(text)
         except json.JSONDecodeError:
             # Allow pasting raw DevTools 'Cookie: k1=v1; k2=v2' header text directly without JSON wrapping
-            return cls._parse_cookie_header_string(content)
+            return cls._parse_cookie_header_string(text)
 
         if isinstance(raw, str):
             return cls._parse_cookie_header_string(raw)
@@ -169,6 +169,45 @@ class StealthScraper:
 
             normalized.append(cookie)
         return normalized
+
+    @classmethod
+    def _parse_cookies_file(cls, path: Path) -> list[dict]:
+        """Reads and parses Sahibinden cookies from a JSON or raw Cookie header file."""
+        return cls._parse_cookies_content(path.read_text(encoding="utf-8"))
+
+    def save_user_cookies_from_text(self, raw_text: str) -> int:
+        """Validates, normalizes, and atomically saves user-provided Sahibinden cookies to SAHIBINDEN_COOKIES_PATH."""
+        cookies = self._parse_cookies_content(raw_text)
+        if not cookies:
+            raise ValueError(
+                "Geçerli sahibinden.com çerezi bulunamadı. "
+                "F12 -> Network -> www.sahibinden.com -> Headers -> Request Headers -> 'cookie:' değerini "
+                "veya geçerli bir sahibinden_cookies.json içeriğini yapıştırın."
+            )
+
+        cookies_path_raw = (getattr(settings, "SAHIBINDEN_COOKIES_PATH", "") or "").strip()
+        if not cookies_path_raw:
+            raise ValueError("SAHIBINDEN_COOKIES_PATH yapılandırılmamış.")
+
+        cookie_path = Path(cookies_path_raw)
+        cookie_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = cookie_path.with_suffix(cookie_path.suffix + ".tmp")
+        tmp_path.write_text(json.dumps({"cookies": cookies}, indent=2), encoding="utf-8")
+        try:
+            os.chmod(tmp_path, 0o600)
+        except OSError:
+            pass
+        os.replace(tmp_path, cookie_path)
+
+        # Force immediate reload on next fetch and clear expired status
+        self._loaded_cookies_mtime = None
+        self._loaded_cookies_expires = [
+            float(c["expires"]) for c in cookies if isinstance(c.get("expires"), (int, float))
+        ]
+        self.session_expired = False
+        self.session_expired_since = None
+        logger.info("Saved %d user-provided sahibinden.com cookies to '%s'.", len(cookies), cookie_path)
+        return len(cookies)
 
     async def _load_user_cookies_if_updated(self, context: BrowserContext) -> int:
         """Hot-loads user-provided Sahibinden session cookies when the configured JSON file changes."""
