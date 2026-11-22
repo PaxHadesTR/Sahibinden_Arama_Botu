@@ -48,10 +48,56 @@ class StealthScraper:
         return "/giris" in u or "uye-girisi" in u or "secure.sahibinden.com" in u
 
     @staticmethod
-    def _parse_cookies_file(path: Path) -> list[dict]:
-        """Parses user-exported Sahibinden cookies (Playwright storage_state or Cookie-Editor JSON array)."""
-        raw = json.loads(path.read_text(encoding="utf-8"))
+    def _parse_cookie_header_string(header_value: str) -> list[dict]:
+        """Parses a raw browser 'Cookie:' header string into Playwright cookie dicts for .sahibinden.com."""
+        text = (header_value or "").strip()
+        if text.lower().startswith("cookie:"):
+            text = text[len("cookie:"):].strip()
+        if not text:
+            return []
+
+        by_name: dict[str, str] = {}
+        for part in text.split(";"):
+            chunk = part.strip()
+            if "=" not in chunk:
+                continue
+            name, value = chunk.split("=", 1)
+            name = name.strip()
+            value = value.strip()
+            if not name:
+                continue
+            by_name[name] = value
+
+        return [
+            {
+                "name": name,
+                "value": value,
+                "domain": ".sahibinden.com",
+                "path": "/",
+                "secure": True,
+            }
+            for name, value in by_name.items()
+        ]
+
+    @classmethod
+    def _parse_cookies_file(cls, path: Path) -> list[dict]:
+        """Parses user-exported Sahibinden cookies from Playwright storage_state, JSON array, or raw Cookie header."""
+        content = path.read_text(encoding="utf-8").strip()
+        if not content:
+            return []
+
+        try:
+            raw = json.loads(content)
+        except json.JSONDecodeError:
+            # Allow pasting raw DevTools 'Cookie: k1=v1; k2=v2' header text directly without JSON wrapping
+            return cls._parse_cookie_header_string(content)
+
+        if isinstance(raw, str):
+            return cls._parse_cookie_header_string(raw)
+
         if isinstance(raw, dict):
+            if isinstance(raw.get("cookie_header"), str):
+                return cls._parse_cookie_header_string(raw["cookie_header"])
             entries = raw.get("cookies", [])
         elif isinstance(raw, list):
             entries = raw

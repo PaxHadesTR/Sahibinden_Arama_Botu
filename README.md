@@ -172,26 +172,37 @@ Bot bu durumla karşılaştığında:
 - Otomatik artan soğuma moduna geçer (**5 dk -> 15 dk -> 30 dk**, `LOGIN_WALL_COOLDOWN_SECONDS` ile ayarlanabilir).
 - Kendi hesabınızla giriş yaptığınız tarayıcı çerezlerini `/app/data/sahibinden_cookies.json` dosyasına koyduğunuzda **konteyneri yeniden başlatmanıza gerek kalmadan ~5 saniye içinde otomatik algılar**, soğumayı bitirir ve taramaya devam eder.
 
-### Adım 1: Kendi Tarayıcınızdan Sahibinden Çerezlerini Dışa Aktarın (1 Dakika)
-1. Bilgisayarınızdaki normal tarayıcınızda (**Chrome, Edge, Brave veya Firefox**) [sahibinden.com](https://www.sahibinden.com/) adresine girin ve **kendi hesabınızla giriş yapın**.
-2. Tarayıcınıza açık kaynaklı **Cookie-Editor** eklentisini kurun:
-   - Chrome / Edge / Brave: Chrome Web Mağazası'ndan **"Cookie-Editor"** (Moustachauve) eklentisini ekleyin.
-   - Firefox: Firefox Eklentileri'nden **"Cookie-Editor"** eklentisini ekleyin.
-3. Tarayıcıda `https://www.sahibinden.com/` sekmesi açıkken sağ üstten **Cookie-Editor** ikonuna tıklayın.
-4. Alt menüden **Export** -> **Export as JSON** seçeneğine tıklayın *(tüm çerezler JSON dizisi olarak panonuza kopyalanır)*.
-5. Not Defteri (veya VS Code) açıp kopyalanan metni yapıştırın ve **`sahibinden_cookies.json`** adıyla kaydedin.
+### Adım 1: Eklenti Kurmadan Kendi Tarayıcınızdan Sahibinden Çerezlerini Alın (Sıfır 3. Parti Eklenti)
+
+Üçüncü parti bir tarayıcı eklentisi kurmanıza **kesinlikle gerek yoktur**. Aşağıdaki iki güvenli yöntemden birini kullanabilirsiniz:
+
+#### Yöntem 1 (En Kolay & Önerilen — Tarayıcı F12 Geliştirici Araçları)
+1. Normal tarayıcınızda (**Chrome, Edge, Brave veya Firefox**) [sahibinden.com](https://www.sahibinden.com/) adresine girin ve **kendi hesabınızla giriş yapın**.
+2. Klavyeden **`F12`** tuşuna basıp Geliştirici Araçlarını açın ve üstten **Network (Ağ)** sekmesine geçin.
+3. Sayfayı yenileyin (**`F5`**) ve istek listesinde en üstteki **`www.sahibinden.com`** (veya `Doc` filtresindeki ana sayfa) isteğine tıklayın.
+4. Sağda açılan panelde **Headers (Üstbilgiler)** -> **Request Headers (İstek Üstbilgileri)** altına inip **`Cookie:`** satırını bulun.
+5. `Cookie:` değerine sağ tıklayıp **Copy value (Değeri kopyala)** deyin *(Not: `HttpOnly` güvenlik çerezleri de burada tam olarak yer alır; Console üzerinden `document.cookie` kullanmayın çünkü `HttpOnly` çerezleri eksik bırakır)*.
+
+#### Yöntem 2 (Alternatif — Resmi Playwright CLI ile Yerel Bilgisayarda)
+Yerel bilgisayarınızda Python + Playwright kuruluysa tek komutla resmi tarayıcı penceresi açıp oturumu doğrudan JSON olarak kaydedebilirsiniz:
+```bash
+playwright open --save-storage=sahibinden_cookies.json https://www.sahibinden.com
+```
+Açılan pencerede hesabınıza giriş yapıp pencereyi kapattığınızda `sahibinden_cookies.json` otomatik oluşur.
 
 > [!CAUTION]
-> **Güvenlik Uyarısı:** `sahibinden_cookies.json` dosyası aktif Sahibinden oturum anahtarlarınızı içerir. Bu dosyayı **asla GitHub'a yüklemeyin** (`.gitignore` içinde engellenmiştir) ve kimseyle paylaşmayın. Bot güvenlik gereği dosya içinden yalnızca `sahibinden.com` alan adına ait çerezleri okur, diğer sitelerin çerezlerini görmezden gelir.
+> **Güvenlik Uyarısı:** Kopyaladığınız `Cookie` değeri / `sahibinden_cookies.json` dosyası aktif Sahibinden oturum anahtarlarınızı içerir. Bu dosyayı **asla GitHub'a yüklemeyin** (`.gitignore` içinde engellenmiştir) ve kimseyle paylaşmayın.
 
-### Adım 2: `sahibinden_cookies.json` Dosyasını Bota Yükleyin
+### Adım 2: Çerezleri Bota Yükleyin (`/app/data/sahibinden_cookies.json`)
+
+Bot, `/app/data/sahibinden_cookies.json` dosyasında hem **doğrudan yapıştırılan ham `Cookie:` satırını** (`vid=...; cdid=...`), hem `{"cookie_header": "..."}` formatını hem de Playwright `storage_state.json` formatını otomatik tanır.
 
 #### A) Coolify Kullanıyorsanız (En Kolay Yöntem — Coolify Terminal)
 1. Coolify panelinizde uygulamanızın sayfasına girip **Terminal** sekmesini açın ve **`sahibinden-bot`** konteynerine bağlanın.
-2. Aşağıdaki komutu yapıştırıp Enter'a basın, ardından Cookie-Editor'dan kopyaladığınız JSON metnini yapıştırıp yeni satırda `EOF` yazarak Enter'a basın:
+2. Aşağıdaki komutu yapıştırıp Enter'a basın, ardından F12'den kopyaladığınız `Cookie` değerini yapıştırıp yeni satırda `EOF` yazarak Enter'a basın:
 ```bash
 cat << 'EOF' > /app/data/sahibinden_cookies.json
-BURAYA_COOKIE_EDITOR_JSON_ICERIGINI_YAPISTIRIN
+BURAYA_F12_NETWORK_COOKIE_DEGERINI_YAPISTIRIN
 EOF
 ```
 3. Dosyanın oluştuğunu doğrulayın:
@@ -214,7 +225,7 @@ docker cp ./sahibinden_cookies.json sahibinden-discord-bot:/app/data/sahibinden_
 ```
 
 #### C) Yerel (Windows) Kurulumda
-`sahibinden_cookies.json` dosyasını doğrudan proje klasöründeki `data\sahibinden_cookies.json` içine kopyalamanız yeterlidir.
+Kopyaladığınız `Cookie` değerini doğrudan proje klasöründeki `data\sahibinden_cookies.json` dosyasına yapıştırıp kaydetmeniz yeterlidir.
 
 ### Adım 3: Çalıştığını Doğrulayın
 - Konteyneri **yeniden başlatmanız gerekmez**!
@@ -223,7 +234,7 @@ docker cp ./sahibinden_cookies.json sahibinden-discord-bot:/app/data/sahibinden_
 Detected updated Sahibinden cookies file ('/app/data/sahibinden_cookies.json'); ending login-wall cooldown early.
 Loaded 18 user session cookies for sahibinden.com from '/app/data/sahibinden_cookies.json'.
 ```
-- **Oturum süresi dolduğunda ne yapmalıyım?** Haftalar sonra Sahibinden oturumunuzun süresi dolarsa loglarda yeniden `/giris` soğuma uyarısı görünür. Aynı şekilde Cookie-Editor'dan güncel JSON'ı alıp `/app/data/sahibinden_cookies.json` üzerine yazmanız yeterlidir; bot otomatik devam eder.
+- **Oturum süresi dolduğunda ne yapmalıyım?** Haftalar sonra Sahibinden oturumunuzun süresi dolarsa loglarda yeniden `/giris` soğuma uyarısı görünür. Aynı şekilde F12 -> Network -> `Cookie` değerini kopyalayıp `/app/data/sahibinden_cookies.json` üzerine yazmanız yeterlidir; bot otomatik devam eder.
 - **Not:** `/app/data` dizini Coolify Persistent Storage (veya Docker `bot_data` volume) üzerinde olduğu için **Redeploy** yaptığınızda `sahibinden_cookies.json` dosyanız silinmez.
 
 ---
@@ -424,7 +435,7 @@ python -m src.main
 | `DISCORD_PROXY_FAILOVER_THRESHOLD` | `2` | Direkt fallback öncesi proxy başına ardışık hata eşiği. |
 | `DISCORD_PROXY_URL` | *Boş* | İsteğe bağlı açık proxy override (`DISCORD_PROXY` ve `USE_WARP` yerine geçer; virgüllü liste destekler). |
 | `USE_WARP` / `WARP_HOST` / `WARP_PORT` | `false` / `warp` / `1080` | Geriye dönük tekli WARP ayarları (yalnızca `DISCORD_PROXY` boşken kullanılır). |
-| `SAHIBINDEN_COOKIES_PATH` | `/app/data/sahibinden_cookies.json` | İsteğe bağlı Sahibinden oturum çerezleri JSON yolu (Playwright `storage_state` veya Cookie-Editor JSON; değiştiğinde hot-reload olur). |
+| `SAHIBINDEN_COOKIES_PATH` | `/app/data/sahibinden_cookies.json` | İsteğe bağlı Sahibinden oturum çerezleri dosya yolu (ham F12 DevTools `Cookie:` satırı, `{"cookie_header": "..."}` veya Playwright `storage_state.json`; değiştiğinde hot-reload olur). |
 | `LOGIN_WALL_COOLDOWN_SECONDS` | `300` | Sahibinden `/giris` yönlendirmesi geldiğinde temel soğuma süresi (`1x -> 3x -> 6x`, yani 5 dk -> 15 dk -> 30 dk). |
 | `MAX_ALARMS_TOTAL` | `1000` | Sistem genelinde kurulabilecek maksimum alarm sayısı (10.000 destekler). |
 | `MAX_ALARMS_PER_USER` | `100` | Kullanıcı başına oluşturulabilecek maksimum alarm sayısı. |

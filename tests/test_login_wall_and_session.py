@@ -154,6 +154,29 @@ async def test_scraper_cookie_loader_supports_both_formats_filters_domains_and_h
     assert sent_cookies_v2[0]["name"] == "cdid"
     assert sent_cookies_v2[0]["sameSite"] == "Lax"
 
+    # 3. Extension-free raw DevTools 'Cookie:' header text (including '=' inside base64 values)
+    cookie_file.write_text("Cookie: vid=abc123; csss=dG9rZW4==; cdid=xyz", encoding="utf-8")
+    future_mtime_2 = time.time() + 20
+    os.utime(cookie_file, (future_mtime_2, future_mtime_2))
+
+    loaded3 = await s._load_user_cookies_if_updated(mock_ctx)
+    assert loaded3 == 3
+    sent_cookies_v3 = {c["name"]: c for c in mock_ctx.add_cookies.call_args.args[0]}
+    assert sent_cookies_v3["vid"]["value"] == "abc123"
+    assert sent_cookies_v3["csss"]["value"] == "dG9rZW4=="
+    assert sent_cookies_v3["cdid"]["domain"] == ".sahibinden.com"
+    assert sent_cookies_v3["cdid"]["secure"] is True
+
+    # 4. Extension-free JSON wrapper {"cookie_header": "..."}
+    cookie_file.write_text(json.dumps({"cookie_header": "vid=wrapped_v4; cdid=w4"}), encoding="utf-8")
+    future_mtime_3 = time.time() + 30
+    os.utime(cookie_file, (future_mtime_3, future_mtime_3))
+
+    loaded4 = await s._load_user_cookies_if_updated(mock_ctx)
+    assert loaded4 == 2
+    sent_cookies_v4 = {c["name"]: c for c in mock_ctx.add_cookies.call_args.args[0]}
+    assert sent_cookies_v4["vid"]["value"] == "wrapped_v4"
+
 
 @pytest.mark.asyncio
 async def test_monitor_login_wall_circuit_breaker_aborts_cycle_and_scales_cooldown(monkeypatch):
