@@ -1,6 +1,7 @@
 """Stealth Scraper Service for Sahibinden."""
 
 import asyncio
+import json
 import logging
 import random
 from pathlib import Path
@@ -19,6 +20,14 @@ from src.services.parser import SahibindenParser, ListingItem
 logger = logging.getLogger("sahibinden_bot.scraper")
 
 
+class LoginWallError(RuntimeError):
+    """Raised when Sahibinden redirects a search request to its /giris login gate."""
+
+    def __init__(self, message: str, final_url: str = ""):
+        super().__init__(message)
+        self.final_url = final_url
+
+
 class StealthScraper:
     """Automated browser session with Cloudflare/Akamai anti-bot evasion and self-healing recovery."""
 
@@ -30,6 +39,105 @@ class StealthScraper:
         self._lock = asyncio.Lock()
         self._profile_dir = Path(settings.USER_DATA_DIR)
         self._profile_dir.mkdir(parents=True, exist_ok=True)
+        self._loaded_cookies_mtime: float | None = None
+
+    @staticmethod
+    def _is_login_wall_url(url: str | None) -> bool:
+        """Returns True if the URL is Sahibinden's login gate (/giris or secure.sahibinden.com)."""
+        u = (url or "").lower()
+        return "/giris" in u or "uye-girisi" in u or "secure.sahibinden.com" in u
+
+    @staticmethod
+    def _parse_cookies_file(path: Path) -> list[dict]:
+        """Parses user-exported Sahibinden cookies (Playwright storage_state or Cookie-Editor JSON array)."""
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(raw, dict):
+            entries = raw.get("cookies", [])
+        elif isinstance(raw, list):
+            entries = raw
+        else:
+            return []
+
+        same_site_map = {
+            "none": "None",
+            "no_restriction": "None",
+            "lax": "Lax",
+            "strict": "Strict",
+        }
+        normalized: list[dict] = []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            name = str(entry.get("name") or "").strip()
+            value = entry.get("value")
+            domain = str(entry.get("domain") or "").strip().lower()
+            if not name or value is None or not domain:
+                continue
+            # Strictly scope imported cookies to sahibinden.com domains
+            bare_domain = domain.lstrip(".")
+            if bare_domain != "sahibinden.com" and not bare_domain.endswith(".sahibinden.com"):
+                continue
+
+            cookie: dict = {
+                "name": name,
+                "value": str(value),
+                "domain": domain,
+                "path": str(entry.get("path") or "/"),
+            }
+            if "httpOnly" in entry:
+                cookie["httpOnly"] = bool(entry["httpOnly"])
+            if "secure" in entry:
+                cookie["secure"] = bool(entry["secure"])
+
+            raw_ss = entry.get("sameSite")
+            if isinstance(raw_ss, str):
+                mapped_ss = same_site_map.get(raw_ss.strip().lower())
+                if mapped_ss:
+                    cookie["sameSite"] = mapped_ss
+
+            raw_exp = entry.get("expires", entry.get("expirationDate"))
+            if isinstance(raw_exp, (int, float)) and raw_exp > 0:
+                cookie["expires"] = float(raw_exp)
+
+            normalized.append(cookie)
+        return normalized
+
+    async def _load_user_cookies_if_updated(self, context: BrowserContext) -> int:
+        """Hot-loads user-provided Sahibinden session cookies when the configured JSON file changes."""
+        cookies_path_raw = (getattr(settings, "SAHIBINDEN_COOKIES_PATH", "") or "").strip()
+        if not cookies_path_raw:
+            return 0
+        cookie_path = Path(cookies_path_raw)
+        try:
+            if not cookie_path.is_file():
+                return 0
+            mtime = cookie_path.stat().st_mtime
+        except OSError:
+            return 0
+
+        if self._loaded_cookies_mtime == mtime:
+            return 0
+
+        try:
+            cookies = self._parse_cookies_file(cookie_path)
+            if not cookies:
+                logger.warning(
+                    "Cookie file '%s' contained no valid sahibinden.com cookies.",
+                    cookie_path,
+                )
+                self._loaded_cookies_mtime = mtime
+                return 0
+            await context.add_cookies(cookies)
+            self._loaded_cookies_mtime = mtime
+            logger.info(
+                "Loaded %d user session cookies for sahibinden.com from '%s'.",
+                len(cookies),
+                cookie_path,
+            )
+            return len(cookies)
+        except Exception as exc:
+            logger.warning("Failed to load user cookies from '%s': %s", cookie_path, exc)
+            return 0
 
     @staticmethod
     def _build_playwright_proxy(proxy_url: str | None) -> dict[str, str] | None:
@@ -118,6 +226,7 @@ class StealthScraper:
             except Exception:
                 pass
             self._playwright = None
+        self._loaded_cookies_mtime = None
 
     def _cleanup_stale_singleton_locks(self):
         """
@@ -215,6 +324,9 @@ class StealthScraper:
             except Exception as e:
                 logger.debug(f"Could not inject stealth script: {e}")
 
+        # Apply user-provided authenticated Sahibinden session cookies if present
+        await self._load_user_cookies_if_updated(self._context)
+
         # Warm up baseline session cookies if fresh profile
         try:
             cookies = await self._context.cookies()
@@ -282,8 +394,11 @@ class StealthScraper:
             for attempt in range(2):
                 page = None
                 context = None
+                context_was_reset = False
                 try:
                     context = await self._init_context()
+                    # Hot-reload user-provided session cookies if the JSON file was added or updated
+                    await self._load_user_cookies_if_updated(context)
                     # Keep exactly one primary page and close any secondary popup tabs
                     if len(context.pages) > 1:
                         for extra_page in list(context.pages[1:]):
@@ -310,19 +425,26 @@ class StealthScraper:
 
                     html = await page.content()
                     if SahibindenParser.is_blocked_or_challenge_page(html, page.url):
-                        raise RuntimeError(
-                            f"Page blocked by anti-bot challenge or login wall (final URL: {page.url})"
-                        )
+                        msg = f"Page blocked by anti-bot challenge or login wall (final URL: {page.url})"
+                        if self._is_login_wall_url(page.url):
+                            raise LoginWallError(msg, final_url=page.url)
+                        raise RuntimeError(msg)
                     return html
 
+                except LoginWallError as login_err:
+                    # Do not kill/relaunch Chromium or retry the same URL immediately on /giris;
+                    # surface immediately so AlarmMonitor can apply circuit-breaker cooldown.
+                    logger.warning(f"Login wall detected for {url}: {login_err}")
+                    raise
                 except Exception as e:
                     logger.warning(f"Fetch attempt {attempt + 1} failed for {url}: {e}")
                     await self._reset_context()
+                    context_was_reset = True
                     if attempt == 1:
                         logger.error(f"Exhausted retries while fetching {url}", exc_info=True)
                         raise
                 finally:
-                    if context and context.pages:
+                    if not context_was_reset and context and context.pages:
                         for extra_page in list(context.pages[1:]):
                             try:
                                 await extra_page.close()
@@ -333,7 +455,6 @@ class StealthScraper:
                                 await context.pages[0].goto("about:blank")
                         except Exception:
                             pass
-            return ""
             return ""
 
     async def fetch_listings(self, url: str) -> list[ListingItem]:

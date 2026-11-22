@@ -60,7 +60,7 @@ class SahibindenBot(commands.Bot):
                 http_proxy = self.discord_proxy_url
 
         super().__init__(
-            command_prefix="!",
+            command_prefix=commands.when_mentioned,
             intents=intents,
             proxy=http_proxy,
             connector=connector,

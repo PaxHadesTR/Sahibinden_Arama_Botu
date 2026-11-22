@@ -1,0 +1,202 @@
+"""Tests for login-wall circuit breaker, cookie hot-reload, proxy sentinel, and command prefix hygiene."""
+
+import asyncio
+import json
+import os
+import time
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from discord.ext import commands
+
+from src.bot.client import SahibindenBot
+from src.config import Settings
+from src.services.monitor import AlarmMonitor
+from src.services.scraper import LoginWallError, StealthScraper
+
+
+def test_discord_proxy_direct_sentinel_overrides_legacy_warp():
+    """Explicit DISCORD_PROXY=direct/none/off disables proxy without falling through to USE_WARP."""
+    for sentinel in ("direct", "none", "off", "false", "disabled", "DIRECT"):
+        cfg = Settings(
+            DISCORD_PROXY=sentinel,
+            DISCORD_PROXY_URL=None,
+            USE_WARP=True,
+            WARP_HOST="warp",
+            WARP_PORT=1080,
+        )
+        assert cfg.discord_proxy_list == []
+        assert cfg.get_discord_proxy() is None
+
+
+def test_docker_compose_empty_discord_proxy_defaults_to_dual_proxy():
+    """docker-compose.yml uses ':-' so an empty DISCORD_PROXY= in Coolify still activates SpoofDPI + WARP."""
+    compose_path = Path(__file__).resolve().parent.parent / "docker-compose.yml"
+    content = compose_path.read_text(encoding="utf-8")
+    assert "DISCORD_PROXY=${DISCORD_PROXY:-http://spoof-dpi:8080,http://warp:1080}" in content
+
+
+def test_bot_uses_when_mentioned_prefix_avoiding_message_content_warning(monkeypatch):
+    """Slash-only bot uses commands.when_mentioned instead of '!' to avoid missing privileged intent warning."""
+    monkeypatch.setattr("src.config.settings.USE_WARP", False)
+    monkeypatch.setattr("src.config.settings.DISCORD_PROXY", None)
+    monkeypatch.setattr("src.config.settings.DISCORD_PROXY_URL", None)
+
+    bot = SahibindenBot(proxy_override=None)
+    assert bot.command_prefix is commands.when_mentioned
+
+
+@pytest.mark.asyncio
+async def test_scraper_login_wall_fails_fast_without_context_thrashing(monkeypatch):
+    """On secure.sahibinden.com/giris, fetch_page_content raises LoginWallError on attempt 1 without resetting Chromium."""
+    s = StealthScraper()
+    s._reset_context = AsyncMock()
+    s._wait_for_challenge_and_table = AsyncMock()
+    s._load_user_cookies_if_updated = AsyncMock(return_value=0)
+
+    mock_page = MagicMock()
+    mock_page.url = "https://secure.sahibinden.com/giris?return_url=https%3A%2F%2Fwww.sahibinden.com%2Fekran-karti-masaustu"
+    mock_page.is_closed = MagicMock(return_value=False)
+    mock_page.goto = AsyncMock()
+    mock_page.content = AsyncMock(return_value="<html><body>Giriş Yap</body></html>")
+
+    mock_ctx = MagicMock()
+    mock_ctx.pages = [mock_page]
+    s._init_context = AsyncMock(return_value=mock_ctx)
+
+    monkeypatch.setattr("src.config.settings.MIN_JITTER_SECONDS", 0.0)
+    monkeypatch.setattr("src.config.settings.MAX_JITTER_SECONDS", 0.0)
+    monkeypatch.setattr("src.config.settings.SCRAPER_TIMEOUT_SECONDS", 5)
+
+    with pytest.raises(LoginWallError) as exc_info:
+        await s.fetch_page_content("https://www.sahibinden.com/ekran-karti-masaustu")
+
+    assert "secure.sahibinden.com/giris" in exc_info.value.final_url
+    # Must NOT retry or destroy/relaunch Chromium on login wall
+    assert s._init_context.await_count == 1
+    s._reset_context.assert_not_awaited()
+    # Primary page is still reset cleanly to about:blank
+    assert any(call.args[0] == "about:blank" for call in mock_page.goto.call_args_list)
+
+
+@pytest.mark.asyncio
+async def test_scraper_cookie_loader_supports_both_formats_filters_domains_and_hot_reloads(monkeypatch, tmp_path):
+    """Verify user-provided Sahibinden cookie JSON loading, domain scoping, normalization, and mtime hot-reload."""
+    cookie_file = tmp_path / "sahibinden_cookies.json"
+    # 1. Cookie-Editor JSON array with mixed domains and browser sameSite/expirationDate fields
+    payload_v1 = [
+        {
+            "name": "vid",
+            "value": "v1_session_token",
+            "domain": ".sahibinden.com",
+            "path": "/",
+            "httpOnly": True,
+            "secure": True,
+            "sameSite": "no_restriction",
+            "expirationDate": 1893456000.0,
+        },
+        {
+            "name": "unrelated",
+            "value": "must_not_load",
+            "domain": ".google.com",
+            "path": "/",
+        },
+        {
+            "name": "spoofed_suffix",
+            "value": "must_not_load",
+            "domain": "evilsahibinden.com",
+            "path": "/",
+        },
+    ]
+    cookie_file.write_text(json.dumps(payload_v1), encoding="utf-8")
+    monkeypatch.setattr("src.config.settings.SAHIBINDEN_COOKIES_PATH", str(cookie_file))
+
+    s = StealthScraper()
+    mock_ctx = MagicMock()
+    mock_ctx.add_cookies = AsyncMock()
+
+    loaded1 = await s._load_user_cookies_if_updated(mock_ctx)
+    assert loaded1 == 1
+    mock_ctx.add_cookies.assert_awaited_once()
+    sent_cookies = mock_ctx.add_cookies.call_args.args[0]
+    assert len(sent_cookies) == 1
+    assert sent_cookies[0]["name"] == "vid"
+    assert sent_cookies[0]["domain"] == ".sahibinden.com"
+    assert sent_cookies[0]["sameSite"] == "None"
+    assert sent_cookies[0]["expires"] == 1893456000.0
+
+    # Unchanged mtime must NOT re-add cookies
+    loaded_repeat = await s._load_user_cookies_if_updated(mock_ctx)
+    assert loaded_repeat == 0
+    assert mock_ctx.add_cookies.await_count == 1
+
+    # 2. Playwright storage_state.json dict format with updated mtime triggers hot-reload
+    payload_v2 = {
+        "cookies": [
+            {
+                "name": "cdid",
+                "value": "v2_fresh_token",
+                "domain": "www.sahibinden.com",
+                "path": "/",
+                "sameSite": "lax",
+            }
+        ]
+    }
+    cookie_file.write_text(json.dumps(payload_v2), encoding="utf-8")
+    future_mtime = time.time() + 10
+    os.utime(cookie_file, (future_mtime, future_mtime))
+
+    loaded2 = await s._load_user_cookies_if_updated(mock_ctx)
+    assert loaded2 == 1
+    assert mock_ctx.add_cookies.await_count == 2
+    sent_cookies_v2 = mock_ctx.add_cookies.call_args.args[0]
+    assert sent_cookies_v2[0]["name"] == "cdid"
+    assert sent_cookies_v2[0]["sameSite"] == "Lax"
+
+
+@pytest.mark.asyncio
+async def test_monitor_login_wall_circuit_breaker_aborts_cycle_and_scales_cooldown(monkeypatch):
+    """On LoginWallError, AlarmMonitor skips remaining alarms in the cycle and applies progressive cooldown."""
+    mock_bot = MagicMock()
+    mock_bot.wait_until_ready = AsyncMock()
+    monitor = AlarmMonitor(mock_bot)
+    monitor._running = True
+
+    alarms = [
+        {"id": 1, "name": "GPU", "target_url": "https://www.sahibinden.com/ekran-karti-masaustu"},
+        {"id": 2, "name": "RAM", "target_url": "https://www.sahibinden.com/ram-bellek-masaustu"},
+        {"id": 3, "name": "CPU", "target_url": "https://www.sahibinden.com/islemci-masaustu"},
+    ]
+    fetched_urls: list[str] = []
+    cooldowns_seen: list[float] = []
+
+    async def fake_fetch_listings(url: str):
+        fetched_urls.append(url)
+        raise LoginWallError(
+            f"Page blocked by anti-bot challenge or login wall (final URL: https://secure.sahibinden.com/giris)",
+            final_url="https://secure.sahibinden.com/giris",
+        )
+
+    async def fake_sleep_watch(total_seconds: float, initial_mtime):
+        cooldowns_seen.append(total_seconds)
+        if len(cooldowns_seen) >= 2:
+            monitor._running = False
+        return False
+
+    monkeypatch.setattr("src.services.monitor.database.init_db", AsyncMock())
+    monkeypatch.setattr("src.services.monitor.database.cleanup_stale_seen_listings", AsyncMock(return_value=0))
+    monkeypatch.setattr("src.services.monitor.database.get_active_alarms", AsyncMock(return_value=alarms))
+    monkeypatch.setattr("src.services.monitor.scraper.fetch_listings", fake_fetch_listings)
+    monkeypatch.setattr("src.config.settings.LOGIN_WALL_COOLDOWN_SECONDS", 300)
+    monkeypatch.setattr(monitor, "_sleep_with_cookie_watch", fake_sleep_watch)
+
+    await monitor._run_loop()
+
+    # Only the 1st URL should be attempted per cycle (remaining 2 URLs skipped by circuit breaker!)
+    assert fetched_urls == [
+        "https://www.sahibinden.com/ekran-karti-masaustu",
+        "https://www.sahibinden.com/ekran-karti-masaustu",
+    ]
+    # Cooldown escalates 300s (5m) -> 900s (15m)
+    assert cooldowns_seen == [300.0, 900.0]

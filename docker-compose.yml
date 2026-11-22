@@ -102,7 +102,8 @@ services:
       - HEADLESS=false
       - PYTHONPATH=/app
       # Çift Proxy Failover: SpoofDPI birincil + Cloudflare WARP yedek (Yalnızca Discord trafiği)
-      - DISCORD_PROXY=${DISCORD_PROXY-http://spoof-dpi:8080,http://warp:1080}
+      # Direkt bağlantı için Coolify/.env içinde DISCORD_PROXY=direct yazabilirsiniz.
+      - DISCORD_PROXY=${DISCORD_PROXY:-http://spoof-dpi:8080,http://warp:1080}
       - DISCORD_PROXY_FALLBACK_DIRECT=${DISCORD_PROXY_FALLBACK_DIRECT:-false}
       - DISCORD_PROXY_FAILOVER_THRESHOLD=${DISCORD_PROXY_FAILOVER_THRESHOLD:-2}
       # Geriye dönük tekli WARP uyumluluğu (DISCORD_PROXY boş bırakılıp USE_WARP=true yapılırsa kullanılır)

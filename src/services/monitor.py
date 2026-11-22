@@ -3,11 +3,12 @@
 import asyncio
 import json
 import logging
+from pathlib import Path
 from typing import Any
 import discord
 from src.config import settings
 from src.db.database import database
-from src.services.scraper import scraper
+from src.services.scraper import LoginWallError, scraper
 from src.services.parser import ListingItem
 
 logger = logging.getLogger("sahibinden_bot.monitor")
@@ -17,12 +18,41 @@ class AlarmMonitor:
     """Orchestrates periodic scraping, deduplication, price-drop detection, and Discord notifications."""
 
     MAX_DISPATCH_PER_CYCLE = 10  # Prevents Discord channel flooding if many ads appear at once
+    LOGIN_WALL_COOLDOWN_MULTIPLIERS = (1, 3, 6)  # 5m -> 15m -> 30m with default 300s base
 
     def __init__(self, bot: discord.Client):
         self.bot = bot
         self._running = False
         self._task: asyncio.Task | None = None
         self._last_stale_cleanup: float = 0.0
+        self._consecutive_login_walls: int = 0
+
+    @staticmethod
+    def _get_cookies_mtime() -> float | None:
+        raw_path = (getattr(settings, "SAHIBINDEN_COOKIES_PATH", "") or "").strip()
+        if not raw_path:
+            return None
+        try:
+            p = Path(raw_path)
+            return p.stat().st_mtime if p.is_file() else None
+        except OSError:
+            return None
+
+    async def _sleep_with_cookie_watch(self, total_seconds: float, initial_mtime: float | None) -> bool:
+        """Sleeps up to total_seconds, waking early if the user updates SAHIBINDEN_COOKIES_PATH."""
+        remaining = max(0.0, float(total_seconds))
+        while remaining > 0 and self._running:
+            step = min(remaining, 5.0)
+            await asyncio.sleep(step)
+            remaining -= step
+            current_mtime = self._get_cookies_mtime()
+            if current_mtime is not None and current_mtime != initial_mtime:
+                logger.info(
+                    "Detected updated Sahibinden cookies file ('%s'); ending login-wall cooldown early.",
+                    settings.SAHIBINDEN_COOKIES_PATH,
+                )
+                return True
+        return False
 
     def start(self):
         """Starts the background monitoring task."""
@@ -68,11 +98,15 @@ class AlarmMonitor:
                 for alarm in active_alarms:
                     url_groups.setdefault(alarm["target_url"], []).append(alarm)
 
+                cycle_login_wall_cooldown: float | None = None
+                cookies_mtime_before_cycle = self._get_cookies_mtime()
+
                 for target_url, alarms_in_group in url_groups.items():
                     if not self._running:
                         break
                     try:
                         fetched = await scraper.fetch_listings(target_url)
+                        self._consecutive_login_walls = 0
                         for alarm in alarms_in_group:
                             if not self._running:
                                 break
@@ -90,6 +124,27 @@ class AlarmMonitor:
                                 await self.check_alarm(current_alarm, pre_fetched_listings=fetched)
                             except Exception as e:
                                 logger.error(f"Error checking alarm #{alarm['id']} ({alarm['name']}): {e}", exc_info=True)
+                    except LoginWallError:
+                        self._consecutive_login_walls += 1
+                        step_idx = min(
+                            self._consecutive_login_walls - 1,
+                            len(self.LOGIN_WALL_COOLDOWN_MULTIPLIERS) - 1,
+                        )
+                        base_cooldown = max(30, int(getattr(settings, "LOGIN_WALL_COOLDOWN_SECONDS", 300)))
+                        cycle_login_wall_cooldown = float(
+                            base_cooldown * self.LOGIN_WALL_COOLDOWN_MULTIPLIERS[step_idx]
+                        )
+                        logger.warning(
+                            "Sahibinden login wall (/giris) triggered while fetching %s (streak #%d). "
+                            "Tripping circuit breaker for remaining alarms in this cycle and cooling down for %.0fs. "
+                            "To authenticate with your own account, export Sahibinden cookies to '%s' "
+                            "(or set SAHIBINDEN_COOKIES_PATH).",
+                            target_url,
+                            self._consecutive_login_walls,
+                            cycle_login_wall_cooldown,
+                            getattr(settings, "SAHIBINDEN_COOKIES_PATH", "/app/data/sahibinden_cookies.json"),
+                        )
+                        break
                     except Exception as e:
                         logger.error(f"Error fetching URL {target_url} for {len(alarms_in_group)} alarms: {e}", exc_info=True)
                         # Backoff on scrape error/challenge to prevent CPU starvation of the asyncio event loop
@@ -97,6 +152,15 @@ class AlarmMonitor:
 
                     # Inter-alarm delay to avoid rate limits
                     await asyncio.sleep(4)
+
+                if cycle_login_wall_cooldown is not None:
+                    woke_early = await self._sleep_with_cookie_watch(
+                        cycle_login_wall_cooldown,
+                        cookies_mtime_before_cycle,
+                    )
+                    if woke_early:
+                        self._consecutive_login_walls = 0
+                    continue
 
             except asyncio.CancelledError:
                 break

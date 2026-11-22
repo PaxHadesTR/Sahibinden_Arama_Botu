@@ -8,6 +8,8 @@ __pycache__/
 .env
 .env.local
 .env.*.local
+sahibinden_cookies.json
+*cookies*.json
 
 # Virtual Environments
 .venv/

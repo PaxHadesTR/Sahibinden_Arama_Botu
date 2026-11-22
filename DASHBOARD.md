@@ -195,7 +195,12 @@
   - [x] Added comma-separated `DISCORD_PROXY`, `DISCORD_PROXY_FALLBACK_DIRECT`, and `DISCORD_PROXY_FAILOVER_THRESHOLD` configuration with full backward compatibility for `DISCORD_PROXY_URL` and `USE_WARP`.
   - [x] Implemented resilient multi-proxy failover supervisor loop in `src/main.py` (`is_proxy_connection_error`, `run_bot_supervisor`, clamped backoff, fast failover, fatal login abort, and credential redaction) plus `proxy_override` and once-per-process slash command sync guard in `src/bot/client.py`.
   - [x] Preserved strict traffic isolation: Discord API/Gateway routes through SpoofDPI/WARP while Sahibinden scraping remains on the host's direct Turkish IP.
-- [x] Automated Test Suite: 328/328 tests passing green across all test suites (100% pass rate).
+- [x] Login-Wall Circuit Breaker, User Cookie Hot-Reload & Intent/Env Hygiene (`ADR-037`):
+  - [x] Added fail-fast `LoginWallError` in `src/services/scraper.py` (stops Chromium restart/retry storms on `/giris`) and hot-reloadable user session cookie loader (`SAHIBINDEN_COOKIES_PATH`, strictly scoped to `sahibinden.com`).
+  - [x] Added progressive login-wall circuit breaker cooldown (`5m -> 15m -> 30m`) with early cookie-file wake in `src/services/monitor.py`.
+  - [x] Hardened `docker-compose.yml` (`${DISCORD_PROXY:-...}`), added `DISCORD_PROXY=direct/none/off` sentinels in `src/config.py`, and switched `SahibindenBot` to `commands.when_mentioned` to eliminate privileged intent warnings.
+  - [x] Added step-by-step Sahibinden cookie export & Coolify/Docker upload guide to `README.md` and `.gitignore` protection.
+- [x] Automated Test Suite: 334/334 tests passing green across all test suites (100% pass rate).
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`, `SecurityUpdates.md`) fully updated and synchronized.
 
 

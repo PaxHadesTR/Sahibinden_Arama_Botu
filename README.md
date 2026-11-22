@@ -18,6 +18,7 @@ Sahibinden.com üzerinde **tüm kategorilerde** (Vasıta/Otomobil/Motosiklet/SUV
 - [Alarmlar Nereye Kaydediliyor? (Kalıcı Depolama & Coolify)](#-alarmlar-nereye-kaydediliyor-kalıcı-depolama--coolify)
 - [Maksimum Alarm Sınırı (Sistem Koruması)](#-maksimum-alarm-sınırı-sistem-koruması)
 - [Trafik İzolasyonu & Çift Proxy Failover (SpoofDPI + Cloudflare WARP)](#-trafik-izolasyonu--çift-proxy-failover-spoofdpi--cloudflare-warp)
+- [Sahibinden Giriş Duvarı (/giris) & Oturum Çerezi (Cookie) Kurulumu](#-sahibinden-giriş-duvarı-giris--oturum-çerezi-cookie-kurulumu)
 - [Discord Botu Oluşturma (Adım Adım)](#-discord-botu-oluşturma-adım-adım)
 - [Discord Komutları ve Detaylı Kullanım Kılavuzu](#-discord-komutları-ve-detaylı-kullanım-kılavuzu)
 - [Coolify (Public Repository) ile Dağıtım Rehberi](#-coolify-public-repository-ile-dağıtım-rehberi)
@@ -155,10 +156,75 @@ Bu bota tek başına WARP tünel kopmaları yaşamadan 7/24 kesintisiz çalışa
 
 > [!TIP]
 > - **Coolify Standalone (Dockerfile) kurulumunda:** Aynı sunucudaki `coolify` ağına ortak `spoof-dpi`, `warp` ve `autoheal` konteynerlerini kurup Coolify Environment Variables kısmına `DISCORD_PROXY=http://spoof-dpi:8080,http://warp:1080`, `DISCORD_PROXY_FALLBACK_DIRECT=false`, `DISCORD_PROXY_FAILOVER_THRESHOLD=2` yazmanız yeterlidir.
-> - **Türkiye Dışı (EU/US) Sunucularda Proxy Kapatma:** `DISCORD_PROXY=` (boş) ve `USE_WARP=false` bırakmanız yeterlidir.
+> - **Türkiye Dışı (EU/US) Sunucularda Proxy Kapatma:** `DISCORD_PROXY=direct` yazmanız yeterlidir (bu değer eski `USE_WARP=true` ayarını da devre dışı bırakır).
 > - **Proxy Test Komutları:**
 >   - SpoofDPI testi (`HTTP/2 200` dönmeli): `docker exec sahibinden-warp curl -sI --max-time 8 -x http://spoof-dpi:8080 https://discord.com/api/v10/gateway | head -n 1`
 >   - WARP tünel testi (`warp=on` veya `warp=plus` yazmalı): `docker exec sahibinden-warp curl -s --max-time 8 -x http://127.0.0.1:1080 https://cloudflare.com/cdn-cgi/trace | grep warp=`
+
+---
+
+## 🍪 Sahibinden Giriş Duvarı (`/giris`) & Oturum Çerezi (Cookie) Kurulumu
+
+Sahibinden.com, özellikle filtreli aramalarda veya sunucu/VPS IP'lerinden gelen anonim (giriş yapılmamış) isteklerde sayfaları doğrudan **`https://secure.sahibinden.com/giris?return_url=...`** giriş ekranına yönlendirebilir.
+
+Bot bu durumla karşılaştığında:
+- Chromium'u kapatıp tekrar açmaz ve kalan alarmlara boşa istek yağdırmaz (**Circuit Breaker**).
+- Otomatik artan soğuma moduna geçer (**5 dk -> 15 dk -> 30 dk**, `LOGIN_WALL_COOLDOWN_SECONDS` ile ayarlanabilir).
+- Kendi hesabınızla giriş yaptığınız tarayıcı çerezlerini `/app/data/sahibinden_cookies.json` dosyasına koyduğunuzda **konteyneri yeniden başlatmanıza gerek kalmadan ~5 saniye içinde otomatik algılar**, soğumayı bitirir ve taramaya devam eder.
+
+### Adım 1: Kendi Tarayıcınızdan Sahibinden Çerezlerini Dışa Aktarın (1 Dakika)
+1. Bilgisayarınızdaki normal tarayıcınızda (**Chrome, Edge, Brave veya Firefox**) [sahibinden.com](https://www.sahibinden.com/) adresine girin ve **kendi hesabınızla giriş yapın**.
+2. Tarayıcınıza açık kaynaklı **Cookie-Editor** eklentisini kurun:
+   - Chrome / Edge / Brave: Chrome Web Mağazası'ndan **"Cookie-Editor"** (Moustachauve) eklentisini ekleyin.
+   - Firefox: Firefox Eklentileri'nden **"Cookie-Editor"** eklentisini ekleyin.
+3. Tarayıcıda `https://www.sahibinden.com/` sekmesi açıkken sağ üstten **Cookie-Editor** ikonuna tıklayın.
+4. Alt menüden **Export** -> **Export as JSON** seçeneğine tıklayın *(tüm çerezler JSON dizisi olarak panonuza kopyalanır)*.
+5. Not Defteri (veya VS Code) açıp kopyalanan metni yapıştırın ve **`sahibinden_cookies.json`** adıyla kaydedin.
+
+> [!CAUTION]
+> **Güvenlik Uyarısı:** `sahibinden_cookies.json` dosyası aktif Sahibinden oturum anahtarlarınızı içerir. Bu dosyayı **asla GitHub'a yüklemeyin** (`.gitignore` içinde engellenmiştir) ve kimseyle paylaşmayın. Bot güvenlik gereği dosya içinden yalnızca `sahibinden.com` alan adına ait çerezleri okur, diğer sitelerin çerezlerini görmezden gelir.
+
+### Adım 2: `sahibinden_cookies.json` Dosyasını Bota Yükleyin
+
+#### A) Coolify Kullanıyorsanız (En Kolay Yöntem — Coolify Terminal)
+1. Coolify panelinizde uygulamanızın sayfasına girip **Terminal** sekmesini açın ve **`sahibinden-bot`** konteynerine bağlanın.
+2. Aşağıdaki komutu yapıştırıp Enter'a basın, ardından Cookie-Editor'dan kopyaladığınız JSON metnini yapıştırıp yeni satırda `EOF` yazarak Enter'a basın:
+```bash
+cat << 'EOF' > /app/data/sahibinden_cookies.json
+BURAYA_COOKIE_EDITOR_JSON_ICERIGINI_YAPISTIRIN
+EOF
+```
+3. Dosyanın oluştuğunu doğrulayın:
+```bash
+ls -lh /app/data/sahibinden_cookies.json
+```
+*(Alternatif — Dosyayı SSH/SCP ile bilgisayarınızdan sunucuya atmak isterseniz:)*
+```powershell
+# 1. Windows PowerShell üzerinden sunucuya kopyalayın:
+scp .\sahibinden_cookies.json kullanici@SUNUCU_IP:/tmp/sahibinden_cookies.json
+
+# 2. Sunucu SSH terminalinde konteynere aktarın ve geçici dosyayı silin:
+docker cp /tmp/sahibinden_cookies.json sahibinden-discord-bot:/app/data/sahibinden_cookies.json
+rm -f /tmp/sahibinden_cookies.json
+```
+
+#### B) Standart Docker Compose Kullanıyorsanız
+```bash
+docker cp ./sahibinden_cookies.json sahibinden-discord-bot:/app/data/sahibinden_cookies.json
+```
+
+#### C) Yerel (Windows) Kurulumda
+`sahibinden_cookies.json` dosyasını doğrudan proje klasöründeki `data\sahibinden_cookies.json` içine kopyalamanız yeterlidir.
+
+### Adım 3: Çalıştığını Doğrulayın
+- Konteyneri **yeniden başlatmanız gerekmez**!
+- Loglarda ~5 saniye içinde şu satırları göreceksiniz:
+```text
+Detected updated Sahibinden cookies file ('/app/data/sahibinden_cookies.json'); ending login-wall cooldown early.
+Loaded 18 user session cookies for sahibinden.com from '/app/data/sahibinden_cookies.json'.
+```
+- **Oturum süresi dolduğunda ne yapmalıyım?** Haftalar sonra Sahibinden oturumunuzun süresi dolarsa loglarda yeniden `/giris` soğuma uyarısı görünür. Aynı şekilde Cookie-Editor'dan güncel JSON'ı alıp `/app/data/sahibinden_cookies.json` üzerine yazmanız yeterlidir; bot otomatik devam eder.
+- **Not:** `/app/data` dizini Coolify Persistent Storage (veya Docker `bot_data` volume) üzerinde olduğu için **Redeploy** yaptığınızda `sahibinden_cookies.json` dosyanız silinmez.
 
 ---
 
@@ -168,7 +234,7 @@ Bu bota tek başına WARP tünel kopmaları yaşamadan 7/24 kesintisiz çalışa
 2. Sağ üstteki **New Application** butonuna tıklayın, botunuza bir isim verin (Örn: `Sahibinden Alarm`).
 3. Sol menüden **Bot** sekmesine gelin:
    - **Reset Token** butonuna basarak bot tokeninizi kopyalayın ve güvenli bir yere kaydedin (`DISCORD_BOT_TOKEN`).
-   - **Privileged Gateway Intents** altında `Message Content Intent` ayarını açın.
+   - *(Bot yalnızca Slash Komutları ve `discord.Intents.default()` ile çalıştığından herhangi bir Privileged Gateway Intent açmanız gerekmez.)*
 4. Sol menüden **OAuth2** -> **OAuth2 URL Generator** sekmesine gelin:
    - **SCOPES**: `bot` ve `applications.commands` seçeneklerini işaretleyin.
    - **BOT PERMISSIONS**: `Send Messages`, `Embed Links`, `Attach Files`, `Read Message History` seçeneklerini işaretleyin.
@@ -353,11 +419,13 @@ python -m src.main
 | Değişken Adı | Varsayılan | Açıklama |
 |---|---|---|
 | `DISCORD_BOT_TOKEN` | *Zorunlu* | Discord Developer Portal'dan alınan bot tokeni. |
-| `DISCORD_PROXY` | `http://spoof-dpi:8080,http://warp:1080` | Discord çıkış proxy listesi (virgülle ayrılmış HTTP/SOCKS5 failover sırası). Yalnızca Discord trafiği için kullanılır. |
+| `DISCORD_PROXY` | `http://spoof-dpi:8080,http://warp:1080` | Discord çıkış proxy listesi (virgülle ayrılmış HTTP/SOCKS5 failover sırası). Kapatmak için `direct` yazabilirsiniz. Yalnızca Discord trafiği için kullanılır. |
 | `DISCORD_PROXY_FALLBACK_DIRECT` | `false` | Tüm proxy'ler ardışık hata verirse direkt bağlantıyı dener (TR sunucularda `false`, engelsiz VPS'te `true` önerilir). |
 | `DISCORD_PROXY_FAILOVER_THRESHOLD` | `2` | Direkt fallback öncesi proxy başına ardışık hata eşiği. |
 | `DISCORD_PROXY_URL` | *Boş* | İsteğe bağlı açık proxy override (`DISCORD_PROXY` ve `USE_WARP` yerine geçer; virgüllü liste destekler). |
 | `USE_WARP` / `WARP_HOST` / `WARP_PORT` | `false` / `warp` / `1080` | Geriye dönük tekli WARP ayarları (yalnızca `DISCORD_PROXY` boşken kullanılır). |
+| `SAHIBINDEN_COOKIES_PATH` | `/app/data/sahibinden_cookies.json` | İsteğe bağlı Sahibinden oturum çerezleri JSON yolu (Playwright `storage_state` veya Cookie-Editor JSON; değiştiğinde hot-reload olur). |
+| `LOGIN_WALL_COOLDOWN_SECONDS` | `300` | Sahibinden `/giris` yönlendirmesi geldiğinde temel soğuma süresi (`1x -> 3x -> 6x`, yani 5 dk -> 15 dk -> 30 dk). |
 | `MAX_ALARMS_TOTAL` | `1000` | Sistem genelinde kurulabilecek maksimum alarm sayısı (10.000 destekler). |
 | `MAX_ALARMS_PER_USER` | `100` | Kullanıcı başına oluşturulabilecek maksimum alarm sayısı. |
 | `CHECK_INTERVAL_SECONDS` | `90` | Arama döngüleri arasındaki bekleme süresi (saniye). |

@@ -775,4 +775,28 @@ enk, property features, and motorcycle specs alongside capacity, warranty, condi
   - Sahibinden scraping traffic remains 100% isolated on the local Turkish IP.
   - Full automated test suite expanded and passes 100% (328/328 tests green).
 
+## ADR-037: Login-Wall Circuit Breaker, User Cookie Hot-Reload, Empty-Env Proxy Default & Intent Hygiene
+- **Status**: Accepted
+- **Date**: 2026-11-22
+- **Context**:
+  - Production logs surfaced three operational issues:
+    1. When Sahibinden redirected anonymous filtered searches to `https://secure.sahibinden.com/giris`, `StealthScraper.fetch_page_content` destroyed and relaunched Chromium on retry and `AlarmMonitor._run_loop` kept hammering all remaining alarms (16 Chromium restarts per 90s cycle).
+    2. `docker-compose.yml` used `${DISCORD_PROXY-...}` (unset-only) rather than `:-` (unset-or-empty), causing blank Coolify env vars to fall back to legacy `USE_WARP=true` (`socks5://warp:1080`) instead of the dual-proxy default.
+    3. `SahibindenBot` passed `command_prefix="!"` despite only using Slash Commands, triggering `discord.ext.commands.bot: Privileged message content intent is missing` on every boot.
+- **Decision**:
+  1. **Fail-Fast `LoginWallError` & Circuit Breaker**:
+     - Added `LoginWallError(RuntimeError)` in `src/services/scraper.py` so `/giris` redirects fail fast on attempt 1 without resetting Chromium or retrying 4s later.
+     - Added progressive login-wall circuit breaker cooldown (`5m -> 15m -> 30m` via `LOGIN_WALL_COOLDOWN_SECONDS`) in `src/services/monitor.py`, aborting remaining alarms in the cycle immediately.
+  2. **Hot-Reloadable User Session Cookies**:
+     - Added `SAHIBINDEN_COOKIES_PATH` (default `/app/data/sahibinden_cookies.json`) supporting Playwright `storage_state.json` and Cookie-Editor JSON arrays, strictly domain-scoped to `sahibinden.com` and hot-reloaded on `mtime` change (also waking the monitor early out of login-wall cooldown).
+     - Added `sahibinden_cookies.json` to `.gitignore` and step-by-step setup documentation in `README.md`.
+  3. **Empty-Env Dual-Proxy Default & Intent Hygiene**:
+     - Updated `docker-compose.yml` to `${DISCORD_PROXY:-http://spoof-dpi:8080,http://warp:1080}` and added `direct`/`none`/`off` disable sentinels in `src/config.py`.
+     - Switched `SahibindenBot` to `command_prefix=commands.when_mentioned`.
+- **Consequences**:
+  - Zero Chromium thrashing or `/giris` retry storms; users can supply/refresh their own Sahibinden session cookies without container restarts.
+  - Dual-proxy default activates cleanly even when Coolify injects empty `DISCORD_PROXY=`.
+  - Clean startup logs with zero privileged-intent warnings.
+  - Full automated test suite expanded and passes 100% (334/334 tests green).
+
 

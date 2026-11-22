@@ -5,6 +5,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+DISABLED_PROXY_SENTINELS = {"none", "direct", "off", "false", "disabled"}
 
 
 class Settings(BaseSettings):
@@ -33,6 +34,8 @@ class Settings(BaseSettings):
     BROWSER_CHANNEL: str | None = "msedge"  # 'msedge' or 'chrome' or None/empty for default chromium
     HEADLESS: bool = False  # Headless=False with --start-minimized (or Xvfb in Linux) avoids Cloudflare Turnstile blocks
     USER_DATA_DIR: str = str(BASE_DIR / "data" / "browser_profile")
+    SAHIBINDEN_COOKIES_PATH: str = str(BASE_DIR / "data" / "sahibinden_cookies.json")
+    LOGIN_WALL_COOLDOWN_SECONDS: int = 300  # Base cooldown (5m -> 15m -> 30m) when Sahibinden redirects to /giris
     PROXY_URL: str | None = None  # Optional proxy for Sahibinden scraping only: http://user:pass@host:port
 
     # Database
@@ -66,10 +69,12 @@ class Settings(BaseSettings):
         """
         raw = (self.DISCORD_PROXY_URL or "").strip() or (self.DISCORD_PROXY or "").strip()
         if raw:
+            if raw.strip('"').strip("'").lower() in DISABLED_PROXY_SENTINELS:
+                return []
             proxies: list[str] = []
             for part in raw.split(","):
                 cleaned = part.strip().strip('"').strip("'")
-                if cleaned and cleaned not in proxies:
+                if cleaned and cleaned.lower() not in DISABLED_PROXY_SENTINELS and cleaned not in proxies:
                     proxies.append(cleaned)
             if proxies:
                 return proxies
