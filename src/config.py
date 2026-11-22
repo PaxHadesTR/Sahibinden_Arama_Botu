@@ -12,12 +12,20 @@ class Settings(BaseSettings):
     DISCORD_BOT_TOKEN: str = ""
     DISCORD_GUILD_ID: int | None = None  # Optional: For instant guild slash command sync
 
-    # Cloudflare WARP / Discord Proxy (Bypasses BTK Discord block in Turkey)
+    # Outbound Discord Proxy / Dual-Proxy Failover (SpoofDPI + Cloudflare WARP for Turkey BTK bypass)
+    # Comma-separated proxy list supported (e.g. "http://spoof-dpi:8080,http://warp:1080")
+    DISCORD_PROXY: str | None = None
+    # When all configured proxies fail consecutively, probe direct connection before rotating back.
+    # None defers to legacy WARP_FALLBACK_TO_DIRECT (default False).
+    DISCORD_PROXY_FALLBACK_DIRECT: bool | None = None
+    DISCORD_PROXY_FAILOVER_THRESHOLD: int = 2
+
+    # Legacy single-WARP & explicit override settings (preserved for backward compatibility)
     USE_WARP: bool = False
     WARP_HOST: str = "warp"  # 'warp' (Docker sidecar), '127.0.0.1' (host mode), or 'host.docker.internal' (bridge)
     WARP_PORT: int = 1080  # 1080 for caomingjun/warp docker sidecar; 40000 for local warp-cli
-    WARP_FALLBACK_TO_DIRECT: bool = False  # If True, falls back to direct connection if WARP proxy is unreachable
-    DISCORD_PROXY_URL: str | None = None  # Explicit override (e.g. socks5://host:port or http://host:port)
+    WARP_FALLBACK_TO_DIRECT: bool = False  # If True, falls back to direct connection if proxy is unreachable
+    DISCORD_PROXY_URL: str | None = None  # Explicit override (e.g. socks5://host:port or comma-separated list)
 
     # Polling & Scraper Settings
     CHECK_INTERVAL_SECONDS: int = 90  # Polling interval per alarm cycle
@@ -44,16 +52,45 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
+    @property
+    def discord_proxy_list(self) -> list[str]:
+        """
+        Parse configured Discord proxy endpoints into an ordered, deduplicated failover list.
+
+        Precedence:
+        1. DISCORD_PROXY_URL (explicit override; supports comma-separated list)
+        2. DISCORD_PROXY (comma-separated dual-proxy failover list, e.g. SpoofDPI + WARP)
+        3. Legacy USE_WARP=true -> socks5://{WARP_HOST}:{WARP_PORT}
+
+        Preserves traffic isolation: Sahibinden scraping never uses these proxies.
+        """
+        raw = (self.DISCORD_PROXY_URL or "").strip() or (self.DISCORD_PROXY or "").strip()
+        if raw:
+            proxies: list[str] = []
+            for part in raw.split(","):
+                cleaned = part.strip().strip('"').strip("'")
+                if cleaned and cleaned not in proxies:
+                    proxies.append(cleaned)
+            if proxies:
+                return proxies
+        if self.USE_WARP:
+            return [f"socks5://{self.WARP_HOST}:{self.WARP_PORT}"]
+        return []
+
+    @property
+    def discord_proxy_fallback_direct(self) -> bool:
+        """Return effective direct-connection fallback setting."""
+        if self.DISCORD_PROXY_FALLBACK_DIRECT is not None:
+            return bool(self.DISCORD_PROXY_FALLBACK_DIRECT)
+        return bool(self.WARP_FALLBACK_TO_DIRECT)
+
     def get_discord_proxy(self) -> str | None:
         """
-        Returns the proxy URL for Discord API and Gateway connections, if enabled.
+        Returns the primary proxy URL for Discord API and Gateway connections, if enabled.
         Preserves traffic isolation: Sahibinden scraping does not use this proxy.
         """
-        if self.DISCORD_PROXY_URL and self.DISCORD_PROXY_URL.strip():
-            return self.DISCORD_PROXY_URL.strip()
-        if self.USE_WARP:
-            return f"socks5://{self.WARP_HOST}:{self.WARP_PORT}"
-        return None
+        proxies = self.discord_proxy_list
+        return proxies[0] if proxies else None
 
 
 settings = Settings()

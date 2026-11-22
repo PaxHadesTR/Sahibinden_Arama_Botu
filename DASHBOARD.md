@@ -2,9 +2,9 @@
 
 ## Metadata
 - **Mode**: BUILD_AND_ITERATE_MODE
-- **Status**: COMPLETE & HARDENED (7-Vector Audit Fixes Applied & Verified)
-- **Last Sync**: 2026-10-29
-- **Tech Stack**: Python 3.12 / 3.15, `discord.py` 2.7, `aiohttp-socks`, `playwright`, `BeautifulSoup4`, `aiosqlite`, `pydantic`, Docker, Coolify, Xvfb, Cloudflare WARP
+- **Status**: COMPLETE & HARDENED (7-Vector Audit Fixes & Dual-Proxy Failover Applied & Verified)
+- **Last Sync**: 2026-11-22
+- **Tech Stack**: Python 3.12 / 3.15, `discord.py` 2.7, `aiohttp-socks`, `playwright`, `BeautifulSoup4`, `aiosqlite`, `pydantic`, Docker, Coolify, Xvfb, SpoofDPI, Cloudflare WARP, Autoheal
 
 ## Current Stage: Apex Codebase Audit, Scoped Facet Heuristics, DB Hygiene & UI Autocomplete Intelligence Complete
 - [x] Initial workspace reconnaissance and dependency check
@@ -190,7 +190,12 @@
   - [x] Strict Login Wall & Challenge Parameter Immunity: Hardened `merge_dropped_redirect_params` to return `None` on `/giris`, `uye-girisi`, `secure.sahibinden.com`, `checkLoading`, preventing recursive parameter re-application on login walls.
   - [x] Immediate Login Wall Escape: `_wait_for_challenge_and_table` detects login walls and exits immediately, skipping 10s `wait_for_selector` timeouts.
   - [x] Clean Fingerprint & Baseline Session Warmup: Removed `--start-minimized`, aligned User-Agent with genuine Chrome matching Client Hints, and added homepage session cookie warming on fresh browser profiles.
-- [x] Automated Test Suite: 296/296 tests passing green across all 14 test suites (100% pass rate).
+- [x] Dual-Proxy Failover Stack (SpoofDPI + Hardened WARP + Autoheal) & Resilient Supervisor (`ADR-036`):
+  - [x] Added `spoof-dpi` primary zero-tunnel DPI bypass proxy, hardened `caomingjun/warp` backup sidecar (`WARP_ENABLE_NAT=1`, `ip_forward`, `cloudflare.com/cdn-cgi/trace` healthcheck, `warp_data` volume), and `willfarrell/autoheal` self-healer in `docker-compose.yml`.
+  - [x] Added comma-separated `DISCORD_PROXY`, `DISCORD_PROXY_FALLBACK_DIRECT`, and `DISCORD_PROXY_FAILOVER_THRESHOLD` configuration with full backward compatibility for `DISCORD_PROXY_URL` and `USE_WARP`.
+  - [x] Implemented resilient multi-proxy failover supervisor loop in `src/main.py` (`is_proxy_connection_error`, `run_bot_supervisor`, clamped backoff, fast failover, fatal login abort, and credential redaction) plus `proxy_override` and once-per-process slash command sync guard in `src/bot/client.py`.
+  - [x] Preserved strict traffic isolation: Discord API/Gateway routes through SpoofDPI/WARP while Sahibinden scraping remains on the host's direct Turkish IP.
+- [x] Automated Test Suite: 328/328 tests passing green across all test suites (100% pass rate).
 - [x] Documentation (`README.md`, `DECISIONS.md`, `DASHBOARD.md`, `ASSUMPTIONS.md`, `SecurityUpdates.md`) fully updated and synchronized.
 
 

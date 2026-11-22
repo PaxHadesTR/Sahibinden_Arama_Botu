@@ -5,7 +5,7 @@
 [![Playwright](https://img.shields.io/badge/Playwright-Chromium-45ba4b.svg?logo=playwright&logoColor=white)](https://playwright.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Coolify](https://img.shields.io/badge/Coolify-Supported-6B46C1.svg)](https://coolify.io/)
-[![Cloudflare WARP](https://img.shields.io/badge/Cloudflare-WARP%20SOCKS5-F38020.svg?logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/warp-client/)
+[![SpoofDPI + WARP](https://img.shields.io/badge/Turkey%20DPI%20Bypass-SpoofDPI%20%2B%20WARP-F38020.svg?logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/warp-client/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Sahibinden.com üzerinde **tüm kategorilerde** (Vasıta/Otomobil/Motosiklet/SUV/Ticari, Emlak/Daire/Arsa/Villa/İşyeri, Donanım/RAM/SSD/GPU/CPU/Anakart/Monitör, Cep Telefonu/Tablet/Akıllı Saat, Oyun Konsolları ve genel aramalar) dinamik filtreler ve çoklu birimlerle (MB, GB, TB, Dual-Kit) alarm kuran; **alarm başladığı andan itibaren eklenen yeni ilanları** ve **mevcut ilanlardaki fiyat indirimlerini** anında Discord kanalınıza zengin Embed kartlarıyla ileten yüksek anti-bot korumalı Discord botu.
@@ -17,7 +17,7 @@ Sahibinden.com üzerinde **tüm kategorilerde** (Vasıta/Otomobil/Motosiklet/SUV
 - [Desteklenen Kategoriler ve Birim Türleri (MB, GB, TB)](#-desteklenen-kategoriler-ve-birim-türleri-mb-gb-tb)
 - [Alarmlar Nereye Kaydediliyor? (Kalıcı Depolama & Coolify)](#-alarmlar-nereye-kaydediliyor-kalıcı-depolama--coolify)
 - [Maksimum Alarm Sınırı (Sistem Koruması)](#-maksimum-alarm-sınırı-sistem-koruması)
-- [Trafik İzolasyonu & Cloudflare WARP (Türkiye BTK Banı Çözümü)](#-trafik-izolasyonu--cloudflare-warp-türkiye-btk-banı-çözümü)
+- [Trafik İzolasyonu & Çift Proxy Failover (SpoofDPI + Cloudflare WARP)](#-trafik-izolasyonu--çift-proxy-failover-spoofdpi--cloudflare-warp)
 - [Discord Botu Oluşturma (Adım Adım)](#-discord-botu-oluşturma-adım-adım)
 - [Discord Komutları ve Detaylı Kullanım Kılavuzu](#-discord-komutları-ve-detaylı-kullanım-kılavuzu)
 - [Coolify (Public Repository) ile Dağıtım Rehberi](#-coolify-public-repository-ile-dağıtım-rehberi)
@@ -135,29 +135,30 @@ Bu değerler `.env` dosyasından veya Coolify Environment Variables sekmesinden 
 
 ---
 
-## 🛡️ Trafik İzolasyonu & Cloudflare WARP (Türkiye BTK Banı Çözümü)
+## 🛡️ Trafik İzolasyonu & Çift Proxy Failover (SpoofDPI + Cloudflare WARP)
 
-Türkiye'de Discord servisleri BTK tarafından erişime engellendiğinde, botun Discord Gateway'ine bağlanabilmesi için SOCKS5 proxy desteği entegre edilmiştir.
+Türkiye'de BTK ve mahkeme kararıyla **Discord'a erişim engeli** uygulandığından, Türkiye lokasyonlu sunuculardan (veya yerel WSL/Docker kurulumlarından) `discord.com`'a bağlanmaya çalışıldığında internet servis sağlayıcıların (Superonline, TTNET vb.) DPI engellemesi nedeniyle `SSLCertVerificationError` hatası alınır.
+
+Bu bota tek başına WARP tünel kopmaları yaşamadan 7/24 kesintisiz çalışabilmesi için **Çift Proxy Failover (`SpoofDPI` birincil + sertleştirilmiş `Cloudflare WARP` yedek + `Autoheal` + Dayanıklı Supervisor)** mimarisi entegre edilmiştir:
 
 ### Trafik Ayrımı Mantığı (Traffic Isolation)
 > [!IMPORTANT]
 > **Sahibinden.com, WARP ve yabancı veri merkezi IP'lerini anında engeller (Cloudflare 403 Forbidden).**
 > Bu bot **çift kanallı izole ağ mimarisi** kullanır:
-> - **Discord API & Gateway Trafiği:** `docker-compose.yml` içindeki yerleşik `warp` sidecar konteyneri (`socks5://warp:1080`) üzerinden yönlendirilir ve BTK engeli aşılır.
-> - **Sahibinden Kazıma Trafiği:** WARP proxy'sine **asla** girmez; doğrudan sunucunuzun yerel Türk IP'sinden çıkar.
+> - **Discord API & Gateway Trafiği:** Önce tünelsiz `spoof-dpi` (`http://spoof-dpi:8080`), herhangi bir DPI reset/hata durumunda ise **5 saniye içinde otomatik** sertleştirilmiş `warp` yedeği (`http://warp:1080`) üzerinden yönlendirilir. `autoheal` donan `warp` konteynerini otomatik yeniden başlatır.
+> - **Sahibinden Kazıma Trafiği:** Ne `spoof-dpi` ne de `warp` proxy'sine **asla** girmez; doğrudan sunucunuzun yerel Türk IP'sinden çıkar.
 
-### Sıfır Kurulum: Docker Compose Sidecar (Önerilen & Varsayılan)
-
-WSL veya sunucunuza `warp-cli` kurmanıza **kesinlikle gerek yoktur!** `docker-compose.yml` dosyasında `caomingjun/warp` servisi hazır tanımlıdır. Coolify veya Docker Compose ile ayağa kalktığında:
-
-1. `warp` konteyneri arka planda otomatik başlar ve 1080 portunda SOCKS5 proxy sağlar.
-2. `sahibinden-bot` konteyneri `socks5://warp:1080` üzerinden Discord'a bağlanır.
-3. Sahibinden aramaları ise host makinenizin yerel Türk IP'sinden çıkar.
+### Nasıl Çalışır?
+- **Birincil (`spoof-dpi`):** VPN/UDP tüneli kurmaz (~10 MB RAM, düşük ping, tünel kopması sıfır). Yalnızca TLS `ClientHello` paketini parçalayarak BTK SNI/DPI engelini doğrudan geçer.
+- **Yedek (`warp` + `autoheal`):** ISS kuralları sıkılaşıp `spoof-dpi` TCP reset / TLS hatası verirse supervisor döngüsü **5 saniye içinde otomatik `http://warp:1080` yedeğine** geçer; `warp` sağlık kontrolü (`cloudflare.com/cdn-cgi/trace` -> `warp=(on|plus)`) bozulursa `autoheal` konteyneri otomatik yeniden başlatır.
+- **Sıfır Kurulum (Docker Compose):** `docker-compose.yml` dosyasında `spoof-dpi`, sertleştirilmiş `warp` ve `autoheal` servisleri hazır tanımlıdır. Coolify veya `docker compose up -d --build` ile ayağa kalktığında ek kurulum gerekmeden çift proxy failover otomatik devreye girer.
 
 > [!TIP]
-> - **Tak-Çalıştır:** Coolify'da ek hiçbir ayar yapmadan deploy etmeniz yeterlidir.
-> - **WARP Kullanmak İstemiyorsanız:** Coolify Environment Variables paneline `USE_WARP=false` yazmanız yeterlidir.
-> - **Otomatik Fallback:** `WARP_FALLBACK_TO_DIRECT=true` tanımlarsanız, WARP geçici olarak çevrimdışı olsa bile bot durmaz ve doğrudan Discord'a bağlanır.
+> - **Coolify Standalone (Dockerfile) kurulumunda:** Aynı sunucudaki `coolify` ağına ortak `spoof-dpi`, `warp` ve `autoheal` konteynerlerini kurup Coolify Environment Variables kısmına `DISCORD_PROXY=http://spoof-dpi:8080,http://warp:1080`, `DISCORD_PROXY_FALLBACK_DIRECT=false`, `DISCORD_PROXY_FAILOVER_THRESHOLD=2` yazmanız yeterlidir.
+> - **Türkiye Dışı (EU/US) Sunucularda Proxy Kapatma:** `DISCORD_PROXY=` (boş) ve `USE_WARP=false` bırakmanız yeterlidir.
+> - **Proxy Test Komutları:**
+>   - SpoofDPI testi (`HTTP/2 200` dönmeli): `docker exec sahibinden-warp curl -sI --max-time 8 -x http://spoof-dpi:8080 https://discord.com/api/v10/gateway | head -n 1`
+>   - WARP tünel testi (`warp=on` veya `warp=plus` yazmalı): `docker exec sahibinden-warp curl -s --max-time 8 -x http://127.0.0.1:1080 https://cloudflare.com/cdn-cgi/trace | grep warp=`
 
 ---
 
@@ -271,10 +272,9 @@ Coolify'daki uygulamanızın **Environment Variables** sekmesine gidin ve aşağ
 
 ```env
 DISCORD_BOT_TOKEN=buraya_discord_bot_tokeninizi_yazin
-USE_WARP=true
-WARP_HOST=warp
-WARP_PORT=1080
-WARP_FALLBACK_TO_DIRECT=false
+DISCORD_PROXY=http://spoof-dpi:8080,http://warp:1080
+DISCORD_PROXY_FALLBACK_DIRECT=false
+DISCORD_PROXY_FAILOVER_THRESHOLD=2
 MAX_ALARMS_TOTAL=1000
 MAX_ALARMS_PER_USER=100
 CHECK_INTERVAL_SECONDS=90
@@ -294,8 +294,8 @@ Docker konteynerleri doğası gereği geçicidir (stateless). Her yeni deploy ya
 
 ### Adım 5: Dağıtımı Başlatın (Deploy)
 Coolify panelinde sağ üstteki **Deploy** butonuna tıklayın.
-- Coolify depoyu çeker, `warp` sidecar ve `sahibinden-bot` konteynerlerini ayağa kaldırır.
-- Discord bağlantısı `socks5://warp:1080` üzerinden gerçekleşir.
+- Coolify depoyu çeker; `spoof-dpi` (birincil), sertleştirilmiş `warp` (yedek), `autoheal` ve `sahibinden-bot` konteynerlerini ayağa kaldırır.
+- Discord bağlantısı önce `http://spoof-dpi:8080`, herhangi bir DPI/bağlantı hatasında 5 saniyede otomatik `http://warp:1080` üzerinden gerçekleşir.
 - Sahibinden aramaları doğrudan sunucunuzun Türk IP'sinden çıkar.
 - SQLite veritabanı `/app/data` dizininde kalıcı olarak saklanır ve hiçbir güncellemede silinmez.
 
@@ -353,10 +353,11 @@ python -m src.main
 | Değişken Adı | Varsayılan | Açıklama |
 |---|---|---|
 | `DISCORD_BOT_TOKEN` | *Zorunlu* | Discord Developer Portal'dan alınan bot tokeni. |
-| `USE_WARP` | `true` | Discord bağlantısı için SOCKS5 WARP proxy kullanımını açar. |
-| `WARP_HOST` | `warp` | WARP proxy hostu (Docker Compose'da `warp`, hostta `127.0.0.1`). |
-| `WARP_PORT` | `1080` | WARP SOCKS5 portu (Sidecar'da `1080`, warp-cli'da `40000`). |
-| `WARP_FALLBACK_TO_DIRECT` | `false` | WARP ulaşılamazsa doğrudan internete bağlanmayı dener. |
+| `DISCORD_PROXY` | `http://spoof-dpi:8080,http://warp:1080` | Discord çıkış proxy listesi (virgülle ayrılmış HTTP/SOCKS5 failover sırası). Yalnızca Discord trafiği için kullanılır. |
+| `DISCORD_PROXY_FALLBACK_DIRECT` | `false` | Tüm proxy'ler ardışık hata verirse direkt bağlantıyı dener (TR sunucularda `false`, engelsiz VPS'te `true` önerilir). |
+| `DISCORD_PROXY_FAILOVER_THRESHOLD` | `2` | Direkt fallback öncesi proxy başına ardışık hata eşiği. |
+| `DISCORD_PROXY_URL` | *Boş* | İsteğe bağlı açık proxy override (`DISCORD_PROXY` ve `USE_WARP` yerine geçer; virgüllü liste destekler). |
+| `USE_WARP` / `WARP_HOST` / `WARP_PORT` | `false` / `warp` / `1080` | Geriye dönük tekli WARP ayarları (yalnızca `DISCORD_PROXY` boşken kullanılır). |
 | `MAX_ALARMS_TOTAL` | `1000` | Sistem genelinde kurulabilecek maksimum alarm sayısı (10.000 destekler). |
 | `MAX_ALARMS_PER_USER` | `100` | Kullanıcı başına oluşturulabilecek maksimum alarm sayısı. |
 | `CHECK_INTERVAL_SECONDS` | `90` | Arama döngüleri arasındaki bekleme süresi (saniye). |

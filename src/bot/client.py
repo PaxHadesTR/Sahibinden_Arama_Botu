@@ -11,13 +11,30 @@ from src.services.monitor import AlarmMonitor
 
 logger = logging.getLogger("sahibinden_bot.client")
 
+_UNSET = object()
+_commands_synced: bool = False
+
 
 class SahibindenBot(commands.Bot):
-    """Custom Discord Bot client with native SOCKS5 (Cloudflare WARP) and HTTP proxy support."""
+    """Custom Discord Bot client with dual-proxy failover (HTTP/SpoofDPI & SOCKS5/WARP) support."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        proxy_override: object = _UNSET,
+        *,
+        allow_login_direct_fallback: bool = True,
+        pre_flight_retries: int | None = None,
+    ):
         intents = discord.Intents.default()
-        self.discord_proxy_url: str | None = settings.get_discord_proxy()
+        if proxy_override is _UNSET:
+            self.discord_proxy_url: str | None = settings.get_discord_proxy()
+        else:
+            cleaned = str(proxy_override).strip() if proxy_override is not None else ""
+            self.discord_proxy_url = cleaned or None
+
+        self.active_proxy: str | None = self.discord_proxy_url
+        self._allow_login_direct_fallback: bool = allow_login_direct_fallback
+        self._pre_flight_retries: int | None = pre_flight_retries
         self._closed_cleanly: bool = False
         self._close_lock: asyncio.Lock | None = None
 
@@ -52,6 +69,8 @@ class SahibindenBot(commands.Bot):
 
         if self.discord_proxy_url:
             logger.info(f"Discord client configured with proxy: {self._redact_proxy_url(self.discord_proxy_url)}")
+        elif proxy_override is None and settings.discord_proxy_list:
+            logger.info("Discord client attempting direct connection (proxy fallback mode).")
         else:
             logger.info("Discord client configured with direct connection (no proxy).")
 
@@ -117,7 +136,14 @@ class SahibindenBot(commands.Bot):
     async def login(self, token: str) -> None:
         """Performs pre-flight proxy validation and static login."""
         if self.discord_proxy_url:
-            is_healthy, err_msg = await self.check_proxy_health(self.discord_proxy_url)
+            if self._pre_flight_retries is not None:
+                is_healthy, err_msg = await self.check_proxy_health(
+                    self.discord_proxy_url,
+                    retries=self._pre_flight_retries,
+                )
+            else:
+                is_healthy, err_msg = await self.check_proxy_health(self.discord_proxy_url)
+
             if not is_healthy:
                 safe_proxy_url = self._redact_proxy_url(self.discord_proxy_url)
                 diagnostic = (
@@ -128,20 +154,24 @@ class SahibindenBot(commands.Bot):
                     f"Bot, Discord API ve Gateway'e bağlanmak üzere proxy ile yapılandırıldı;\n"
                     f"ancak belirtilen proxy adresine TCP düzeyinde bağlanılamadı (Connection Refused).\n\n"
                     f"Olası Nedenler ve Çözüm Adımları:\n"
-                    f"1. Docker Compose Sidecar (caomingjun/warp):\n"
-                    f"   Eğer 'warp' sidecar konteynerini kullanıyorsanız, konteyner durumunu kontrol edin:\n"
+                    f"1. Çift Proxy Sidecar (SpoofDPI + Cloudflare WARP):\n"
+                    f"   Konteyner durumlarını kontrol edin:\n"
+                    f"     docker logs sahibinden-spoof-dpi\n"
                     f"     docker logs sahibinden-warp\n\n"
                     f"2. WSL Host Modu (warp-cli):\n"
                     f"   Eğer WSL üzerindeki warp-cli'ı kullanıyorsanız, WSL terminalinizde çalıştırın:\n"
                     f"     warp-cli status\n"
                     f"     warp-cli set-mode proxy && warp-cli set-proxy-port {settings.WARP_PORT} && warp-cli connect\n\n"
-                    f"3. WARP kullanmak istemiyorsanız:\n"
-                    f"   - Coolify veya .env dosyasından USE_WARP=false yapın.\n"
+                    f"3. Proxy kullanmak istemiyorsanız:\n"
+                    f"   - Coolify veya .env dosyasından DISCORD_PROXY= (boş) ve USE_WARP=false yapın.\n"
                     f"{'=' * 76}"
                 )
-                if settings.WARP_FALLBACK_TO_DIRECT:
-                    logger.warning(f"{diagnostic}\n⚠️ WARP_FALLBACK_TO_DIRECT=true aktif; doğrudan bağlantıya geçiliyor...")
+                if self._allow_login_direct_fallback and settings.discord_proxy_fallback_direct:
+                    logger.warning(
+                        f"{diagnostic}\n⚠️ Direct fallback aktif; doğrudan bağlantıya geçiliyor..."
+                    )
                     self.discord_proxy_url = None
+                    self.active_proxy = None
                     self.http.connector = discord.utils.MISSING
                     self.http.proxy = None
                 else:
@@ -154,9 +184,14 @@ class SahibindenBot(commands.Bot):
         await super().login(token)
 
     async def setup_hook(self):
-        """Loads cogs and syncs application slash commands."""
+        """Loads cogs and syncs application slash commands (once per process across reconnects)."""
+        global _commands_synced
         await self.load_extension("src.bot.cogs.alarms")
         logger.info("Loaded alarms cog.")
+
+        if _commands_synced:
+            logger.info("Slash commands already synced in this process; skipping duplicate tree sync.")
+            return
 
         if settings.DISCORD_GUILD_ID:
             guild = discord.Object(id=settings.DISCORD_GUILD_ID)
@@ -166,6 +201,16 @@ class SahibindenBot(commands.Bot):
         else:
             synced = await self.tree.sync()
             logger.info(f"Synced {len(synced)} global slash commands.")
+        _commands_synced = True
+
+    async def on_connect(self):
+        logger.info("Discord Gateway connected.")
+
+    async def on_resumed(self):
+        logger.info("Discord Gateway session resumed.")
+
+    async def on_disconnect(self):
+        logger.warning("Discord Gateway disconnected; awaiting reconnect or supervisor failover.")
 
     async def on_ready(self):
         logger.info(f"Bot connected successfully as {self.user} (ID: {self.user.id})")

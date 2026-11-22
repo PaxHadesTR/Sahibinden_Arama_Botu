@@ -1,28 +1,88 @@
 services:
   # =========================================================================
-  # CLOUDFLARE WARP SIDECAR (YÖNTEM B):
+  # BIRINCIL PROXY: SPOOFDPI (TURKIYE / BTK SNI-DPI ENGEL ASICI)
   # -------------------------------------------------------------------------
-  # WSL veya sunucunuza hiçbir paket (warp-cli) kurmanıza gerek kalmaz.
-  # Docker bu hafif konteyneri otomatik ayağa kaldırır ve 1080 portunda
-  # SOCKS5 proxy sunar.
+  # VPN/UDP tuneli kurmaz (~10 MB RAM, dusuk gecikme, tunel kopmasi sifir).
+  # Yalnizca TLS ClientHello paketini parcalayarak BTK SNI/DPI engelini asar.
+  # NOT: Yalnizca Discord trafigi bu proxy'den cikar; Sahibinden kazimasi
+  # dogrudan yerel Turk IP'sinden devam eder.
+  # =========================================================================
+  spoof-dpi:
+    image: ghcr.io/unmedius/spoof-dpi:latest
+    container_name: sahibinden-spoof-dpi
+    restart: unless-stopped
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # =========================================================================
+  # YEDEK PROXY: SERTLESTIRILMIS CLOUDFLARE WARP SIDECAR (OTOMATIK FAILOVER)
+  # -------------------------------------------------------------------------
+  # ISS DPI kurallari sikilasip spoof-dpi baglanti hatasi verirse bot 5 sn
+  # icinde otomatik olarak http://warp:1080 (veya socks5://warp:1080)
+  # yedegine gecer. Healthcheck gercek WARP tunel durumunu dogrular.
   # =========================================================================
   warp:
-    image: caomingjun/warp
+    image: caomingjun/warp:latest
     container_name: sahibinden-warp
     restart: unless-stopped
-    environment:
-      - WARP_SLEEP=5
-    cap_add:
-      - MKNOD
-      - AUDIT_WRITE
-      - NET_ADMIN
+    labels:
+      - "autoheal=true"
     devices:
       - /dev/net/tun:/dev/net/tun
     device_cgroup_rules:
       - 'c 10:200 rwm'
+    cap_add:
+      - NET_ADMIN
+      - MKNOD
+      - AUDIT_WRITE
     sysctls:
       - net.ipv6.conf.all.disable_ipv6=0
       - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    environment:
+      - WARP_SLEEP=8
+      - WARP_ENABLE_NAT=1
+    volumes:
+      - warp_data:/var/lib/cloudflare-warp
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS --max-time 5 -x http://127.0.0.1:1080 https://cloudflare.com/cdn-cgi/trace | grep -Eq 'warp=(on|plus)'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # =========================================================================
+  # AUTOHEAL: UNHEALTHY OLAN WARP KONTEYNERINI OTOMATIK YENIDEN BASLATIR
+  # =========================================================================
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: sahibinden-autoheal
+    restart: unless-stopped
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=15
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "2m"
+        max-file: "2"
 
   sahibinden-bot:
     build: .
@@ -30,7 +90,10 @@ services:
     restart: unless-stopped
     shm_size: "1gb"
     depends_on:
-      - warp
+      spoof-dpi:
+        condition: service_started
+      warp:
+        condition: service_healthy
     env_file:
       - .env
     environment:
@@ -38,13 +101,24 @@ services:
       - BROWSER_CHANNEL=
       - HEADLESS=false
       - PYTHONPATH=/app
-      # WARP Sidecar ayarları
-      - USE_WARP=true
+      # Çift Proxy Failover: SpoofDPI birincil + Cloudflare WARP yedek (Yalnızca Discord trafiği)
+      - DISCORD_PROXY=${DISCORD_PROXY-http://spoof-dpi:8080,http://warp:1080}
+      - DISCORD_PROXY_FALLBACK_DIRECT=${DISCORD_PROXY_FALLBACK_DIRECT:-false}
+      - DISCORD_PROXY_FAILOVER_THRESHOLD=${DISCORD_PROXY_FAILOVER_THRESHOLD:-2}
+      # Geriye dönük tekli WARP uyumluluğu (DISCORD_PROXY boş bırakılıp USE_WARP=true yapılırsa kullanılır)
+      - USE_WARP=${USE_WARP:-false}
       - WARP_HOST=warp
       - WARP_PORT=1080
     volumes:
       - bot_data:/app/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   bot_data:
     name: sahibinden_bot_data
+  warp_data:
+    name: sahibinden_warp_data

@@ -752,4 +752,27 @@ enk, property features, and motorcycle specs alongside capacity, warranty, condi
   - Zero memory leaks over 24/7 background monitor runs.
   - Full test suite passes 100% (296/296 tests green).
 
+## ADR-036: Dual-Proxy Failover Stack (SpoofDPI + Hardened WARP + Autoheal) & Resilient Supervisor Loop
+- **Status**: Accepted
+- **Date**: 2026-11-22
+- **Context**:
+  - Running the bot in Turkey requires bypassing ISP/BTK SNI-DPI blocks on `discord.com` while keeping all `sahibinden.com` Playwright scraping traffic strictly isolated on the host's direct Turkish IP.
+  - Relying on a single Cloudflare WARP sidecar exposed Discord Gateway connectivity to periodic UDP/WireGuard tunnel drops and HTTP `503 Service Unavailable` failures, while `src/main.py` exited on proxy failures instead of failing over automatically.
+- **Decision**:
+  1. **Dual-Proxy Docker Compose Stack (`docker-compose.yml`)**:
+     - Added `spoof-dpi` (`ghcr.io/unmedius/spoof-dpi:latest`, `sahibinden-spoof-dpi`) as the primary zero-tunnel SNI/DPI bypass HTTP proxy (`http://spoof-dpi:8080`).
+     - Hardened the backup `warp` sidecar (`caomingjun/warp:latest`, `sahibinden-warp`) with `WARP_SLEEP=8`, `WARP_ENABLE_NAT=1`, `net.ipv4.ip_forward=1`, `net.ipv6.conf.all.forwarding=1`, DNS `1.1.1.1`/`8.8.8.8`, persistent `warp_data` volume, `autoheal=true` label, and real tunnel verification healthcheck (`cloudflare.com/cdn-cgi/trace` -> `warp=(on|plus)`).
+     - Added `autoheal` (`willfarrell/autoheal:latest`, `sahibinden-autoheal`) to automatically restart unhealthy `warp` containers.
+     - Wired `sahibinden-bot` to depend on `spoof-dpi` (`service_started`) and `warp` (`service_healthy`) with default `DISCORD_PROXY=${DISCORD_PROXY-http://spoof-dpi:8080,http://warp:1080}` while preserving strict traffic isolation for Sahibinden scraping.
+  2. **Multi-Proxy Config & Precedence (`src/config.py`, `.env.example`)**:
+     - Added `DISCORD_PROXY`, `DISCORD_PROXY_FALLBACK_DIRECT`, and `DISCORD_PROXY_FAILOVER_THRESHOLD` with `discord_proxy_list` and `discord_proxy_fallback_direct` properties while keeping full backward compatibility with `DISCORD_PROXY_URL`, `USE_WARP`, `WARP_HOST`, `WARP_PORT`, and `WARP_FALLBACK_TO_DIRECT`.
+  3. **Resilient Failover Supervisor & Once-Per-Process Command Sync (`src/main.py`, `src/bot/client.py`)**:
+     - Added `is_proxy_connection_error` (covering HTTP 503, SOCKS5 errors, TCP resets, TLS/DPI failures, and timeouts) and `run_bot_supervisor` with fast backup proxy rotation (`<= 5s`), optional direct fallback probing after threshold, clamped backoff (`[5, 10, 30, 60]`), fatal auth abort (`LoginFailure`/`PrivilegedIntentsRequired`), and credential redaction in all supervisor logs (`SEC-PROXY-001`).
+     - Added `proxy_override` support and once-per-process slash-command sync guard (`_commands_synced`) in `SahibindenBot`.
+- **Consequences**:
+  - Bot connects via low-latency zero-tunnel `spoof-dpi` by default and automatically fails over to `warp` within 5 seconds if ISP DPI rules tighten or reset connections.
+  - Stale/unhealthy WARP tunnels self-heal automatically via `autoheal`.
+  - Sahibinden scraping traffic remains 100% isolated on the local Turkish IP.
+  - Full automated test suite expanded and passes 100% (328/328 tests green).
+
 
