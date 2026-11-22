@@ -116,6 +116,8 @@ class SahibindenParser:
         url_low = (current_url or "").lower()
         if (
             "checkloading" in url_low
+            or "/cs/hloading" in url_low
+            or "hloading" in url_low
             or "/giris" in url_low
             or "uye-girisi" in url_low
             or "secure.sahibinden.com" in url_low

@@ -8,7 +8,7 @@ from typing import Any
 import discord
 from src.config import settings
 from src.db.database import database
-from src.services.scraper import LoginWallError, scraper
+from src.services.scraper import ChallengeGateError, LoginWallError, scraper
 from src.services.parser import ListingItem
 
 logger = logging.getLogger("sahibinden_bot.monitor")
@@ -124,7 +124,7 @@ class AlarmMonitor:
                                 await self.check_alarm(current_alarm, pre_fetched_listings=fetched)
                             except Exception as e:
                                 logger.error(f"Error checking alarm #{alarm['id']} ({alarm['name']}): {e}", exc_info=True)
-                    except LoginWallError:
+                    except (LoginWallError, ChallengeGateError) as gate_err:
                         self._consecutive_login_walls += 1
                         step_idx = min(
                             self._consecutive_login_walls - 1,
@@ -134,16 +134,25 @@ class AlarmMonitor:
                         cycle_login_wall_cooldown = float(
                             base_cooldown * self.LOGIN_WALL_COOLDOWN_MULTIPLIERS[step_idx]
                         )
-                        logger.warning(
-                            "Sahibinden login wall (/giris) triggered while fetching %s (streak #%d). "
-                            "Tripping circuit breaker for remaining alarms in this cycle and cooling down for %.0fs. "
-                            "To authenticate with your own account, export Sahibinden cookies to '%s' "
-                            "(or set SAHIBINDEN_COOKIES_PATH).",
-                            target_url,
-                            self._consecutive_login_walls,
-                            cycle_login_wall_cooldown,
-                            getattr(settings, "SAHIBINDEN_COOKIES_PATH", "/app/data/sahibinden_cookies.json"),
-                        )
+                        if isinstance(gate_err, ChallengeGateError):
+                            logger.warning(
+                                "Sahibinden anti-bot verification gate (%s) triggered while fetching %s (streak #%d). "
+                                "Tripping circuit breaker for remaining alarms in this cycle and cooling down for %.0fs.",
+                                gate_err.final_url or "/cs/hloading",
+                                target_url,
+                                self._consecutive_login_walls,
+                                cycle_login_wall_cooldown,
+                            )
+                        else:
+                            logger.warning(
+                                "Sahibinden login wall (/giris) triggered while fetching %s (streak #%d). "
+                                "Tripping circuit breaker for remaining alarms in this cycle and cooling down for %.0fs. "
+                                "To authenticate with your own account, use Discord /cookie-yukle or update '%s'.",
+                                target_url,
+                                self._consecutive_login_walls,
+                                cycle_login_wall_cooldown,
+                                getattr(settings, "SAHIBINDEN_COOKIES_PATH", "/app/data/sahibinden_cookies.json"),
+                            )
                         break
                     except Exception as e:
                         logger.error(f"Error fetching URL {target_url} for {len(alarms_in_group)} alarms: {e}", exc_info=True)

@@ -223,36 +223,51 @@ class SahibindenBot(commands.Bot):
         interaction: discord.Interaction,
         command: discord.app_commands.Command | discord.app_commands.ContextMenu,
     ) -> None:
-        """Notifies the user on ANY slash command if the Sahibinden session cookie has expired."""
+        """Notifies the user on ANY slash command if scraping is blocked by /giris or /cs/hloading."""
         from src.services.scraper import scraper
 
         if getattr(command, "name", None) in ("cookie-yukle", "cookie-durum"):
             return
 
-        if not scraper.is_session_expired():
+        if not scraper.is_blocked():
             return
 
+        import time
+        since_ts = scraper.session_expired_since if scraper.is_session_expired() else scraper.blocked_since
         elapsed_note = ""
-        if scraper.session_expired_since:
-            import time
-            mins = max(1, int((time.time() - scraper.session_expired_since) // 60))
-            elapsed_note = f"\n⏱️ **Durum:** Yaklaşık **{mins} dakikadır** `/giris` yönlendirmesi alınıyor."
+        if since_ts:
+            mins = max(1, int((time.time() - since_ts) // 60))
+            gate_label = "`/giris`" if scraper.is_session_expired() else "`/cs/hloading`"
+            elapsed_note = f"\n⏱️ **Durum:** Yaklaşık **{mins} dakikadır** {gate_label} engeli alınıyor."
 
-        embed = discord.Embed(
-            title="🍪 Sahibinden Oturum Çerezi (Cookie) Süresi Doldu!",
-            description=(
-                "Sahibinden aramaları şu anda `/giris` giriş ekranına yönleniyor; "
-                "yeni çerez yüklenene kadar arka plan taramaları beklemede tutuluyor."
-                f"{elapsed_note}\n\n"
-                "**Hızlı Yenileme (10 Saniye — SSH/Coolify Gerekmez):**\n"
-                "1. Tarayıcınızda `sahibinden.com`'da `F12` -> **Network** -> `www.sahibinden.com` -> "
-                "**Headers** -> `cookie:` değerini kopyalayın.\n"
-                "2. Discord'da **`/cookie-yukle`** yazıp açılan pencereye yapıştırın "
-                "*(4000 karakterden uzunsa `.txt`/`.json` olarak `dosya:` parametresine ekleyin)*.\n"
-                "3. Bot ~5 saniye içinde çerezleri otomatik algılayıp taramaya devam eder."
-            ),
-            color=0xE67E22,
-        )
+        if scraper.is_session_expired():
+            embed = discord.Embed(
+                title="🍪 Sahibinden Oturum Çerezi (Cookie) Süresi Doldu!",
+                description=(
+                    "Sahibinden aramaları şu anda `/giris` giriş ekranına yönleniyor; "
+                    "yeni çerez yüklenene kadar arka plan taramaları beklemede tutuluyor."
+                    f"{elapsed_note}\n\n"
+                    "**Hızlı Yenileme (10 Saniye — SSH/Coolify Gerekmez):**\n"
+                    "1. Tarayıcınızda `sahibinden.com`'da `F12` -> **Network** -> `www.sahibinden.com` -> "
+                    "**Headers** -> `cookie:` değerini kopyalayın.\n"
+                    "2. Discord'da **`/cookie-yukle`** yazıp açılan pencereye yapıştırın "
+                    "*(4000 karakterden uzunsa `.txt`/`.json` olarak `dosya:` parametresine ekleyin)*.\n"
+                    "3. Bot ~5 saniye içinde çerezleri otomatik algılayıp taramaya devam eder."
+                ),
+                color=0xE67E22,
+            )
+        else:
+            embed = discord.Embed(
+                title="🚧 Sahibinden Erişim Doğrulama Kapısı (`/cs/hloading`)",
+                description=(
+                    "Sahibinden şu anda bu sunucudan gelen otomatik aramaları `/cs/hloading` "
+                    "doğrulama ekranına yönlendiriyor; sunucuyu yormamak için arka plan taramaları "
+                    "soğuma moduna alındı."
+                    f"{elapsed_note}\n\n"
+                    "Durumu görmek için **`/cookie-durum`** komutunu kullanabilirsiniz."
+                ),
+                color=0xE74C3C,
+            )
         embed.set_footer(text="Bu uyarı yalnızca size görünür (ephemeral).")
         try:
             if interaction.response.is_done():
@@ -260,7 +275,7 @@ class SahibindenBot(commands.Bot):
             else:
                 await interaction.response.send_message(embed=embed, ephemeral=True)
         except Exception as exc:
-            logger.debug("Could not send session-expired followup notice: %s", exc)
+            logger.debug("Could not send session-status followup notice: %s", exc)
 
     def _get_close_lock(self) -> asyncio.Lock:
         """Lazily initializes the shutdown lock on the active event loop."""

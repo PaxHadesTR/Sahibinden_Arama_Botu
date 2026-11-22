@@ -444,3 +444,86 @@ async def test_discord_cookie_yukle_and_durum_auth_modal_and_attachment(monkeypa
     embed = inter_status.followup.send.call_args.kwargs["embed"]
     assert "Durumu" in embed.title
     assert inter_status.followup.send.call_args.kwargs["ephemeral"] is True
+
+
+@pytest.mark.asyncio
+async def test_hloading_challenge_gate_no_param_corruption_fast_exit_and_circuit_breaker(monkeypatch):
+    """Regression: /cs/hloading never gets params appended, exits wait fast, avoids Chromium thrashing, and trips circuit breaker."""
+    from src.services.parser import SahibindenParser
+    from src.services.scraper import ChallengeGateError
+
+    hloading_url = (
+        "https://www.sahibinden.com/cs/hloading?returnUrl="
+        "https%3A%2F%2Fwww.sahibinden.com%2Fislemci-masaustu%3Fsorting%3Ddate_desc%26price_max%3D500%26address_city%3D7"
+    )
+    req_url = "https://www.sahibinden.com/islemci-masaustu?sorting=date_desc&price_max=500&address_city=7"
+
+    # 1. merge_dropped_redirect_params must NEVER append sorting/price params onto /cs/hloading
+    assert StealthScraper.merge_dropped_redirect_params(req_url, hloading_url) is None
+
+    # 2. Parser detects /cs/hloading immediately at URL level
+    assert SahibindenParser.is_blocked_or_challenge_page("<html><body>Loading</body></html>", hloading_url) is True
+
+    # 3. _wait_for_challenge_and_table exits immediately without 10s wait_for_selector hang
+    s = StealthScraper()
+    mock_page = MagicMock()
+    mock_page.url = hloading_url
+    mock_page.frames = []
+    mock_page.is_closed = MagicMock(return_value=False)
+    mock_page.goto = AsyncMock()
+    mock_page.content = AsyncMock(return_value="<html><body>Loading</body></html>")
+    mock_page.wait_for_selector = AsyncMock()
+    await s._wait_for_challenge_and_table(mock_page)
+    mock_page.wait_for_selector.assert_not_awaited()
+
+    # 4. fetch_page_content raises ChallengeGateError on attempt 1 without resetting Chromium
+    s._reset_context = AsyncMock()
+    s._load_user_cookies_if_updated = AsyncMock(return_value=0)
+    mock_ctx = MagicMock()
+    mock_ctx.pages = [mock_page]
+    s._init_context = AsyncMock(return_value=mock_ctx)
+    monkeypatch.setattr("src.config.settings.MIN_JITTER_SECONDS", 0.0)
+    monkeypatch.setattr("src.config.settings.MAX_JITTER_SECONDS", 0.0)
+    monkeypatch.setattr("src.config.settings.SCRAPER_TIMEOUT_SECONDS", 5)
+
+    with pytest.raises(ChallengeGateError):
+        await s.fetch_page_content(req_url)
+
+    assert s._init_context.await_count == 1
+    s._reset_context.assert_not_awaited()
+    assert s.blocked_reason == "challenge_gate"
+    assert s.is_blocked() is True
+
+    # 5. AlarmMonitor trips circuit breaker on ChallengeGateError and skips remaining alarms
+    mock_bot = MagicMock()
+    mock_bot.wait_until_ready = AsyncMock()
+    monitor = AlarmMonitor(mock_bot)
+    monitor._running = True
+    fetched_urls: list[str] = []
+    cooldowns: list[float] = []
+
+    async def fake_fetch(url: str):
+        fetched_urls.append(url)
+        raise ChallengeGateError("hloading gate", final_url=hloading_url)
+
+    async def fake_sleep(secs: float, _mtime):
+        cooldowns.append(secs)
+        monitor._running = False
+        return False
+
+    monkeypatch.setattr("src.services.monitor.database.init_db", AsyncMock())
+    monkeypatch.setattr("src.services.monitor.database.cleanup_stale_seen_listings", AsyncMock(return_value=0))
+    monkeypatch.setattr(
+        "src.services.monitor.database.get_active_alarms",
+        AsyncMock(return_value=[
+            {"id": 1, "name": "A1", "target_url": req_url},
+            {"id": 2, "name": "A2", "target_url": "https://www.sahibinden.com/ram-bellek-masaustu"},
+        ]),
+    )
+    monkeypatch.setattr("src.services.monitor.scraper.fetch_listings", fake_fetch)
+    monkeypatch.setattr("src.config.settings.LOGIN_WALL_COOLDOWN_SECONDS", 300)
+    monkeypatch.setattr(monitor, "_sleep_with_cookie_watch", fake_sleep)
+
+    await monitor._run_loop()
+    assert fetched_urls == [req_url]
+    assert cooldowns == [300.0]

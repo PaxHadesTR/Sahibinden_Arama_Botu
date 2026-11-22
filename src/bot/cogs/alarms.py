@@ -1257,7 +1257,13 @@ class AlarmCog(commands.Cog):
 
         await self._safe_defer(interaction, ephemeral=True)
         expired = scraper.is_session_expired()
-        status_text = "🔴 Süresi Doldu (`/giris` yönlendirmesi)" if expired else "🟢 Aktif / Normal"
+        is_challenge = scraper.blocked_reason == "challenge_gate" and not expired
+        if expired:
+            status_text = "🔴 Süresi Doldu (`/giris` yönlendirmesi)"
+        elif is_challenge:
+            status_text = "🟠 Engellendi (`/cs/hloading` doğrulama kapısı — soğuma modunda)"
+        else:
+            status_text = "🟢 Aktif / Normal"
 
         cookie_path = Path(settings.SAHIBINDEN_COOKIES_PATH)
         if cookie_path.is_file():
@@ -1277,7 +1283,7 @@ class AlarmCog(commands.Cog):
 
         embed = discord.Embed(
             title="🍪 Sahibinden Oturum Çerezi Durumu",
-            color=0xE74C3C if expired else 0x2ECC71,
+            color=0xE74C3C if (expired or is_challenge) else 0x2ECC71,
         )
         embed.add_field(name="Oturum Durumu", value=status_text, inline=False)
         embed.add_field(name="Çerez Dosyası", value=file_text, inline=False)

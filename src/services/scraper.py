@@ -30,6 +30,14 @@ class LoginWallError(RuntimeError):
         self.final_url = final_url
 
 
+class ChallengeGateError(RuntimeError):
+    """Raised when Sahibinden gates a request behind an anti-bot verification page (e.g. /cs/hloading)."""
+
+    def __init__(self, message: str, final_url: str = ""):
+        super().__init__(message)
+        self.final_url = final_url
+
+
 class StealthScraper:
     """Automated browser session with Cloudflare/Akamai anti-bot evasion and self-healing recovery."""
 
@@ -48,6 +56,8 @@ class StealthScraper:
         self._last_cookie_persist_at: float = 0.0
         self.session_expired: bool = False
         self.session_expired_since: float | None = None
+        self.blocked_reason: str | None = None  # 'login_wall' | 'challenge_gate' | None
+        self.blocked_since: float | None = None
         self.last_successful_fetch_at: float | None = None
 
     def is_session_expired(self) -> bool:
@@ -58,11 +68,21 @@ class StealthScraper:
             return True
         return False
 
+    def is_blocked(self) -> bool:
+        """Returns True if scraping is currently blocked by either /giris or /cs/hloading."""
+        return self.is_session_expired() or self.blocked_reason is not None
+
     @staticmethod
     def _is_login_wall_url(url: str | None) -> bool:
         """Returns True if the URL is Sahibinden's login gate (/giris or secure.sahibinden.com)."""
         u = (url or "").lower()
         return "/giris" in u or "uye-girisi" in u or "secure.sahibinden.com" in u
+
+    @staticmethod
+    def _is_challenge_gate_url(url: str | None) -> bool:
+        """Returns True if the URL is Sahibinden's anti-bot verification gate (/cs/hloading, checkLoading)."""
+        u = (url or "").lower()
+        return "/cs/hloading" in u or "hloading" in u or "checkloading" in u or "challenge" in u
 
     @classmethod
     def _parse_cookie_header_string(cls, header_value: str) -> list[dict]:
@@ -199,13 +219,15 @@ class StealthScraper:
             pass
         os.replace(tmp_path, cookie_path)
 
-        # Force immediate reload on next fetch and clear expired status
+        # Force immediate reload on next fetch and clear expired/blocked status
         self._loaded_cookies_mtime = None
         self._loaded_cookies_expires = [
             float(c["expires"]) for c in cookies if isinstance(c.get("expires"), (int, float))
         ]
         self.session_expired = False
         self.session_expired_since = None
+        self.blocked_reason = None
+        self.blocked_since = None
         logger.info("Saved %d user-provided sahibinden.com cookies to '%s'.", len(cookies), cookie_path)
         return len(cookies)
 
@@ -241,6 +263,8 @@ class StealthScraper:
             ]
             self.session_expired = False
             self.session_expired_since = None
+            self.blocked_reason = None
+            self.blocked_since = None
             logger.info(
                 "Loaded %d user session cookies for sahibinden.com from '%s'.",
                 len(cookies),
@@ -332,14 +356,7 @@ class StealthScraper:
         if not requested_url or not final_url:
             return None
 
-        fin_url_low = final_url.lower()
-        if (
-            "checkloading" in fin_url_low
-            or "/giris" in fin_url_low
-            or "uye-girisi" in fin_url_low
-            or "secure.sahibinden.com" in fin_url_low
-            or "challenge" in fin_url_low
-        ):
+        if cls._is_login_wall_url(final_url) or cls._is_challenge_gate_url(final_url):
             return None
 
         req_parsed = urlparse(requested_url)
@@ -508,9 +525,9 @@ class StealthScraper:
             loop = asyncio.get_event_loop()
         start_time = loop.time()
 
-        def _is_login_wall():
-            u = page.url.lower()
-            return "/giris" in u or "uye-girisi" in u or "secure.sahibinden.com" in u
+        def _is_blocked_gate():
+            u = (page.url or "").lower()
+            return self._is_login_wall_url(u) or "/cs/hloading" in u or "hloading" in u
 
         def _is_challenge_active():
             if "checkLoading" in page.url:
@@ -529,7 +546,7 @@ class StealthScraper:
                 return False
 
         while (loop.time() - start_time) < 25:
-            if _is_login_wall():
+            if _is_blocked_gate():
                 break
             if not _is_challenge_active():
                 break
@@ -537,7 +554,7 @@ class StealthScraper:
                 break
             await asyncio.sleep(1)
 
-        if not _is_login_wall():
+        if not _is_blocked_gate():
             try:
                 await page.wait_for_selector(
                     "tr.searchResultsItem, table#searchResultsTable, div.noResult, div.searchResultsRight, p.no-result-quote, div.no-result",
@@ -587,10 +604,14 @@ class StealthScraper:
                         msg = f"Page blocked by anti-bot challenge or login wall (final URL: {page.url})"
                         if self._is_login_wall_url(page.url):
                             raise LoginWallError(msg, final_url=page.url)
+                        if self._is_challenge_gate_url(page.url):
+                            raise ChallengeGateError(msg, final_url=page.url)
                         raise RuntimeError(msg)
 
                     self.session_expired = False
                     self.session_expired_since = None
+                    self.blocked_reason = None
+                    self.blocked_since = None
                     self.last_successful_fetch_at = time.time()
                     await self._persist_refreshed_cookies_if_due(context)
                     return html
@@ -598,10 +619,21 @@ class StealthScraper:
                 except LoginWallError as login_err:
                     # Do not kill/relaunch Chromium or retry the same URL immediately on /giris;
                     # surface immediately so AlarmMonitor can apply circuit-breaker cooldown.
+                    now = time.time()
                     if not self.session_expired:
                         self.session_expired = True
-                        self.session_expired_since = time.time()
+                        self.session_expired_since = now
+                    self.blocked_reason = "login_wall"
+                    self.blocked_since = self.blocked_since or now
                     logger.warning(f"Login wall detected for {url}: {login_err}")
+                    raise
+                except ChallengeGateError as gate_err:
+                    # Do not kill/relaunch Chromium or retry the same URL immediately on /cs/hloading;
+                    # surface immediately so AlarmMonitor can trip its circuit breaker and report the block.
+                    now = time.time()
+                    self.blocked_reason = "challenge_gate"
+                    self.blocked_since = self.blocked_since or now
+                    logger.warning(f"Anti-bot verification gate detected for {url}: {gate_err}")
                     raise
                 except Exception as e:
                     logger.warning(f"Fetch attempt {attempt + 1} failed for {url}: {e}")
