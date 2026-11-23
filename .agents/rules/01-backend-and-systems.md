@@ -1,7 +1,7 @@
 ﻿---
 description: Backend API, async runtime, systems programming, observability, and concurrency rules
 trigger: glob
-globs: ["**/*.py", "**/*.go", "**/*.rs", "**/*.java", "**/*.cs", "**/*.cpp", "**/*.c", "**/server/**"]
+globs: "**/*.py, **/*.go, **/*.rs, **/*.java, **/*.cs, **/*.cpp, **/*.c, **/server/**"
 ---
 - **Concurrency & Non-Blocking Execution (V1):** Never block async event loops or main request threads with heavy synchronous CPU, disk I/O, or ML/image processing workloads. Offload compute-heavy tasks to worker threads/pools or async queues, and protect shared mutable state against race conditions and deadlocks.
 - **Resource & Memory Bounds (V2):** Enforce strict payload size limits, stream large file uploads/downloads in chunks, and deterministically close file descriptors, sockets, and hardware/GPU contexts.

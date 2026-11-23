@@ -12,7 +12,29 @@ Sahibinden.com üzerinde **tüm kategorilerde** (Vasıta/Otomobil/Motosiklet/SUV
 
 ---
 
+## ⚠️ Proje Durumu (Kasım 2026): Askıya Alındı
+
+Proje **aktif kullanımda değil**; kod ve testler (334+) referans olarak korunuyor.
+
+**Neden?** Kasım 2026 itibarıyla sahibinden.com aramaları, geçerli kullanıcı çerezleri yüklü olsa bile `https://www.sahibinden.com/cs/hloading?...` doğrulama ekranına yönlendiriyor. Çerezler giriş duvarını (`/giris`) kaldırdı; ancak bu ekran oturumdan değil, PerimeterX/Cloudflare **bot tespitinden** (tarayıcı parmak izi, TLS imzası, davranış, IP itibarı) kaynaklanıyor. Bu korumayı atlatmaya yönelik yöntemler (stealth tarayıcı yamaları, `_px3` token üretimi, challenge çözücüler, proxy rotasyonu) bilinçli olarak kapsam dışı bırakıldı: sitenin güvenlik kontrollerini aşmaya yöneliktirler, her güncellemede yeniden kırılırlar ve kullanım koşulları otomatik erişimi yasakladığı için hesabı riske atarlar.
+
+**Değerlendirilen meşru alternatifler ve sonuç:**
+
+| Kanal | Sonuç |
+|---|---|
+| Resmî API | Yalnızca tüzel kişilere açık (vergi no, KEP, EİDS); bireysel kullanım yok |
+| RSS | Sunulmuyor |
+| Favori Arama e-postası (IMAP → Discord) | Teknik olarak kurulabilir, ancak bildirimler **günde bir kez (≈10:00-11:00) toplu** gönderiliyor ve **90 günde** sona eriyor |
+| Favori Arama push'u (Android emülatörü → Discord) | Aynı günlük toplu bildirime bağlı; ek bakım yüküne değmiyor |
+
+Yeni ilanın 1-2 dakika içinde bildirilmesi hedefi meşru kanallarla karşılanamadığı için, ek altyapı (IMAP dinleyici, emülatör, watchdog) kurulmadı. Bunun yerine **sahibinden mobil uygulamasının kendi Favori Arama bildirimleri** kullanılıyor (90 günde bir yeniden etkinleştirilmeli).
+
+**Tekrar çalıştırmak isterseniz:** sahibinden'in bot koruması veya bildirim politikası değişirse aşağıdaki kurulum adımları geçerliliğini korur. Kullanılmayan dağıtımlarda konteyneri durdurun ve `/app/data/sahibinden_cookies.json` dosyasını silin; bu dosya gerçek oturum çerezlerinizi içerir.
+
+---
+
 ## 📋 İçindekiler
+- [Proje Durumu (Kasım 2026): Askıya Alındı](#️-proje-durumu-kasım-2026-askıya-alındı)
 - [Öne Çıkan Özellikler](#-öne-çıkan-özellikler)
 - [Desteklenen Kategoriler ve Birim Türleri (MB, GB, TB)](#-desteklenen-kategoriler-ve-birim-türleri-mb-gb-tb)
 - [Alarmlar Nereye Kaydediliyor? (Kalıcı Depolama & Coolify)](#-alarmlar-nereye-kaydediliyor-kalıcı-depolama--coolify)
